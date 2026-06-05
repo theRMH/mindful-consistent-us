@@ -1,0 +1,207 @@
+// schema.prisma
+// Prisma schema for the Consistent US wellness application
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// 1. Profiles
+model Profile {
+  id                 String               @id @db.Uuid
+  email              String               @unique
+  fullName           String?              @map("full_name")
+  avatarUrl          String?              @map("avatar_url")
+  phone              String?
+  fcmToken           String?              @map("fcm_token")
+  createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime             @default(now()) @map("updated_at") @db.Timestamptz
+  enrollments        Enrollment[]
+  videoProgresses    VideoProgress[]
+  dailyProgresses    DailyProgress[]
+  userStats          UserStats?
+  leaderboardEntries LeaderboardEntry[]
+  feedbacks          Feedback[]
+
+  @@map("profiles")
+}
+
+// 2. Courses
+model Course {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title              String
+  slug               String               @unique
+  description        String?
+  thumbnailUrl       String?              @map("thumbnail_url")
+  totalDays          Int                  @map("total_days")
+  priceInr           Decimal              @default(0.00) @map("price_inr") @db.Decimal(10, 2)
+  isPublished        Boolean              @default(false) @map("is_published")
+  createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz
+  courseDays         CourseDay[]
+  enrollments        Enrollment[]
+  leaderboardEntries LeaderboardEntry[]
+
+  @@map("courses")
+}
+
+// 3. Course Days
+model CourseDay {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  courseId        String          @map("course_id") @db.Uuid
+  dayNumber       Int             @map("day_number")
+  title           String?
+  description     String?
+  course          Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  videos          Video[]
+  dailyProgresses DailyProgress[]
+
+  @@unique([courseId, dayNumber])
+  @@map("course_days")
+}
+
+// 4. Videos
+model Video {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  courseDayId     String?         @map("course_day_id") @db.Uuid
+  title           String
+  description     String?
+  category        String?         // Check constraint (yoga, general_exercise) handled by Postgres
+  durationSeconds Int             @default(0) @map("duration_seconds")
+  bunnyVideoId    String          @map("bunny_video_id")
+  bunnyLibraryId  String          @map("bunny_library_id")
+  thumbnailUrl    String?         @map("thumbnail_url")
+  sortOrder       Int             @default(0) @map("sort_order")
+  isFree          Boolean         @default(false) @map("is_free")
+  isPublished     Boolean         @default(true) @map("is_published")
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  courseDay       CourseDay?      @relation(fields: [courseDayId], references: [id], onDelete: Cascade)
+  videoProgresses VideoProgress[]
+
+  @@map("videos")
+}
+
+// 5. Free Videos
+model FreeVideo {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title           String
+  description     String?
+  category        String?
+  durationSeconds Int      @default(0) @map("duration_seconds")
+  bunnyVideoId    String   @map("bunny_video_id")
+  bunnyLibraryId  String   @map("bunny_library_id")
+  thumbnailUrl    String?  @map("thumbnail_url")
+  sortOrder       Int      @default(0) @map("sort_order")
+  isPublished     Boolean  @default(true) @map("is_published")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("free_videos")
+}
+
+// 6. Enrollments
+model Enrollment {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String               @map("user_id") @db.Uuid
+  courseId           String               @map("course_id") @db.Uuid
+  purchaseDate       DateTime             @default(now()) @map("purchase_date") @db.Date
+  paymentId          String?              @map("payment_id")
+  paymentStatus      String?              @default("pending") @map("payment_status")
+  isActive           Boolean              @default(true) @map("is_active")
+  enrolledAt         DateTime             @default(now()) @map("enrolled_at") @db.Timestamptz
+  user               Profile              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course             Course               @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  videoProgresses    VideoProgress[]
+  dailyProgresses    DailyProgress[]
+  leaderboardEntries LeaderboardEntry[]
+
+  @@unique([userId, courseId])
+  @@map("enrollments")
+}
+
+// 7. Video Progress
+model VideoProgress {
+  id                    String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String      @map("user_id") @db.Uuid
+  videoId               String      @map("video_id") @db.Uuid
+  enrollmentId          String?     @map("enrollment_id") @db.Uuid
+  watchDurationSeconds  Int         @default(0) @map("watch_duration_seconds")
+  lastPositionSeconds   Int         @default(0) @map("last_position_seconds")
+  isCompleted           Boolean     @default(false) @map("is_completed")
+  watchedAt             DateTime    @default(now()) @map("watched_at") @db.Timestamptz
+  user                  Profile     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video                 Video       @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  enrollment            Enrollment? @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, videoId])
+  @@map("video_progress")
+}
+
+// 8. Daily Progress
+model DailyProgress {
+  id                 String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String     @map("user_id") @db.Uuid
+  enrollmentId       String     @map("enrollment_id") @db.Uuid
+  courseDayId        String     @map("course_day_id") @db.Uuid
+  dayDate            DateTime   @default(now()) @map("day_date") @db.Date
+  isComplete         Boolean    @default(false) @map("is_complete")
+  videosWatched      Int        @default(0) @map("videos_watched")
+  totalWatchSeconds  Int        @default(0) @map("total_watch_seconds")
+  caloriesBurnt      Decimal    @default(0.00) @map("calories_burnt") @db.Decimal(6, 2)
+  stepsCount         Int        @default(0) @map("steps_count")
+  completedAt        DateTime?  @map("completed_at") @db.Timestamptz
+  user               Profile    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enrollment         Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  courseDay          CourseDay  @relation(fields: [courseDayId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, enrollmentId, courseDayId])
+  @@map("daily_progress")
+}
+
+// 9. User Stats
+model UserStats {
+  userId            String   @id @map("user_id") @db.Uuid
+  totalWatchSeconds Int      @default(0) @map("total_watch_seconds")
+  totalSessions     Int      @default(0) @map("total_sessions")
+  totalCalories     Decimal  @default(0.00) @map("total_calories") @db.Decimal(8, 2)
+  totalSteps        Int      @default(0) @map("total_steps")
+  currentStreak     Int      @default(0) @map("current_streak")
+  longestStreak     Int      @default(0) @map("longest_streak")
+  updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamptz
+  user              Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_stats")
+}
+
+// 10. Leaderboard Entries
+model LeaderboardEntry {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String     @map("user_id") @db.Uuid
+  courseId      String     @map("course_id") @db.Uuid
+  enrollmentId  String     @map("enrollment_id") @db.Uuid
+  daysCompleted Int        @default(0) @map("days_completed")
+  score         Decimal    @default(0.00) @map("score") @db.Decimal(10, 2)
+  rank          Int?
+  snapshotDate  DateTime   @default(now()) @map("snapshot_date") @db.Date
+  user          Profile    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course        Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  enrollment    Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, enrollmentId, snapshotDate])
+  @@map("leaderboard_entries")
+}
+
+// 11. Feedback
+model Feedback {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  targetType String   @map("target_type") // Check constraint (course, video, app) handled by Postgres
+  targetId   String?  @map("target_id") @db.Uuid
+  rating     Int      // Check constraint (1-5) handled by Postgres
+  comment    String?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  user       Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("feedback")
+}
