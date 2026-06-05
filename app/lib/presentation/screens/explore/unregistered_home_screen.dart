@@ -143,7 +143,7 @@ class UnregisteredHomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      overflow: BoxOverflow.hidden,
+      clipBehavior: Clip.hardEdge,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

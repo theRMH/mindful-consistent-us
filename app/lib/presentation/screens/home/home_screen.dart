@@ -180,11 +180,11 @@ class HomeScreen extends ConsumerWidget {
                           child: isCompleted
                               ? const Icon(Icons.check, size: 14, color: Colors.white)
                               : (isCurrentDay 
-                                  ? const Center(
+                                  ? Center(
                                       child: Container(
                                         width: 8,
                                         height: 8,
-                                        decoration: BoxDecoration(
+                                        decoration: const BoxDecoration(
                                           color: AppTheme.primaryGreen,
                                           shape: BoxShape.circle,
                                         ),

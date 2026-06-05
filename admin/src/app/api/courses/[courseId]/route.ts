@@ -87,3 +87,52 @@ export async function POST(
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+
+// PATCH endpoint to update course metadata
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ courseId: string }> }
+) {
+  try {
+    const { courseId } = await params;
+    const body = await req.json();
+    const { title, slug, description, priceInr, totalDays, isPublished, thumbnailUrl } = body;
+
+    const updated = await prisma.course.update({
+      where: { id: courseId },
+      data: {
+        title,
+        slug,
+        description,
+        priceInr: priceInr !== undefined ? parseFloat(priceInr) : undefined,
+        totalDays: totalDays !== undefined ? parseInt(totalDays, 10) : undefined,
+        isPublished: isPublished !== undefined ? isPublished : undefined,
+        thumbnailUrl,
+      },
+    });
+
+    return NextResponse.json(updated, { status: 200 });
+  } catch (error: any) {
+    console.error('Error updating course details:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+// DELETE endpoint to remove a course
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ courseId: string }> }
+) {
+  try {
+    const { courseId } = await params;
+
+    await prisma.course.delete({
+      where: { id: courseId },
+    });
+
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (error: any) {
+    console.error('Error deleting course:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
