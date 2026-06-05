@@ -42,5 +42,12 @@ This file keeps track of all codebase changes, files created, and system modific
   * Created root-level [`.gitignore`](file:///c:/Users/Arsath%20Haneef/Downloads/H/RMH/Mindful/.gitignore) to exclude local configs and platform-specific assets.
   * Initialized Git, added origin `https://github.com/theRMH/mindful-consistent-us`, and pushed initial commits to the `main` branch.
 
+- **Admin Dashboard Completion:**
+  * Updated [`page.tsx`](file:///c:/Users/Arsath%20Haneef/Downloads/H/RMH/Mindful/admin/src/app/page.tsx) to automatically redirect standard homepage requests to the admin `/dashboard`.
+  * Updated GET endpoint in [`route.ts`](file:///c:/Users/Arsath%20Haneef/Downloads/H/RMH/Mindful/admin/src/app/api/videos/free/route.ts) to support query parameter `all=true` for fetching drafts and published free videos.
+  * Created new REST control endpoint [`route.ts`](file:///c:/Users/Arsath%20Haneef/Downloads/H/RMH/Mindful/admin/src/app/api/videos/free/[id]/route.ts) supporting `PATCH` / `PUT` updates and `DELETE` requests for free videos.
+  * Designed and built `/dashboard/free-videos` CRUD page [`page.tsx`](file:///c:/Users/Arsath%20Haneef/Downloads/H/RMH/Mindful/admin/src/app/dashboard/free-videos/page.tsx) to list, add, edit, and delete free preview videos.
+  * Built searchable user profiles and progress logs directory page [`page.tsx`](file:///c:/Users/Arsath%20Haneef/Downloads/H/RMH/Mindful/admin/src/app/dashboard/users/page.tsx).
+
 ---
-*Next steps: Set up Supabase environment keys, execute SQL migrations on the live database console, and run developer setups locally.*
+*Next steps: Commit and push updates to Git, and verify client connection on mobile emulators.*

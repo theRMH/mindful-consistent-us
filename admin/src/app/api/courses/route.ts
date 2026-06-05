@@ -18,3 +18,31 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { title, slug, description, thumbnailUrl, totalDays, priceInr, isPublished } = body;
+
+    if (!title || !slug || !totalDays) {
+      return NextResponse.json({ error: 'Missing required fields (title, slug, totalDays)' }, { status: 400 });
+    }
+
+    const course = await prisma.course.create({
+      data: {
+        title,
+        slug,
+        description,
+        thumbnailUrl,
+        totalDays: parseInt(totalDays, 10),
+        priceInr: parseFloat(priceInr || 0),
+        isPublished: isPublished ?? false,
+      },
+    });
+
+    return NextResponse.json(course, { status: 201 });
+  } catch (error: any) {
+    console.error('Error creating course:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}

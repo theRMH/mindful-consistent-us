@@ -5,7 +5,7 @@ import { isDayUnlocked } from '@/lib/day-lock';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { courseId: string; dayNumber: string } }
+  { params }: { params: Promise<{ courseId: string; dayNumber: string }> }
 ) {
   try {
     const user = await verifyAuth(req);
@@ -13,7 +13,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { courseId, dayNumber } = params;
+    const { courseId, dayNumber } = await params;
     const parsedDayNumber = parseInt(dayNumber, 10);
 
     if (isNaN(parsedDayNumber)) {

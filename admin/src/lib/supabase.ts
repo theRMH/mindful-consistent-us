@@ -8,13 +8,17 @@ if (!supabaseUrl) {
 }
 
 if (!supabaseServiceKey) {
-  throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY env variable');
+  console.warn('Warning: SUPABASE_SERVICE_ROLE_KEY env variable is not set.');
 }
 
 // Admin client to bypass RLS policies in Next.js APIs (securely run on server side)
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
+export const supabaseAdmin = createClient(
+  supabaseUrl,
+  supabaseServiceKey || 'dummy_service_role_key_for_build',
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
   }
-});
+);

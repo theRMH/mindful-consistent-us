@@ -6,7 +6,7 @@ import { generateBunnyToken } from '@/lib/bunny';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { videoId: string } }
+  { params }: { params: Promise<{ videoId: string }> }
 ) {
   try {
     const user = await verifyAuth(req);
@@ -14,7 +14,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { videoId } = params;
+    const { videoId } = await params;
 
     // Fetch video details
     const video = await prisma.video.findUnique({
