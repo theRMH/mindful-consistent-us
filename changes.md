@@ -38,6 +38,9 @@ This file keeps track of all codebase changes, files created, and system modific
   * Integrated day session locks, unlocks, and progress updates: [`day_list_screen.dart`](file:///c:/Users/Arsath%20Haneef/Downloads/H/RMH/Mindful/app/lib/presentation/screens/my_courses/day_list_screen.dart).
   * Added course completion success views: [`programs_completed_screen.dart`](file:///c:/Users/Arsath%20Haneef/Downloads/H/RMH/Mindful/app/lib/presentation/screens/my_courses/programs_completed_screen.dart).
   * Updated main app bootstrap script: [`main.dart`](file:///c:/Users/Arsath%20Haneef/Downloads/H/RMH/Mindful/app/lib/main.dart).
+- **Git & GitHub Integration:**
+  * Created root-level [`.gitignore`](file:///c:/Users/Arsath%20Haneef/Downloads/H/RMH/Mindful/.gitignore) to exclude local configs and platform-specific assets.
+  * Initialized Git, added origin `https://github.com/theRMH/mindful-consistent-us`, and pushed initial commits to the `main` branch.
 
 ---
-*Next steps: Perform manual verification and write automated mock test scenarios.*
+*Next steps: Set up Supabase environment keys, execute SQL migrations on the live database console, and run developer setups locally.*
