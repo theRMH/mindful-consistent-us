@@ -42,6 +42,7 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
   const [dayNumber, setDayNumber] = useState('');
   const [dayTitle, setDayTitle] = useState('');
   const [dayDesc, setDayDesc] = useState('');
+  const [daySubmitting, setDaySubmitting] = useState(false);
 
   // Video Form States
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
@@ -51,6 +52,7 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
   const [bunnyVideoId, setBunnyVideoId] = useState('');
   const [bunnyLibraryId, setBunnyLibraryId] = useState('mock_lib_123');
   const [isFree, setIsFree] = useState(false);
+  const [videoSubmitting, setVideoSubmitting] = useState(false);
 
   const fetchCourseData = async () => {
     try {
@@ -71,8 +73,10 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
 
   const handleAddDay = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (daySubmitting) return;
     setError('');
-
+    setDaySubmitting(true);
+ 
     try {
       const res = await fetch(`/api/courses/${courseId}`, {
         method: 'POST',
@@ -84,9 +88,9 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
           description: dayDesc,
         }),
       });
-
+ 
       if (!res.ok) throw new Error('Failed to add course day');
-      
+       
       // Reset & Reload
       setShowDayForm(false);
       setDayNumber('');
@@ -95,13 +99,17 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
       fetchCourseData();
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setDaySubmitting(false);
     }
   };
-
+ 
   const handleAddVideo = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (videoSubmitting) return;
     setError('');
-
+    setVideoSubmitting(true);
+ 
     try {
       const res = await fetch(`/api/courses/${courseId}`, {
         method: 'POST',
@@ -117,9 +125,9 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
           isFree,
         }),
       });
-
+ 
       if (!res.ok) throw new Error('Failed to link video');
-
+ 
       // Reset & Reload
       setActiveDayId(null);
       setVideoTitle('');
@@ -127,6 +135,8 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
       fetchCourseData();
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setVideoSubmitting(false);
     }
   };
 
@@ -239,7 +249,7 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                     required
                     value={dayNumber}
                     onChange={(e) => setDayNumber(e.target.value)}
-                    className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                    className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
                     placeholder="e.g. 5"
                   />
                 </div>
@@ -250,7 +260,7 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                     required
                     value={dayTitle}
                     onChange={(e) => setDayTitle(e.target.value)}
-                    className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                    className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
                     placeholder="e.g. Spine Extension pose"
                   />
                 </div>
@@ -259,7 +269,7 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                   <textarea
                     value={dayDesc}
                     onChange={(e) => setDayDesc(e.target.value)}
-                    className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                    className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
                     rows={3}
                   />
                 </div>
@@ -273,9 +283,10 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                   </button>
                   <button
                     type="submit"
-                    className="px-3 py-1.5 text-xs font-bold rounded-lg text-white bg-emerald-600"
+                    disabled={daySubmitting}
+                    className="px-3 py-1.5 text-xs font-bold rounded-lg text-white bg-emerald-600 disabled:opacity-50"
                   >
-                    Save Day
+                    {daySubmitting ? 'Saving...' : 'Save Day'}
                   </button>
                 </div>
               </form>
@@ -294,7 +305,7 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                     required
                     value={videoTitle}
                     onChange={(e) => setVideoTitle(e.target.value)}
-                    className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                    className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
                     placeholder="e.g. Breath Flow alignment"
                   />
                 </div>
@@ -304,7 +315,7 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                     <select
                       value={videoCategory}
                       onChange={(e) => setVideoCategory(e.target.value)}
-                      className="mt-1 block w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
+                      className="mt-1 block w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
                     >
                       <option value="yoga">Yoga</option>
                       <option value="general_exercise">Workout</option>
@@ -317,7 +328,7 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                       required
                       value={videoDuration}
                       onChange={(e) => setVideoDuration(e.target.value)}
-                      className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                      className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
                     />
                   </div>
                 </div>
@@ -328,7 +339,7 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                     required
                     value={bunnyVideoId}
                     onChange={(e) => setBunnyVideoId(e.target.value)}
-                    className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                    className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
                   />
                 </div>
                 <div>
@@ -338,7 +349,7 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                     required
                     value={bunnyLibraryId}
                     onChange={(e) => setBunnyLibraryId(e.target.value)}
-                    className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                    className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
                   />
                 </div>
                 <div className="flex items-center">
@@ -363,9 +374,10 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                   </button>
                   <button
                     type="submit"
-                    className="px-3 py-1.5 text-xs font-bold rounded-lg text-white bg-emerald-600"
+                    disabled={videoSubmitting}
+                    className="px-3 py-1.5 text-xs font-bold rounded-lg text-white bg-emerald-600 disabled:opacity-50"
                   >
-                    Save Video
+                    {videoSubmitting ? 'Saving...' : 'Save Video'}
                   </button>
                 </div>
               </form>
