@@ -64,5 +64,8 @@ This file keeps track of all codebase changes, files created, and system modific
   * Created reusable brand widgets: [`brand_logo.dart`](file:///c:/Users/Arsath%20Haneef/Downloads/H/RMH/Mindful/app/lib/presentation/widgets/brand_logo.dart) and [`background_leaves.dart`](file:///c:/Users/Arsath%20Haneef/Downloads/H/RMH/Mindful/app/lib/presentation/widgets/background_leaves.dart).
   * Completely redesigned the authentication page [`login_screen.dart`](file:///c:/Users/Arsath%20Haneef/Downloads/H/RMH/Mindful/app/lib/presentation/screens/auth/login_screen.dart) to align pixel-perfectly with [Log in.png](file:///C:/Users/Arsath%20Haneef/Downloads/H/RMH/Mindful/reference%20image/Log%20in.png), including the rounded central form container, unified country code picker input field, pill buttons, and security notice details.
 
+- **Register Screen Redesign:**
+  * Completely redesigned the registration page [`signup_screen.dart`](file:///c:/Users/Arsath%20Haneef/Downloads/H/RMH/Mindful/app/lib/presentation/screens/auth/signup_screen.dart) to match [Register.png](file:///C:/Users/Arsath%20Haneef/Downloads/H/RMH/Mindful/reference%20image/Register.png) exactly, sharing the curved white header card, brand logo, background leaves, rounded central form card, unified country code selector, and "Already have an Account ? Log in" redirect footer.
+
 ---
 *Next steps: Align register/signup page and explore pages with their Figma references.*
