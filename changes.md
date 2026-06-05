@@ -67,5 +67,9 @@ This file keeps track of all codebase changes, files created, and system modific
 - **Register Screen Redesign:**
   * Completely redesigned the registration page [`signup_screen.dart`](file:///c:/Users/Arsath%20Haneef/Downloads/H/RMH/Mindful/app/lib/presentation/screens/auth/signup_screen.dart) to match [Register.png](file:///C:/Users/Arsath%20Haneef/Downloads/H/RMH/Mindful/reference%20image/Register.png) exactly, sharing the curved white header card, brand logo, background leaves, rounded central form card, unified country code selector, and "Already have an Account ? Log in" redirect footer.
 
+- **Unregistered User Home Screen Redesign:**
+  * Copied and registered figma image assets (`unreg_header_bg.png`, `course_30_days.png`, `course_48_days.png`, `video_morning_flow.png`, `video_sleep_prep.png`, `community_priya.png`, `avatar_priya.png`, `community_rohit.png`, `avatar_rohit.png`) inside the `app/assets/` directory.
+  * Completely redesigned the guest home dashboard [`unregistered_home_screen.dart`](file:///c:/Users/Arsath%20Haneef/Downloads/H/RMH/Mindful/app/lib/presentation/screens/explore/unregistered_home_screen.dart) to align pixel-perfectly with [Unregistered user.png](file:///C:/Users/Arsath%20Haneef/Downloads/H/RMH/Mindful/reference%20image/Unregistered%20user.png), including the customized header banner, price-badge course cards, horizontal free videos row, community quote cards, and 5-tab bottom guest navigation bar with login prompts.
+
 ---
 *Next steps: Align register/signup page and explore pages with their Figma references.*
