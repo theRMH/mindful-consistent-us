@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../services/api_service.dart';
+import '../../core/services/api_service.dart';
 import '../../core/config/app_config.dart';
 
 class LeaderboardUser {
