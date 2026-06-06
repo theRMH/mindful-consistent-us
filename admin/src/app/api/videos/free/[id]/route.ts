@@ -8,10 +8,19 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await req.json();
-    const { title, description, category, durationSeconds, bunnyVideoId, bunnyLibraryId, sortOrder, isPublished } = body;
+    const { title, description, category, durationSeconds, bunnyVideoId, bunnyLibraryId, youtubeVideoId, videoSource, sortOrder, isPublished } = body;
+    const source = videoSource || 'bunny';
 
-    if (!title || !bunnyVideoId || !bunnyLibraryId) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!title) {
+      return NextResponse.json({ error: 'Missing required field: title' }, { status: 400 });
+    }
+
+    if (source === 'bunny' && (!bunnyVideoId || !bunnyLibraryId)) {
+      return NextResponse.json({ error: 'Bunny Video ID and Library ID are required for Bunny source' }, { status: 400 });
+    }
+
+    if (source === 'youtube' && !youtubeVideoId) {
+      return NextResponse.json({ error: 'YouTube Video ID is required for YouTube source' }, { status: 400 });
     }
 
     const updated = await prisma.freeVideo.update({
@@ -21,8 +30,10 @@ export async function PATCH(
         description,
         category: category ?? 'general',
         durationSeconds: parseInt(durationSeconds || 0, 10),
-        bunnyVideoId,
-        bunnyLibraryId,
+        videoSource: source,
+        bunnyVideoId: source === 'bunny' ? bunnyVideoId : null,
+        bunnyLibraryId: source === 'bunny' ? bunnyLibraryId : null,
+        youtubeVideoId: source === 'youtube' ? youtubeVideoId : null,
         sortOrder: parseInt(sortOrder || 0, 10),
         isPublished: isPublished ?? true,
       },

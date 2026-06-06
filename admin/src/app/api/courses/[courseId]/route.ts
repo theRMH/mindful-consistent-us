@@ -61,10 +61,19 @@ export async function POST(
     }
 
     if (action === 'add_video') {
-      const { courseDayId, title, category, durationSeconds, bunnyVideoId, bunnyLibraryId, isFree } = body;
+      const { courseDayId, title, category, durationSeconds, bunnyVideoId, bunnyLibraryId, youtubeVideoId, videoSource, isFree } = body;
+      const source = videoSource || 'bunny';
 
-      if (!courseDayId || !title || !bunnyVideoId || !bunnyLibraryId) {
-        return NextResponse.json({ error: 'Missing required video fields' }, { status: 400 });
+      if (!courseDayId || !title) {
+        return NextResponse.json({ error: 'Missing required video fields (courseDayId, title)' }, { status: 400 });
+      }
+
+      if (source === 'bunny' && (!bunnyVideoId || !bunnyLibraryId)) {
+        return NextResponse.json({ error: 'Bunny Video ID and Library ID are required for Bunny source' }, { status: 400 });
+      }
+
+      if (source === 'youtube' && !youtubeVideoId) {
+        return NextResponse.json({ error: 'YouTube Video ID is required for YouTube source' }, { status: 400 });
       }
 
       const video = await prisma.video.create({
@@ -73,8 +82,10 @@ export async function POST(
           title,
           category: category ?? 'yoga',
           durationSeconds: parseInt(durationSeconds || 0, 10),
-          bunnyVideoId,
-          bunnyLibraryId,
+          videoSource: source,
+          bunnyVideoId: source === 'bunny' ? bunnyVideoId : null,
+          bunnyLibraryId: source === 'bunny' ? bunnyLibraryId : null,
+          youtubeVideoId: source === 'youtube' ? youtubeVideoId : null,
           isFree: isFree ?? false,
         }
       });

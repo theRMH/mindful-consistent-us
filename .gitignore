@@ -39,3 +39,7 @@ yarn-error.log*
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# Custom Ignore Rules
+app/android/build/
+reference image/

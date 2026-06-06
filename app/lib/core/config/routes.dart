@@ -5,8 +5,12 @@ import '../../presentation/screens/auth/signup_screen.dart';
 import '../../presentation/screens/home/home_screen.dart';
 import '../../presentation/screens/explore/unregistered_home_screen.dart';
 import '../../presentation/screens/explore/explore_screen.dart';
+import '../../presentation/screens/explore/program_details_screen.dart';
+import '../../presentation/screens/explore/video_player_screen.dart';
 import '../../presentation/screens/my_courses/day_list_screen.dart';
 import '../../presentation/screens/my_courses/programs_completed_screen.dart';
+import '../../presentation/screens/my_courses/active_programs_screen.dart';
+import '../../presentation/screens/my_courses/completed_programs_screen.dart';
 
 // Root navigation key
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -59,7 +63,6 @@ class AppRouter {
             ),
           ],
         ),
-
         // 4. Course Detail and Day List Screen
         GoRoute(
           path: '/course/:courseId',
@@ -73,6 +76,39 @@ class AppRouter {
         GoRoute(
           path: '/course_completed',
           builder: (context, state) => const ProgramsCompletedScreen(),
+        ),
+
+        // 6. Program Details Screen
+        GoRoute(
+          path: '/program_details',
+          builder: (context, state) {
+            final extra = state.extra as Map<String, dynamic>?;
+            final title = extra?['title'] as String?;
+            final imagePath = extra?['imagePath'] as String?;
+            return ProgramDetailsScreen(
+              courseTitle: title,
+              courseImagePath: imagePath,
+              showBackButton: true,
+            );
+          },
+        ),
+
+        // 7. Video Player Screen
+        GoRoute(
+          path: '/play',
+          builder: (context, state) {
+            final extra = state.extra as Map<String, dynamic>?;
+            final courseId = extra?['courseId'] as String? ?? '30-days-yoga';
+            final dayNumber = extra?['dayNumber'] as int? ?? 1;
+            final youtubeVideoId = extra?['youtubeVideoId'] as String? ?? 'dQw4w9WgXcQ';
+            final videoTitle = extra?['videoTitle'] as String? ?? 'Yoga Session';
+            return VideoPlayerScreen(
+              courseId: courseId,
+              dayNumber: dayNumber,
+              youtubeVideoId: youtubeVideoId,
+              videoTitle: videoTitle,
+            );
+          },
         ),
       ],
     );
@@ -148,25 +184,4 @@ class AppNavigationShell extends StatelessWidget {
   }
 }
 
-// Quick Placeholder Screens to allow compilation
-class ActiveProgramsScreen extends StatelessWidget {
-  const ActiveProgramsScreen({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: Text("Active Programs Screen")),
-    );
-  }
-}
-
-class CompletedProgramsScreen extends StatelessWidget {
-  const CompletedProgramsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: Text("Completed Programs Screen")),
-    );
-  }
-}

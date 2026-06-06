@@ -201,25 +201,14 @@ class DayListScreen extends ConsumerWidget {
             if (isUnlocked)
               TextButton(
                 onPressed: () {
-                  if (isCompleted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Day already completed!')),
-                    );
-                    return;
-                  }
-                  
-                  // Trigger simulation
-                  ref.read(progressProvider.notifier).markDayComplete(dayNum);
-                  
-                  // If completed final day, trigger completion screen
-                  if (dayNum == totalDays) {
-                    context.go('/course_completed');
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Completed Day $dayNum!')),
-                    );
-                  }
+                  context.push('/play', extra: {
+                    'courseId': courseId,
+                    'dayNumber': dayNum,
+                    'youtubeVideoId': 's7WpC1sL0h8',
+                    'videoTitle': 'Day $dayNum Practice Session',
+                  });
                 },
+
                 style: TextButton.styleFrom(
                   backgroundColor: AppTheme.primaryGreen.withOpacity(0.1),
                   foregroundColor: AppTheme.primaryGreen,

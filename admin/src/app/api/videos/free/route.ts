@@ -25,10 +25,19 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { title, description, category, durationSeconds, bunnyVideoId, bunnyLibraryId } = body;
+    const { title, description, category, durationSeconds, bunnyVideoId, bunnyLibraryId, youtubeVideoId, videoSource, sortOrder, isPublished } = body;
+    const source = videoSource || 'bunny';
 
-    if (!title || !bunnyVideoId || !bunnyLibraryId) {
-      return NextResponse.json({ error: 'Missing required fields (title, bunnyVideoId, bunnyLibraryId)' }, { status: 400 });
+    if (!title) {
+      return NextResponse.json({ error: 'Missing required field: title' }, { status: 400 });
+    }
+
+    if (source === 'bunny' && (!bunnyVideoId || !bunnyLibraryId)) {
+      return NextResponse.json({ error: 'Bunny Video ID and Library ID are required for Bunny source' }, { status: 400 });
+    }
+
+    if (source === 'youtube' && !youtubeVideoId) {
+      return NextResponse.json({ error: 'YouTube Video ID is required for YouTube source' }, { status: 400 });
     }
 
     const freeVideo = await prisma.freeVideo.create({
@@ -37,8 +46,12 @@ export async function POST(req: NextRequest) {
         description,
         category: category ?? 'general',
         durationSeconds: parseInt(durationSeconds || 0, 10),
-        bunnyVideoId,
-        bunnyLibraryId,
+        videoSource: source,
+        bunnyVideoId: source === 'bunny' ? bunnyVideoId : null,
+        bunnyLibraryId: source === 'bunny' ? bunnyLibraryId : null,
+        youtubeVideoId: source === 'youtube' ? youtubeVideoId : null,
+        sortOrder: parseInt(sortOrder || 0, 10),
+        isPublished: isPublished ?? true,
       },
     });
 
