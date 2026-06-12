@@ -1,4 +1,5 @@
 import { CopyButton } from './CopyButton';
+import { SeedButton } from './SeedButton';
 
 const TEST_PHONES = [
   { phone: '+91 9999999999', otp: '123456', note: 'Primary dev number' },
@@ -177,6 +178,16 @@ export default function SettingsPage() {
         <p className="text-xs text-gray-400">
           These numbers only work in development — no real SMS is sent.
         </p>
+      </section>
+
+      {/* ── Demo Data ───────────────────────────────────────────────── */}
+      <section className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-3">
+        <h3 className="text-lg font-bold text-gray-900">Demo Data</h3>
+        <p className="text-sm text-gray-500">
+          Pre-fill the database with two yoga courses (30 days + 48 days), all days and 5 topics per day.
+          Safe to run — skips if courses already exist.
+        </p>
+        <SeedButton />
       </section>
 
       {/* ── Mobile API Reference ─────────────────────────────────────── */}

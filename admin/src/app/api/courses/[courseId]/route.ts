@@ -61,7 +61,7 @@ export async function POST(
     }
 
     if (action === 'add_video') {
-      const { courseDayId, title, category, durationSeconds, bunnyVideoId, bunnyLibraryId, youtubeVideoId, videoSource, isFree } = body;
+      const { courseDayId, title, category, durationSeconds, bunnyVideoId, bunnyLibraryId, youtubeVideoId, videoSource, isFree, thumbnailUrl } = body;
       const source = videoSource || 'bunny';
 
       if (!courseDayId || !title) {
@@ -86,6 +86,7 @@ export async function POST(
           bunnyVideoId: source === 'bunny' ? bunnyVideoId : null,
           bunnyLibraryId: source === 'bunny' ? bunnyLibraryId : null,
           youtubeVideoId: source === 'youtube' ? youtubeVideoId : null,
+          thumbnailUrl: thumbnailUrl ?? null,
           isFree: isFree ?? false,
         }
       });

@@ -73,6 +73,7 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
   const [bunnyLibraryId, setBunnyLibraryId] = useState('mock_lib_123');
   const [youtubeVideoId, setYoutubeVideoId] = useState('');
   const [isFree, setIsFree] = useState(false);
+  const [videoThumbnail, setVideoThumbnail] = useState('');
   const [videoSubmitting, setVideoSubmitting] = useState(false);
 
   // Edit Video Form States
@@ -167,17 +168,19 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
           bunnyLibraryId: videoSource === 'bunny' ? bunnyLibraryId : undefined,
           youtubeVideoId: videoSource === 'youtube' ? youtubeVideoId : undefined,
           isFree,
+          thumbnailUrl: videoThumbnail || undefined,
         }),
       });
- 
+
       if (!res.ok) throw new Error('Failed to link video');
- 
+
       // Reset & Reload
       setActiveDayId(null);
       setVideoTitle('');
       setVideoSource('bunny');
       setBunnyVideoId('');
       setYoutubeVideoId('');
+      setVideoThumbnail('');
       fetchCourseData();
     } catch (err: any) {
       setError(err.message);
@@ -550,6 +553,16 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                     />
                   </div>
                 )}
+                <div>
+                  <label className="block text-xs font-bold text-gray-500">Icon / Thumbnail URL <span className="font-normal text-gray-400">(optional)</span></label>
+                  <input
+                    type="text"
+                    value={videoThumbnail}
+                    onChange={(e) => setVideoThumbnail(e.target.value)}
+                    className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+                    placeholder="https://… or assets/icon_asana.png"
+                  />
+                </div>
                 <div className="flex items-center">
                   <input
                     id="isFreeVideo"
