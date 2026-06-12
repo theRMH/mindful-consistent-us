@@ -8,8 +8,10 @@ interface FreeVideo {
   description: string | null;
   category: string | null;
   durationSeconds: number;
-  bunnyVideoId: string;
-  bunnyLibraryId: string;
+  videoSource: string;
+  bunnyVideoId: string | null;
+  bunnyLibraryId: string | null;
+  youtubeVideoId: string | null;
   sortOrder: number;
   isPublished: boolean;
   createdAt: string;
@@ -27,10 +29,12 @@ export default function FreeVideosPage() {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('general');
+  const [category, setCategory] = useState('yoga');
   const [durationSeconds, setDurationSeconds] = useState('120');
+  const [videoSource, setVideoSource] = useState<'bunny' | 'youtube'>('bunny');
   const [bunnyVideoId, setBunnyVideoId] = useState('');
   const [bunnyLibraryId, setBunnyLibraryId] = useState('mock_lib_123');
+  const [youtubeVideoId, setYoutubeVideoId] = useState('');
   const [sortOrder, setSortOrder] = useState('0');
   const [isPublished, setIsPublished] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -60,10 +64,12 @@ export default function FreeVideosPage() {
     setSelectedVideo(null);
     setTitle('');
     setDescription('');
-    setCategory('general');
+    setCategory('yoga');
     setDurationSeconds('120');
+    setVideoSource('bunny');
     setBunnyVideoId('');
     setBunnyLibraryId('mock_lib_123');
+    setYoutubeVideoId('');
     setSortOrder('0');
     setIsPublished(true);
     setError('');
@@ -75,10 +81,12 @@ export default function FreeVideosPage() {
     setSelectedVideo(video);
     setTitle(video.title);
     setDescription(video.description || '');
-    setCategory(video.category || 'general');
+    setCategory(video.category || 'yoga');
     setDurationSeconds(video.durationSeconds.toString());
-    setBunnyVideoId(video.bunnyVideoId);
-    setBunnyLibraryId(video.bunnyLibraryId);
+    setVideoSource((video.videoSource as 'bunny' | 'youtube') || 'bunny');
+    setBunnyVideoId(video.bunnyVideoId || '');
+    setBunnyLibraryId(video.bunnyLibraryId || 'mock_lib_123');
+    setYoutubeVideoId(video.youtubeVideoId || '');
     setSortOrder(video.sortOrder.toString());
     setIsPublished(video.isPublished);
     setError('');
@@ -95,8 +103,10 @@ export default function FreeVideosPage() {
       description,
       category,
       durationSeconds,
-      bunnyVideoId,
-      bunnyLibraryId,
+      videoSource,
+      bunnyVideoId: videoSource === 'bunny' ? bunnyVideoId : undefined,
+      bunnyLibraryId: videoSource === 'bunny' ? bunnyLibraryId : undefined,
+      youtubeVideoId: videoSource === 'youtube' ? youtubeVideoId : undefined,
       sortOrder,
       isPublished,
     };
@@ -192,7 +202,7 @@ export default function FreeVideosPage() {
                   <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Title</th>
                   <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Category</th>
                   <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Duration</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Bunny Video ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Video Source</th>
                   <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -208,18 +218,26 @@ export default function FreeVideosPage() {
                       <div className="text-xs text-gray-400 max-w-xs truncate">{vid.description || 'No description'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 capitalize">
-                      {vid.category}
+                      {vid.category === 'general_exercise' ? 'General Workout' : vid.category === 'yoga' ? 'Yoga' : vid.category}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">
                       {Math.floor(vid.durationSeconds / 60)}m {vid.durationSeconds % 60}s
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-500 font-mono">
-                      {vid.bunnyVideoId}
+                    <td className="px-6 py-4 whitespace-nowrap text-xs font-mono text-slate-500">
+                      {vid.videoSource === 'youtube' ? (
+                        <span className="inline-flex items-center gap-1">
+                          <span className="text-red-500 font-bold">YT</span> {vid.youtubeVideoId}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1">
+                          <span className="text-emerald-600 font-bold">Bunny</span> {vid.bunnyVideoId}
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-bold rounded-full ${
-                        vid.isPublished 
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
+                        vid.isPublished
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
                           : 'bg-amber-50 text-amber-700 border border-amber-100'
                       }`}>
                         {vid.isPublished ? 'Published' : 'Draft'}
@@ -287,13 +305,14 @@ export default function FreeVideosPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Category</label>
-                  <input
-                    type="text"
+                  <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
-                    placeholder="e.g. general, yoga"
-                  />
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
+                  >
+                    <option value="yoga">Yoga</option>
+                    <option value="general_exercise">General Workout</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Duration (Seconds)</label>
@@ -308,29 +327,64 @@ export default function FreeVideosPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Bunny Video ID</label>
-                  <input
-                    type="text"
-                    required
-                    value={bunnyVideoId}
-                    onChange={(e) => setBunnyVideoId(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
-                    placeholder="e.g. a1b2c3d4-e5f6..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Bunny Library ID</label>
-                  <input
-                    type="text"
-                    required
-                    value={bunnyLibraryId}
-                    onChange={(e) => setBunnyLibraryId(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
-                  />
+              {/* Video Source Toggle */}
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Video Source</label>
+                <div className="flex rounded-md border border-gray-300 overflow-hidden text-xs font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setVideoSource('bunny')}
+                    className={`flex-1 py-2 transition-colors ${videoSource === 'bunny' ? 'bg-emerald-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                  >
+                    BunnyNet
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVideoSource('youtube')}
+                    className={`flex-1 py-2 transition-colors ${videoSource === 'youtube' ? 'bg-red-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                  >
+                    YouTube
+                  </button>
                 </div>
               </div>
+
+              {videoSource === 'bunny' ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Bunny Video ID</label>
+                    <input
+                      type="text"
+                      required
+                      value={bunnyVideoId}
+                      onChange={(e) => setBunnyVideoId(e.target.value)}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+                      placeholder="e.g. a1b2c3d4-e5f6..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Bunny Library ID</label>
+                    <input
+                      type="text"
+                      required
+                      value={bunnyLibraryId}
+                      onChange={(e) => setBunnyLibraryId(e.target.value)}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">YouTube Video ID</label>
+                  <input
+                    type="text"
+                    required
+                    value={youtubeVideoId}
+                    onChange={(e) => setYoutubeVideoId(e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+                    placeholder="e.g. dQw4w9WgXcQ"
+                  />
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>

@@ -9,8 +9,10 @@ interface Video {
   title: string;
   category: string;
   durationSeconds: number;
-  bunnyVideoId: string;
-  bunnyLibraryId: string;
+  videoSource: string;
+  bunnyVideoId: string | null;
+  bunnyLibraryId: string | null;
+  youtubeVideoId: string | null;
   isFree: boolean;
 }
 
@@ -27,6 +29,7 @@ interface Course {
   title: string;
   slug: string;
   description: string | null;
+  category: string | null;
   totalDays: number;
   priceInr: number;
   thumbnailUrl: string | null;
@@ -48,6 +51,7 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
   const [editPrice, setEditPrice] = useState('');
   const [editTotalDays, setEditTotalDays] = useState('');
   const [editThumbnail, setEditThumbnail] = useState('');
+  const [editCategory, setEditCategory] = useState('yoga');
   const [editPublished, setEditPublished] = useState(false);
   const [courseSubmitting, setCourseSubmitting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -59,15 +63,29 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
   const [dayDesc, setDayDesc] = useState('');
   const [daySubmitting, setDaySubmitting] = useState(false);
 
-  // Video Form States
+  // Add Video Form States
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
   const [videoTitle, setVideoTitle] = useState('');
   const [videoCategory, setVideoCategory] = useState('yoga');
   const [videoDuration, setVideoDuration] = useState('1200');
+  const [videoSource, setVideoSource] = useState<'bunny' | 'youtube'>('bunny');
   const [bunnyVideoId, setBunnyVideoId] = useState('');
   const [bunnyLibraryId, setBunnyLibraryId] = useState('mock_lib_123');
+  const [youtubeVideoId, setYoutubeVideoId] = useState('');
   const [isFree, setIsFree] = useState(false);
   const [videoSubmitting, setVideoSubmitting] = useState(false);
+
+  // Edit Video Form States
+  const [editingVideo, setEditingVideo] = useState<Video | null>(null);
+  const [editVideoTitle, setEditVideoTitle] = useState('');
+  const [editVideoCategory, setEditVideoCategory] = useState('yoga');
+  const [editVideoDuration, setEditVideoDuration] = useState('1200');
+  const [editVideoSource, setEditVideoSource] = useState<'bunny' | 'youtube'>('bunny');
+  const [editBunnyVideoId, setEditBunnyVideoId] = useState('');
+  const [editBunnyLibraryId, setEditBunnyLibraryId] = useState('');
+  const [editYoutubeVideoId, setEditYoutubeVideoId] = useState('');
+  const [editVideoIsFree, setEditVideoIsFree] = useState(false);
+  const [editVideoSubmitting, setEditVideoSubmitting] = useState(false);
 
   const fetchCourseData = async () => {
     try {
@@ -82,6 +100,7 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
       setEditPrice(Number(data.priceInr).toString());
       setEditTotalDays(data.totalDays.toString());
       setEditThumbnail(data.thumbnailUrl || '');
+      setEditCategory(data.category || 'yoga');
       setEditPublished(data.isPublished);
       setLoading(false);
     } catch (err: any) {
@@ -143,8 +162,10 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
           title: videoTitle,
           category: videoCategory,
           durationSeconds: videoDuration,
-          bunnyVideoId,
-          bunnyLibraryId,
+          videoSource,
+          bunnyVideoId: videoSource === 'bunny' ? bunnyVideoId : undefined,
+          bunnyLibraryId: videoSource === 'bunny' ? bunnyLibraryId : undefined,
+          youtubeVideoId: videoSource === 'youtube' ? youtubeVideoId : undefined,
           isFree,
         }),
       });
@@ -154,12 +175,70 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
       // Reset & Reload
       setActiveDayId(null);
       setVideoTitle('');
+      setVideoSource('bunny');
       setBunnyVideoId('');
+      setYoutubeVideoId('');
       fetchCourseData();
     } catch (err: any) {
       setError(err.message);
     } finally {
       setVideoSubmitting(false);
+    }
+  };
+
+  const openEditVideo = (vid: Video) => {
+    setEditingVideo(vid);
+    setEditVideoTitle(vid.title);
+    setEditVideoCategory(vid.category);
+    setEditVideoDuration(vid.durationSeconds.toString());
+    setEditVideoSource(vid.videoSource as 'bunny' | 'youtube');
+    setEditBunnyVideoId(vid.bunnyVideoId ?? '');
+    setEditBunnyLibraryId(vid.bunnyLibraryId ?? '');
+    setEditYoutubeVideoId(vid.youtubeVideoId ?? '');
+    setEditVideoIsFree(vid.isFree);
+    setActiveDayId(null);
+    setShowDayForm(false);
+  };
+
+  const handleUpdateVideo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingVideo || editVideoSubmitting) return;
+    setError('');
+    setEditVideoSubmitting(true);
+    try {
+      const res = await fetch(`/api/videos/${editingVideo.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editVideoTitle,
+          category: editVideoCategory,
+          durationSeconds: editVideoDuration,
+          videoSource: editVideoSource,
+          bunnyVideoId: editVideoSource === 'bunny' ? editBunnyVideoId : undefined,
+          bunnyLibraryId: editVideoSource === 'bunny' ? editBunnyLibraryId : undefined,
+          youtubeVideoId: editVideoSource === 'youtube' ? editYoutubeVideoId : undefined,
+          isFree: editVideoIsFree,
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to update video');
+      setEditingVideo(null);
+      fetchCourseData();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setEditVideoSubmitting(false);
+    }
+  };
+
+  const handleDeleteVideo = async (videoId: string) => {
+    if (!confirm('Delete this video? This cannot be undone.')) return;
+    setError('');
+    try {
+      const res = await fetch(`/api/videos/${videoId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete video');
+      fetchCourseData();
+    } catch (err: any) {
+      setError(err.message);
     }
   };
 
@@ -177,6 +256,7 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
           title: editTitle,
           slug: editSlug,
           description: editDesc,
+          category: editCategory,
           priceInr: editPrice,
           totalDays: editTotalDays,
           isPublished: editPublished,
@@ -283,16 +363,30 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                     ) : (
                       day.videos.map((vid) => (
                         <div key={vid.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg text-sm border border-gray-100">
-                          <div>
+                          <div className="min-w-0 flex-1">
                             <div className="font-bold text-gray-800">{vid.title}</div>
                             <div className="text-xs text-gray-400 mt-0.5">
-                              {vid.category} • {Math.round(vid.durationSeconds / 60)}Mins
+                              {vid.category} • {Math.round(vid.durationSeconds / 60)} mins •{' '}
+                              <span className="font-medium">
+                                {vid.videoSource === 'youtube'
+                                  ? `YouTube: ${vid.youtubeVideoId}`
+                                  : `Bunny: ${vid.bunnyVideoId}`}
+                              </span>
                             </div>
                           </div>
-                          <div className="flex items-center space-x-3">
-                            <span className="text-xs text-gray-400 font-bold bg-white border border-gray-200 px-2 py-0.5 rounded">
-                              Bunny: {vid.bunnyVideoId}
-                            </span>
+                          <div className="flex items-center space-x-2 ml-3 flex-shrink-0">
+                            <button
+                              onClick={() => openEditVideo(vid)}
+                              className="px-2 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 transition-colors"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteVideo(vid.id)}
+                              className="px-2 py-1 text-xs font-bold text-red-600 bg-red-50 border border-red-200 rounded hover:bg-red-100 transition-colors"
+                            >
+                              Delete
+                            </button>
                           </div>
                         </div>
                       ))
@@ -402,25 +496,60 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500">Bunny Video ID</label>
-                  <input
-                    type="text"
-                    required
-                    value={bunnyVideoId}
-                    onChange={(e) => setBunnyVideoId(e.target.value)}
-                    className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
-                  />
+                  <label className="block text-xs font-bold text-gray-500">Video Source</label>
+                  <div className="mt-1 flex rounded-md border border-gray-300 overflow-hidden text-xs font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setVideoSource('bunny')}
+                      className={`flex-1 py-1.5 transition-colors ${videoSource === 'bunny' ? 'bg-emerald-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                    >
+                      BunnyNet
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVideoSource('youtube')}
+                      className={`flex-1 py-1.5 transition-colors ${videoSource === 'youtube' ? 'bg-red-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                    >
+                      YouTube
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500">Bunny Library ID</label>
-                  <input
-                    type="text"
-                    required
-                    value={bunnyLibraryId}
-                    onChange={(e) => setBunnyLibraryId(e.target.value)}
-                    className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
-                  />
-                </div>
+                {videoSource === 'bunny' ? (
+                  <>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500">Bunny Video ID</label>
+                      <input
+                        type="text"
+                        required
+                        value={bunnyVideoId}
+                        onChange={(e) => setBunnyVideoId(e.target.value)}
+                        className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500">Bunny Library ID</label>
+                      <input
+                        type="text"
+                        required
+                        value={bunnyLibraryId}
+                        onChange={(e) => setBunnyLibraryId(e.target.value)}
+                        className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500">YouTube Video ID</label>
+                    <input
+                      type="text"
+                      required
+                      value={youtubeVideoId}
+                      onChange={(e) => setYoutubeVideoId(e.target.value)}
+                      className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+                      placeholder="e.g. dQw4w9WgXcQ"
+                    />
+                  </div>
+                )}
                 <div className="flex items-center">
                   <input
                     id="isFreeVideo"
@@ -453,8 +582,129 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
             </div>
           )}
 
+          {/* Edit Video Box */}
+          {editingVideo && !activeDayId && !showDayForm && (
+            <div className="bg-white shadow rounded-lg border border-emerald-100 p-6 space-y-4">
+              <div className="flex justify-between items-center border-b border-gray-50 pb-2">
+                <h3 className="font-bold text-gray-900">Edit Video</h3>
+                <button onClick={() => setEditingVideo(null)} className="text-gray-400 hover:text-gray-600 text-xs font-bold">✕ Cancel</button>
+              </div>
+              <form onSubmit={handleUpdateVideo} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500">Video Title</label>
+                  <input
+                    type="text"
+                    required
+                    value={editVideoTitle}
+                    onChange={(e) => setEditVideoTitle(e.target.value)}
+                    className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500">Category</label>
+                    <select
+                      value={editVideoCategory}
+                      onChange={(e) => setEditVideoCategory(e.target.value)}
+                      className="mt-1 block w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+                    >
+                      <option value="yoga">Yoga</option>
+                      <option value="general_exercise">Workout</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500">Duration (Secs)</label>
+                    <input
+                      type="number"
+                      required
+                      value={editVideoDuration}
+                      onChange={(e) => setEditVideoDuration(e.target.value)}
+                      className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500">Video Source</label>
+                  <div className="mt-1 flex rounded-md border border-gray-300 overflow-hidden text-xs font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setEditVideoSource('bunny')}
+                      className={`flex-1 py-1.5 transition-colors ${editVideoSource === 'bunny' ? 'bg-emerald-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                    >
+                      BunnyNet
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditVideoSource('youtube')}
+                      className={`flex-1 py-1.5 transition-colors ${editVideoSource === 'youtube' ? 'bg-red-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                    >
+                      YouTube
+                    </button>
+                  </div>
+                </div>
+                {editVideoSource === 'bunny' ? (
+                  <>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500">Bunny Video ID</label>
+                      <input
+                        type="text"
+                        required
+                        value={editBunnyVideoId}
+                        onChange={(e) => setEditBunnyVideoId(e.target.value)}
+                        className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500">Bunny Library ID</label>
+                      <input
+                        type="text"
+                        required
+                        value={editBunnyLibraryId}
+                        onChange={(e) => setEditBunnyLibraryId(e.target.value)}
+                        className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500">YouTube Video ID</label>
+                    <input
+                      type="text"
+                      required
+                      value={editYoutubeVideoId}
+                      onChange={(e) => setEditYoutubeVideoId(e.target.value)}
+                      className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+                      placeholder="e.g. dQw4w9WgXcQ"
+                    />
+                  </div>
+                )}
+                <div className="flex items-center">
+                  <input
+                    id="editVideoIsFree"
+                    type="checkbox"
+                    checked={editVideoIsFree}
+                    onChange={(e) => setEditVideoIsFree(e.target.checked)}
+                    className="h-4 w-4 text-emerald-600 border-gray-300 rounded"
+                  />
+                  <label htmlFor="editVideoIsFree" className="ml-2 block text-xs font-bold text-gray-900">
+                    Free video preview (visible to guests)
+                  </label>
+                </div>
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="submit"
+                    disabled={editVideoSubmitting}
+                    className="px-4 py-2 text-xs font-bold rounded-lg text-white bg-emerald-600 disabled:opacity-50"
+                  >
+                    {editVideoSubmitting ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
           {/* Program settings (default sidebar panel) */}
-          {!showDayForm && !activeDayId && (
+          {!showDayForm && !activeDayId && !editingVideo && (
             <div className="bg-white shadow rounded-lg border border-gray-100 p-6 space-y-4">
               <h3 className="font-bold text-gray-900 border-b border-gray-50 pb-2">Program Settings</h3>
               <form onSubmit={handleUpdateCourse} className="space-y-4">
@@ -480,6 +730,17 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                     onChange={(e) => setEditSlug(e.target.value)}
                     className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
                   />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Category</label>
+                  <select
+                    value={editCategory}
+                    onChange={(e) => setEditCategory(e.target.value)}
+                    className="mt-1 block w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+                  >
+                    <option value="yoga">Yoga</option>
+                    <option value="general_exercise">General Workout</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Description</label>

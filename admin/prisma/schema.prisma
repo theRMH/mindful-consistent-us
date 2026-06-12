@@ -37,6 +37,7 @@ model Course {
   slug               String               @unique
   description        String?
   thumbnailUrl       String?              @map("thumbnail_url")
+  category           String?              // 'yoga' | 'general_exercise'
   totalDays          Int                  @map("total_days")
   priceInr           Decimal              @default(0.00) @map("price_inr") @db.Decimal(10, 2)
   isPublished        Boolean              @default(false) @map("is_published")

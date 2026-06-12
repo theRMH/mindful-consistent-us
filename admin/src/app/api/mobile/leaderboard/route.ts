@@ -5,102 +5,50 @@ import { verifyAuth } from '@/lib/auth-middleware';
 export async function GET(req: NextRequest) {
   try {
     const user = await verifyAuth(req);
-    // If not authenticated, still allow viewing the leaderboard (with dummy current user)
-    const userId = user?.id || '99999999-9999-9999-9999-999999999999';
+    const userId = user?.id ?? null;
 
-    // 1. Fetch entries from DB
-    const dbEntries = await prisma.leaderboardEntry.findMany({
+    // Fetch top entries ordered by score; fetch extra to deduplicate per user
+    const rawEntries = await prisma.leaderboardEntry.findMany({
       orderBy: { score: 'desc' },
-      take: 10,
+      take: 50,
       include: {
         user: {
-          include: {
-            userStats: true,
-          }
+          select: {
+            fullName: true,
+            avatarUrl: true,
+            userStats: { select: { currentStreak: true } },
+          },
         },
       },
     });
 
-    // 2. Map DB entries to the standard leaderboard format
-    let rank = 1;
-    let entries = dbEntries.map(e => ({
+    // Keep only the highest-score entry per user
+    const seen = new Set<string>();
+    const deduped = rawEntries.filter(e => {
+      if (seen.has(e.userId)) return false;
+      seen.add(e.userId);
+      return true;
+    });
+
+    const top10 = deduped.slice(0, 10).map((e, i) => ({
+      rank: i + 1,
       userId: e.userId,
-      name: e.user.fullName || 'Anonymous User',
-      avatarUrl: e.user.avatarUrl || '',
-      streak: e.user.userStats?.currentStreak || 0,
+      name: e.user.fullName ?? 'User',
+      avatarUrl: e.user.avatarUrl ?? '',
+      streak: e.user.userStats?.currentStreak ?? 0,
       score: Number(e.score),
+      daysCompleted: e.daysCompleted,
       isCurrentUser: e.userId === userId,
-      rank: rank++,
     }));
 
-    // 3. Ensure we have mock entries for Priya S and Rohit K to guarantee a rich V2 look
-    const hasPriya = entries.some(e => e.name === 'Priya S');
-    const hasRohit = entries.some(e => e.name === 'Rohit K');
-
-    const mockPriya = {
-      userId: 'priya-mock-id',
-      name: 'Priya S',
-      avatarUrl: 'assets/avatar_priya.png',
-      streak: 12,
-      score: 1420,
-      isCurrentUser: false,
-      rank: 1,
-    };
-
-    const mockRohit = {
-      userId: 'rohit-mock-id',
-      name: 'Rohit K',
-      avatarUrl: 'assets/avatar_rohit.png',
-      streak: 8,
-      score: 980,
-      isCurrentUser: false,
-      rank: 2,
-    };
-
-    // If empty or missing, inject mocks
-    const finalEntries: any[] = [];
-    
-    // Add Priya at Rank 1 (score 1420)
-    if (!hasPriya) finalEntries.push(mockPriya);
-    
-    // Add Rohit at Rank 2 (score 980)
-    if (!hasRohit) finalEntries.push(mockRohit);
-
-    // Find current user's DB entry if exists
-    const currentUserDbEntry = entries.find(e => e.isCurrentUser);
-    
-    // Add current user or mock current user
-    if (currentUserDbEntry) {
-      // Re-map rank based on score comparison
-      finalEntries.push(currentUserDbEntry);
-    } else {
-      // Add a mock current user (You) at Rank 3
-      finalEntries.push({
-        userId: userId,
-        name: 'You',
-        avatarUrl: '',
-        streak: 3,
-        score: 120,
-        isCurrentUser: true,
-        rank: 3,
-      });
+    // Find current user's rank across all entries (not just top 10)
+    let userRank: number | null = null;
+    if (userId) {
+      const userPositionIndex = deduped.findIndex(e => e.userId === userId);
+      userRank = userPositionIndex >= 0 ? userPositionIndex + 1 : null;
     }
 
-    // Append any other DB entries not already in the list
-    entries.forEach(e => {
-      if (!e.isCurrentUser && e.name !== 'Priya S' && e.name !== 'Rohit K') {
-        finalEntries.push(e);
-      }
-    });
-
-    // Sort by score descending and re-assign rank numbers
-    finalEntries.sort((a, b) => b.score - a.score);
-    let currentRank = 1;
-    finalEntries.forEach(e => {
-      e.rank = currentRank++;
-    });
-
-    return NextResponse.json(finalEntries, { status: 200 });
+    return NextResponse.json({ entries: top10, userRank }, { status: 200 });
   } catch (error: any) {
     console.error('Error fetching mobile leaderboard:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

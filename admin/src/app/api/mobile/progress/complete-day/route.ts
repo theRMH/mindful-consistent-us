@@ -94,24 +94,50 @@ export async function POST(req: NextRequest) {
       where: { userId: user.id },
     });
 
-    let newStreak = (userStats?.currentStreak || 0) + 1;
-    let newLongest = Math.max(userStats?.longestStreak || 0, newStreak);
+    const currentStreak = userStats?.currentStreak ?? 0;
+    let newStreak: number;
 
-    // Simple consecutive day calculation (in a real app, query previous day's daily progress)
-    const yesterday = new Date(dayDate);
-    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-    const completedYesterday = await prisma.dailyProgress.findFirst({
+    // Check if the user already completed a different day today (streak already counted for today)
+    const completedTodayElsewhere = await prisma.dailyProgress.findFirst({
       where: {
         userId: user.id,
-        dayDate: yesterday,
         isComplete: true,
+        dayDate: dayDate,
+        NOT: {
+          AND: [
+            { userId: user.id },
+            { enrollmentId: enrollment.id },
+            { courseDayId: courseDay.id },
+          ],
+        },
       },
     });
 
-    if (!completedYesterday && userStats && userStats.currentStreak > 0) {
-      // If they didn't complete yesterday, their current streak broke. Start new streak of 1 day.
-      newStreak = 1;
+    if (completedTodayElsewhere) {
+      // Streak already counted for today — don't change it
+      newStreak = currentStreak;
+    } else {
+      // Find the most recently completed day strictly before today
+      const lastCompleted = await prisma.dailyProgress.findFirst({
+        where: {
+          userId: user.id,
+          isComplete: true,
+          dayDate: { lt: dayDate },
+        },
+        orderBy: { dayDate: 'desc' },
+      });
+
+      if (!lastCompleted) {
+        newStreak = 1;
+      } else {
+        const daysDiff = Math.round(
+          (dayDate.getTime() - new Date(lastCompleted.dayDate).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        newStreak = daysDiff === 1 ? currentStreak + 1 : 1;
+      }
     }
+
+    const newLongest = Math.max(userStats?.longestStreak ?? 0, newStreak);
 
     const updatedStats = await prisma.userStats.upsert({
       where: { userId: user.id },

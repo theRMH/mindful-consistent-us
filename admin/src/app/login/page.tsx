@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 export default function AdminLogin() {
   const router = useRouter();
@@ -30,16 +31,21 @@ export default function AdminLogin() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-lg border border-gray-100">
         <div>
-          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
+          <div className="flex justify-center">
+            <Image
+              src="/logo.png"
+              alt="Consistent US"
+              width={80}
+              height={80}
+              className="object-contain"
+              priority
+            />
           </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h2 className="mt-5 text-center text-2xl font-extrabold text-gray-900">
             Consistent US
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Sign in to the Admin Dashboard
+          <p className="mt-1 text-center text-sm text-gray-500">
+            Admin Dashboard
           </p>
         </div>
         

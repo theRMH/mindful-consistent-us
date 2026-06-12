@@ -107,7 +107,7 @@ export async function PATCH(
   try {
     const { courseId } = await params;
     const body = await req.json();
-    const { title, slug, description, priceInr, totalDays, isPublished, thumbnailUrl } = body;
+    const { title, slug, description, priceInr, totalDays, isPublished, thumbnailUrl, category } = body;
 
     const updated = await prisma.course.update({
       where: { id: courseId },
@@ -119,6 +119,7 @@ export async function PATCH(
         totalDays: totalDays !== undefined ? parseInt(totalDays, 10) : undefined,
         isPublished: isPublished !== undefined ? isPublished : undefined,
         thumbnailUrl,
+        category: category !== undefined ? category : undefined,
       },
     });
 

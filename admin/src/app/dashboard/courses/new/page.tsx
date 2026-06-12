@@ -11,6 +11,7 @@ export default function NewCourse() {
   const [description, setDescription] = useState('');
   const [totalDays, setTotalDays] = useState('30');
   const [priceInr, setPriceInr] = useState('699');
+  const [category, setCategory] = useState('yoga');
   const [isPublished, setIsPublished] = useState(false);
   const [thumbnailUrl, setThumbnailUrl] = useState('');
   const [error, setError] = useState('');
@@ -31,6 +32,7 @@ export default function NewCourse() {
           title,
           slug,
           description,
+          category,
           totalDays,
           priceInr,
           isPublished,
@@ -101,6 +103,19 @@ export default function NewCourse() {
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm text-gray-900 bg-white"
                 placeholder="e.g. 30-days-yoga"
               />
+            </div>
+
+            {/* Category */}
+            <div>
+              <label className="block text-sm font-bold text-gray-700">Category</label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm text-gray-900 bg-white"
+              >
+                <option value="yoga">Yoga</option>
+                <option value="general_exercise">General Workout</option>
+              </select>
             </div>
 
             {/* Total Days */}
