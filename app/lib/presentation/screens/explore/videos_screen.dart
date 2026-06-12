@@ -1,155 +1,91 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../../core/config/theme.dart';
+import '../../../data/models/course_model.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/free_videos_provider.dart';
 
-class VideosScreen extends StatelessWidget {
+final videoCategoryProvider = StateProvider<String>((ref) => 'Yoga');
+
+class VideosScreen extends ConsumerWidget {
   const VideosScreen({super.key});
 
-  // Data model for free videos
-  static const List<Map<String, String>> _freeVideos = [
-    {
-      'title': '5-min Morning Flow',
-      'category': 'Daily Energy',
-      'duration': '8:15',
-      'imagePath': 'assets/video_morning_flow.png',
-    },
-    {
-      'title': 'Deep Sleep Prep',
-      'category': 'Restorative',
-      'duration': '5:20',
-      'imagePath': 'assets/video_sleep_prep.png',
-    },
-    {
-      'title': 'Desk Neck Relief',
-      'category': 'Corporate Zen',
-      'duration': '12:45',
-      'imagePath': 'assets/video_neck_relief.png',
-    },
-  ];
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isGuest = ref.watch(authProvider).user == null;
+    final fvState = ref.watch(freeVideosProvider);
+    final activeCategory = ref.watch(videoCategoryProvider);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFDF8),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Header Banner
-            _buildHeaderBanner(),
-
-            const SizedBox(height: 20),
-
-            // 2. Scrollable video list
+            _buildHeader(),
+            const SizedBox(height: AppSpacing.xl),
             Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // "Free Videos" section label
-                    const Text(
-                      'Free Videos',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F172A),
-                        fontFamily: 'Inter',
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Video cards
-                    ..._freeVideos.map(
-                      (video) => Padding(
-                        padding: const EdgeInsets.only(bottom: 24),
-                        child: _buildVideoCard(
-                          context,
-                          title: video['title']!,
-                          category: video['category']!,
-                          duration: video['duration']!,
-                          imagePath: video['imagePath']!,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-                  ],
-                ),
-              ),
+              child: fvState.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : isGuest
+                      ? _buildGuestContent(context, fvState.videos)
+                      : _buildRegisteredContent(context, ref, fvState.videos, activeCategory),
             ),
           ],
         ),
       ),
-
-      // Bottom Nav
-      bottomNavigationBar: _buildBottomNav(context),
     );
   }
 
-  // ─── Header Banner ──────────────────────────────────────────────────────────
-  Widget _buildHeaderBanner() {
+  Widget _buildHeader() {
     return Container(
       width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 120),
       decoration: const BoxDecoration(
-        color: Colors.white,
         image: DecorationImage(
           image: AssetImage('assets/unreg_header_bg.png'),
           fit: BoxFit.cover,
           alignment: Alignment.centerRight,
         ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          ),
-        ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title
-          const Text(
+          Text(
             'Videos',
-            style: TextStyle(
-              color: Color(0xFF00A859),
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Inter',
+            style: GoogleFonts.inter(
+              color: AppTheme.figmaGreen,
+              fontSize: 20,
+              fontWeight: AppFontWeights.bold,
             ),
           ),
-          const SizedBox(height: 4),
-          // Subtitle
-          const Text(
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
             'Show up for yourself, Every single day.',
-            style: TextStyle(
-              color: Color(0xFF6B7280),
-              fontSize: 13,
-              fontFamily: 'Inter',
+            style: GoogleFonts.inter(
+              color: AppTheme.figmaMutedGray,
+              fontSize: 9.5,
+              fontWeight: AppFontWeights.regular,
             ),
           ),
-          const SizedBox(height: 12),
-          // Course badge
+          const SizedBox(height: AppSpacing.sm),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md, vertical: AppSpacing.xs + 2),
             decoration: BoxDecoration(
-              color: const Color(0xFF00A859),
-              borderRadius: BorderRadius.circular(20),
+              color: AppTheme.figmaGreen,
+              borderRadius: BorderRadius.circular(AppRadii.xl),
             ),
-            child: const Text(
+            child: Text(
               '30 days Yoga Course',
-              style: TextStyle(
+              style: GoogleFonts.inter(
                 color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Inter',
+                fontSize: AppFontSizes.bodyMedium,
+                fontWeight: AppFontWeights.semiBold,
               ),
             ),
           ),
@@ -158,62 +94,446 @@ class VideosScreen extends StatelessWidget {
     );
   }
 
-  // ─── Video Card ─────────────────────────────────────────────────────────────
-  Widget _buildVideoCard(
-    BuildContext context, {
-    required String title,
-    required String category,
-    required String duration,
-    required String imagePath,
-  }) {
-    return GestureDetector(
-      onTap: () {
-        // For unregistered users, tapping a video nudges them to register
-        _showRegisterPrompt(context);
-      },
+  // ─── Guest Content ────────────────────────────────────────────────────────
+
+  Widget _buildGuestContent(BuildContext context, List<FreeVideoModel> videos) {
+    if (videos.isEmpty) {
+      return Center(
+        child: Text(
+          'No free videos available yet.',
+          style: GoogleFonts.inter(color: AppTheme.figmaMutedGray),
+        ),
+      );
+    }
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Full-width thumbnail with play button overlay and duration badge
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+            child: Text(
+              'Free Videos',
+              style: GoogleFonts.inter(
+                fontSize: AppFontSizes.h3,
+                fontWeight: AppFontWeights.bold,
+                color: AppTheme.figmaCharcoal,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          ...videos.map((video) => Padding(
+                padding: const EdgeInsets.only(
+                    left: AppSpacing.xl,
+                    right: AppSpacing.xl,
+                    bottom: AppSpacing.xl),
+                child: _buildFreeVideoCard(
+                  context,
+                  video: video,
+                  onTap: () => _showRegisterPrompt(context),
+                ),
+              )),
+          const SizedBox(height: AppSpacing.lg),
+        ],
+      ),
+    );
+  }
+
+  // ─── Registered Content ───────────────────────────────────────────────────
+
+  Widget _buildRegisteredContent(
+    BuildContext context,
+    WidgetRef ref,
+    List<FreeVideoModel> videos,
+    String activeCategory,
+  ) {
+    final filtered = videos
+        .where((v) =>
+            activeCategory == 'Yoga'
+                ? (v.category ?? '').toLowerCase().contains('yoga')
+                : !(v.category ?? '').toLowerCase().contains('yoga'))
+        .toList();
+
+    final display = filtered.isNotEmpty ? filtered : videos;
+
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Category chips
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildCategoryChip(
+                    ref, 'Yoga', 'Mind • Flexibility • Strength',
+                    activeCategory == 'Yoga',
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: _buildCategoryChip(
+                    ref, 'General Workout', 'Strength • Mobility • Cardio',
+                    activeCategory == 'General Workout',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Free Sessions',
+                  style: GoogleFonts.inter(
+                    fontSize: AppFontSizes.h3,
+                    fontWeight: AppFontWeights.bold,
+                    color: AppTheme.figmaCharcoal,
+                  ),
+                ),
+                Text(
+                  'View All',
+                  style: GoogleFonts.inter(
+                    fontSize: AppFontSizes.bodyMedium,
+                    fontWeight: AppFontWeights.bold,
+                    color: AppTheme.figmaCharcoal,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppRadii.xxl),
+                border: Border.all(color: const Color(0xFFF0F0F0)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x06000000),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  for (int i = 0; i < display.length; i++) ...[
+                    _buildSessionTile(context, display[i], i, display.length),
+                    if (i < display.length - 1)
+                      const Divider(height: 1, color: Color(0xFFF0F0F0), indent: 72),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+
+          // Keep Going card
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+            child: Container(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5FAF2),
+                borderRadius: BorderRadius.circular(AppRadii.xxl),
+                border: Border.all(color: const Color(0xFFD4EAC8)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: const BoxDecoration(
+                      color: AppTheme.darkTeal,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.star_rounded, color: Colors.white, size: 24),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Keep Going!',
+                          style: GoogleFonts.inter(
+                            fontSize: AppFontSizes.bodyLarge,
+                            fontWeight: AppFontWeights.bold,
+                            color: AppTheme.figmaCharcoal,
+                          ),
+                        ),
+                        Text(
+                          'Consistency is the key\nto transformation. 🌱',
+                          style: GoogleFonts.inter(
+                            fontSize: AppFontSizes.bodyMedium,
+                            color: AppTheme.figmaMutedGray,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Image.asset(
+                    'assets/bg_leaf.png',
+                    width: 60,
+                    height: 60,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => const SizedBox(width: 60),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+
+          // View Free Videos button
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+            child: GestureDetector(
+              onTap: () => context.push('/free-videos'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: AppTheme.figmaGreen,
+                  borderRadius: BorderRadius.circular(AppRadii.xxl),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.xs),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withAlpha(30),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.play_circle_outline_rounded,
+                          color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'View Free Videos',
+                            style: GoogleFonts.inter(
+                              fontSize: AppFontSizes.bodyLarge,
+                              fontWeight: AppFontWeights.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            'Watch anytime, no program needed',
+                            style: GoogleFonts.inter(
+                              fontSize: AppFontSizes.bodyMedium,
+                              color: Colors.white.withAlpha(178),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_rounded,
+                        color: Colors.white, size: 20),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xxxl),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSessionTile(
+    BuildContext context,
+    FreeVideoModel video,
+    int index,
+    int total,
+  ) {
+    final imagePath = video.thumbnailUrl?.isNotEmpty == true
+        ? video.thumbnailUrl!
+        : 'assets/video_morning_flow.png';
+
+    return InkWell(
+      onTap: () {
+        if (video.youtubeVideoId != null && video.youtubeVideoId!.isNotEmpty) {
+          context.push('/play', extra: {
+            'courseId': 'free',
+            'dayNumber': 1,
+            'youtubeVideoId': video.youtubeVideoId,
+            'videoTitle': video.title,
+          });
+        }
+      },
+      borderRadius: BorderRadius.vertical(
+        top: index == 0 ? const Radius.circular(AppRadii.xxl) : Radius.zero,
+        bottom: index == total - 1 ? const Radius.circular(AppRadii.xxl) : Radius.zero,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          children: [
+            // Status circle
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white,
+                border: Border.all(color: AppTheme.lightGray, width: 2),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            // Thumbnail circle
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFE0E0E0)),
+              ),
+              child: ClipOval(
+                child: Image.asset(
+                  imagePath,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => const Icon(
+                    Icons.self_improvement_rounded,
+                    color: AppTheme.figmaGreen,
+                    size: 24,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    video.title,
+                    style: GoogleFonts.inter(
+                      fontWeight: AppFontWeights.bold,
+                      color: AppTheme.figmaCharcoal,
+                      fontSize: AppFontSizes.bodyLarge,
+                    ),
+                  ),
+                  Text(
+                    '${video.durationLabel} • ${video.category ?? ''}',
+                    style: GoogleFonts.inter(
+                      color: AppTheme.coolGray,
+                      fontWeight: AppFontWeights.semiBold,
+                      fontSize: AppFontSizes.bodyMedium,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: AppTheme.figmaGreen, width: 1.5),
+              ),
+              child: const Icon(Icons.play_arrow_rounded,
+                  color: AppTheme.figmaGreen, size: 18),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryChip(
+      WidgetRef ref, String label, String subtext, bool isActive) {
+    return GestureDetector(
+      onTap: () => ref.read(videoCategoryProvider.notifier).state = label,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+            vertical: AppSpacing.md, horizontal: AppSpacing.md),
+        decoration: BoxDecoration(
+          color: isActive ? AppTheme.figmaGreen : Colors.white,
+          borderRadius: BorderRadius.circular(AppRadii.xxl),
+          border: Border.all(
+            color: isActive ? AppTheme.figmaGreen : const Color(0xFFE0E0E0),
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isActive ? Icons.self_improvement_rounded : Icons.fitness_center_rounded,
+              color: isActive ? Colors.white : AppTheme.brown,
+              size: 28,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                color: isActive ? Colors.white : AppTheme.figmaCharcoal,
+                fontWeight: AppFontWeights.bold,
+                fontSize: AppFontSizes.bodyLarge,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              subtext,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: isActive ? Colors.white.withAlpha(178) : AppTheme.coolGray,
+                fontSize: AppFontSizes.bodySmall,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFreeVideoCard(
+    BuildContext context, {
+    required FreeVideoModel video,
+    required VoidCallback onTap,
+  }) {
+    final imagePath = video.thumbnailUrl?.isNotEmpty == true
+        ? video.thumbnailUrl!
+        : 'assets/video_morning_flow.png';
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AppRadii.xxl),
             child: Stack(
               children: [
-                // Thumbnail
                 Image.asset(
                   imagePath,
                   height: 200,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
+                  errorBuilder: (_, _, _) => Container(
                     height: 200,
-                    width: double.infinity,
-                    color: const Color(0xFFE8F5E9),
-                    child: const Icon(
-                      Icons.videocam_outlined,
-                      size: 48,
-                      color: Color(0xFF00A859),
-                    ),
+                    color: AppTheme.lightGray,
+                    child: const Icon(Icons.play_circle_outline,
+                        size: 48, color: AppTheme.coolGray),
                   ),
                 ),
-
-                // Dark gradient overlay at bottom
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.15),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Green circular play button in center
                 Positioned.fill(
                   child: Center(
                     child: Container(
@@ -221,44 +541,29 @@ class VideosScreen extends StatelessWidget {
                       height: 48,
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Color(0xFF00A859),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Color(0x4400A859),
-                            blurRadius: 12,
-                            spreadRadius: 2,
-                          ),
-                        ],
+                        color: AppTheme.figmaGreen,
                       ),
-                      child: const Icon(
-                        Icons.play_arrow_rounded,
-                        color: Colors.white,
-                        size: 28,
-                      ),
+                      child: const Icon(Icons.play_arrow_rounded,
+                          color: Colors.white, size: 28),
                     ),
                   ),
                 ),
-
-                // Duration badge – bottom right
                 Positioned(
-                  right: 10,
-                  bottom: 10,
+                  right: AppSpacing.md,
+                  bottom: AppSpacing.md,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
+                        horizontal: AppSpacing.sm, vertical: 3),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.55),
-                      borderRadius: BorderRadius.circular(6),
+                      color: Colors.black.withAlpha(153),
+                      borderRadius: BorderRadius.circular(AppRadii.sm),
                     ),
                     child: Text(
-                      duration,
-                      style: const TextStyle(
+                      video.durationLabel,
+                      style: GoogleFonts.inter(
                         color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'Inter',
+                        fontSize: AppFontSizes.bodySmall,
+                        fontWeight: AppFontWeights.bold,
                       ),
                     ),
                   ),
@@ -266,30 +571,22 @@ class VideosScreen extends StatelessWidget {
               ],
             ),
           ),
-
-          const SizedBox(height: 10),
-
-          // Title
+          const SizedBox(height: AppSpacing.sm),
           Text(
-            title,
-            style: const TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF0F172A),
-              fontFamily: 'Inter',
+            video.title,
+            style: GoogleFonts.inter(
+              fontSize: AppFontSizes.bodyLarge,
+              fontWeight: AppFontWeights.bold,
+              color: AppTheme.figmaCharcoal,
             ),
           ),
-
-          const SizedBox(height: 3),
-
-          // Category tag in green
+          const SizedBox(height: AppSpacing.xxs),
           Text(
-            category,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF00A859),
-              fontFamily: 'Inter',
+            video.category ?? '',
+            style: GoogleFonts.inter(
+              fontSize: AppFontSizes.bodyMedium,
+              fontWeight: AppFontWeights.semiBold,
+              color: AppTheme.figmaGreen,
             ),
           ),
         ],
@@ -297,167 +594,92 @@ class VideosScreen extends StatelessWidget {
     );
   }
 
-  // ─── Register Prompt ────────────────────────────────────────────────────────
   void _showRegisterPrompt(BuildContext context) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
-      builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE2E8F0),
-                  borderRadius: BorderRadius.circular(2),
-                ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(AppSpacing.xxl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: AppSpacing.xl),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE2E8F0),
+                borderRadius: BorderRadius.circular(2),
               ),
-              const Icon(
-                Icons.lock_outline_rounded,
-                color: Color(0xFF00A859),
-                size: 44,
+            ),
+            const Icon(Icons.lock_outline_rounded,
+                color: AppTheme.figmaGreen, size: 48),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              'Create a free account to watch',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: AppFontSizes.h3,
+                fontWeight: AppFontWeights.bold,
+                color: AppTheme.figmaCharcoal,
               ),
-              const SizedBox(height: 14),
-              const Text(
-                'Create a free account to watch',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A),
-                  fontFamily: 'Inter',
-                ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Sign up for free and unlock all videos,\nprograms, and tracking features.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: AppFontSizes.bodyMedium,
+                color: AppTheme.coolGray,
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'Sign up for free and unlock all videos,\nprograms, and tracking features.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF6B7280),
-                  fontFamily: 'Inter',
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    context.go('/signup');
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00A859),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    'Sign Up for Free',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Inter',
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextButton(
+            ),
+            const SizedBox(height: AppSpacing.xxl),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
                 onPressed: () {
                   Navigator.pop(ctx);
-                  context.go('/login');
+                  context.go('/signup');
                 },
-                child: const Text(
-                  'Already have an account? Log In',
-                  style: TextStyle(
-                    color: Color(0xFF00A859),
-                    fontFamily: 'Inter',
-                    fontSize: 13,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.figmaGreen,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadii.xl),
+                  ),
+                  elevation: 0,
+                ),
+                child: Text(
+                  'Sign Up for Free',
+                  style: GoogleFonts.inter(
+                    fontSize: AppFontSizes.bodyLarge,
+                    fontWeight: AppFontWeights.bold,
                   ),
                 ),
               ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // ─── Bottom Navigation Bar ──────────────────────────────────────────────────
-  Widget _buildBottomNav(BuildContext context) {
-    return BottomNavigationBar(
-      currentIndex: 2, // Videos tab selected
-      type: BottomNavigationBarType.fixed,
-      selectedItemColor: const Color(0xFF00A859),
-      unselectedItemColor: const Color(0xFF94A3B8),
-      onTap: (index) {
-        if (index == 0) {
-          context.go('/unregistered');
-        } else if (index == 1) {
-          context.go('/explore');
-        } else if (index == 2) {
-          // Already on Videos
-        } else {
-          context.go('/login');
-        }
-      },
-      items: [
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.home_outlined),
-          activeIcon: _buildActiveIcon(Icons.home),
-          label: 'Home',
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                context.go('/login');
+              },
+              child: Text(
+                'Already have an account? Log In',
+                style: GoogleFonts.inter(
+                  color: AppTheme.figmaGreen,
+                  fontWeight: AppFontWeights.bold,
+                  fontSize: AppFontSizes.bodyMedium,
+                ),
+              ),
+            ),
+          ],
         ),
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.grid_view_rounded),
-          activeIcon: _buildActiveIcon(Icons.grid_view_rounded),
-          label: 'Program',
-        ),
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.play_circle_outline_rounded),
-          activeIcon: _buildActiveIcon(Icons.play_circle_filled_rounded),
-          label: 'Videos',
-        ),
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.directions_walk_rounded),
-          activeIcon: _buildActiveIcon(Icons.directions_walk_rounded),
-          label: 'Steps',
-        ),
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.person_outline_rounded),
-          activeIcon: _buildActiveIcon(Icons.person_rounded),
-          label: 'Profile',
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActiveIcon(IconData icon) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: const Color(0xFF00A859)),
-        const SizedBox(height: 2),
-        Container(
-          width: 4,
-          height: 4,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            color: Color(0xFF00A859),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

@@ -7,12 +7,56 @@ import '../../providers/courses_provider.dart';
 import '../../providers/free_videos_provider.dart';
 import '../../providers/community_moments_provider.dart';
 
-class UnregisteredHomeScreen extends ConsumerWidget {
+class UnregisteredHomeScreen extends ConsumerStatefulWidget {
   const UnregisteredHomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<UnregisteredHomeScreen> createState() =>
+      _UnregisteredHomeScreenState();
+}
+
+class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _scale = Tween<double>(begin: 0.85, end: 1.15).animate(
+      CurvedAnimation(parent: _pulse, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final coursesState = ref.watch(coursesProvider);
+    final fvState = ref.watch(freeVideosProvider);
+    final cmState = ref.watch(communityMomentsProvider);
+
+    final isLoading = coursesState.isLoading || fvState.isLoading || cmState.isLoading;
+
+    if (isLoading) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: ScaleTransition(
+            scale: _scale,
+            child: Image.asset('assets/logo.png', width: 96, height: 96),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -31,12 +75,7 @@ class UnregisteredHomeScreen extends ConsumerWidget {
               _buildSectionHeader(context, 'Explore Programs'),
               const SizedBox(height: AppSpacing.md),
 
-              if (coursesState.isLoading)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (coursesState.error != null)
+              if (coursesState.error != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
                   child: Column(
@@ -116,13 +155,6 @@ class UnregisteredHomeScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.md),
 
               Builder(builder: (context) {
-                final fvState = ref.watch(freeVideosProvider);
-                if (fvState.isLoading) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
                 final videos = fvState.videos.take(2).toList();
                 if (videos.isEmpty) return const SizedBox.shrink();
                 return Padding(
@@ -140,6 +172,7 @@ class UnregisteredHomeScreen extends ConsumerWidget {
                             imagePath: videos[i].thumbnailUrl?.isNotEmpty == true
                                 ? videos[i].thumbnailUrl!
                                 : 'assets/video_morning_flow.png',
+                            youtubeVideoId: videos[i].youtubeVideoId,
                           ),
                         ),
                       ],
@@ -151,7 +184,7 @@ class UnregisteredHomeScreen extends ConsumerWidget {
 
               // ── 4. Community Moments ──────────────────────────────
               Builder(builder: (context) {
-                final moments = ref.watch(communityMomentsProvider).moments;
+                final moments = cmState.moments;
                 if (moments.isEmpty) return const SizedBox.shrink();
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -605,9 +638,19 @@ class UnregisteredHomeScreen extends ConsumerWidget {
     required String category,
     required String duration,
     required String imagePath,
+    String? youtubeVideoId,
   }) {
     return GestureDetector(
-      onTap: () => context.go('/login'),
+      onTap: () {
+        if (youtubeVideoId != null && youtubeVideoId.isNotEmpty) {
+          context.push('/play', extra: {
+            'courseId': 'free',
+            'dayNumber': 1,
+            'youtubeVideoId': youtubeVideoId,
+            'videoTitle': title,
+          });
+        }
+      },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
