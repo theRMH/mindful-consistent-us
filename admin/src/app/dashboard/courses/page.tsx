@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import prisma from '@/lib/prisma';
 
-export const revalidate = 0; // Disable caching to fetch live course catalogs
+export const dynamic = 'force-dynamic';
 
 export default async function DashboardCourses() {
   const courses = await prisma.course.findMany({

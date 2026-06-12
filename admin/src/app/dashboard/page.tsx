@@ -1,6 +1,6 @@
 import prisma from '@/lib/prisma';
 
-export const revalidate = 0; // Disable static compilation caching to always fetch live values
+export const dynamic = 'force-dynamic';
 
 export default async function DashboardOverview() {
   // Fetch real database aggregates in parallel
