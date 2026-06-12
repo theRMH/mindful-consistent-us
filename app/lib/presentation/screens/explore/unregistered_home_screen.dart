@@ -1,313 +1,392 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../../core/config/theme.dart';
+import '../../providers/courses_provider.dart';
+import '../../providers/free_videos_provider.dart';
 
-class UnregisteredHomeScreen extends StatelessWidget {
+class UnregisteredHomeScreen extends ConsumerWidget {
   const UnregisteredHomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final coursesState = ref.watch(coursesProvider);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFDF8), // Extremely light cream/off-white background
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. Curved Header Banner
-              Container(
-                width: double.infinity,
-                height: 150,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  image: DecorationImage(
-                    image: AssetImage('assets/unreg_header_bg.png'),
-                    fit: BoxFit.cover,
-                    alignment: Alignment.centerRight,
-                  ),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(24),
-                    bottomRight: Radius.circular(24),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 6,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'Programs',
-                      style: TextStyle(
-                        color: Color(0xFF00A859), // Figma green
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
+              // ── 1. Header Banner ─────────────────────────────────
+              _buildHeader(context),
+
+              const SizedBox(height: AppSpacing.xxl),
+
+              // ── 2. Explore Programs ───────────────────────────────
+              _buildSectionHeader(context, 'Explore Programs'),
+              const SizedBox(height: AppSpacing.md),
+
+              if (coursesState.isLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (coursesState.error != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Could not load courses',
+                        style: GoogleFonts.inter(
+                          color: AppTheme.figmaCharcoal,
+                          fontWeight: AppFontWeights.bold,
+                          fontSize: AppFontSizes.bodyLarge,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Daily discipline. Lasting transformation.',
-                      style: TextStyle(
-                        color: Color(0xFF6B7280), // Figma grey
-                        fontSize: 13,
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        coursesState.error!,
+                        style: GoogleFonts.inter(
+                          color: Colors.red.shade700,
+                          fontSize: AppFontSizes.bodySmall,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    // 2 Days Streak tag
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF00A859),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '🔥 2 Days Streak',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
+                      const SizedBox(height: AppSpacing.md),
+                      GestureDetector(
+                        onTap: () => ref.read(coursesProvider.notifier).refresh(),
+                        child: Text(
+                          'Tap to retry',
+                          style: GoogleFonts.inter(
+                            color: AppTheme.figmaGreen,
+                            fontWeight: AppFontWeights.bold,
+                            fontSize: AppFontSizes.bodyMedium,
                           ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // 2. Explore Programs Section
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Explore Programs',
-                      style: TextStyle(
-                        color: Color(0xFF0F172A),
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => context.go('/login'),
-                      child: const Text(
-                        'See All',
-                        style: TextStyle(
-                          color: Color(0xFF00A859),
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
                         ),
                       ),
+                    ],
+                  ),
+                )
+              else if (coursesState.allCourses.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                  child: Text(
+                    'No courses available yet.',
+                    style: GoogleFonts.inter(
+                      color: AppTheme.figmaMutedGray,
+                      fontSize: AppFontSizes.bodyMedium,
                     ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // 30 Days Yoga Course Card
-              _buildCourseCard(
-                context,
-                title: '30 Days Yoga Course',
-                price: '₹699',
-                days: '30 days',
-                level: 'Beginner',
-                duration: '15m /day',
-                imagePath: 'assets/course_30_days.png',
-              ),
-
-              const SizedBox(height: 12),
-
-              // 48 Days Yoga Course Card
-              _buildCourseCard(
-                context,
-                title: '48 Days Yoga Course',
-                price: '₹899',
-                days: '48 days',
-                level: 'Advanced',
-                duration: '30m /day',
-                imagePath: 'assets/course_48_days.png',
-              ),
-
-              const SizedBox(height: 28),
-
-              // 3. Free Videos Section
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Free Videos',
-                      style: TextStyle(
-                        color: Color(0xFF0F172A),
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  ),
+                )
+              else
+                ...coursesState.allCourses.take(3).map((course) {
+                  final imagePath = course.thumbnailUrl?.isNotEmpty == true
+                      ? course.thumbnailUrl!
+                      : (course.category == 'yoga'
+                          ? 'assets/course_30_days.png'
+                          : 'assets/course_48_days.png');
+                  final price = '₹${course.priceInr.toStringAsFixed(0)}';
+                  final days = '${course.totalDays} days';
+                  final level = course.category == 'yoga' ? 'Yoga' : 'Workout';
+                  final duration = '${course.totalDays}d course';
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                    child: _buildCourseCard(
+                      context,
+                      title: course.title,
+                      price: price,
+                      days: days,
+                      level: level,
+                      duration: duration,
+                      imagePath: imagePath,
                     ),
-                    GestureDetector(
-                      onTap: () => context.go('/login'),
-                      child: const Text(
-                        'See All',
-                        style: TextStyle(
-                          color: Color(0xFF00A859),
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
+                  );
+                }),
+
+              const SizedBox(height: AppSpacing.xxl),
+
+              // ── 3. Free Videos ────────────────────────────────────
+              _buildSectionHeader(context, 'Free Videos'),
+              const SizedBox(height: AppSpacing.md),
+
+              Builder(builder: (context) {
+                final fvState = ref.watch(freeVideosProvider);
+                if (fvState.isLoading) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                final videos = fvState.videos.take(2).toList();
+                if (videos.isEmpty) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                  child: Row(
+                    children: [
+                      for (int i = 0; i < videos.length; i++) ...[
+                        if (i > 0) const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: _buildFreeVideoItem(
+                            context,
+                            title: videos[i].title,
+                            category: videos[i].category ?? '',
+                            duration: videos[i].durationLabel,
+                            imagePath: videos[i].thumbnailUrl?.isNotEmpty == true
+                                ? videos[i].thumbnailUrl!
+                                : 'assets/video_morning_flow.png',
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                      ],
+                    ],
+                  ),
+                );
+              }),
+              const SizedBox(height: AppSpacing.xxl),
 
-              const SizedBox(height: 12),
-
-              // Horizontal Free Videos list
-              SizedBox(
-                height: 160,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  children: [
-                    _buildFreeVideoItem(
-                      title: '5-min Morning Flow',
-                      category: 'Daily Energy',
-                      duration: '8:15',
-                      imagePath: 'assets/video_morning_flow.png',
-                    ),
-                    const SizedBox(width: 14),
-                    _buildFreeVideoItem(
-                      title: 'Deep Sleep Prep',
-                      category: 'Restorative',
-                      duration: '10:30',
-                      imagePath: 'assets/video_sleep_prep.png',
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 28),
-
-              // 4. Community Moments Section
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20.0),
+              // ── 4. Community Moments ──────────────────────────────
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Community Moments',
-                      style: TextStyle(
-                        color: Color(0xFF0F172A),
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                      style: GoogleFonts.inter(
+                        color: AppTheme.figmaGreen,
+                        fontSize: AppFontSizes.h3,
+                        fontWeight: AppFontWeights.bold,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'Real people. Real Progress. real Inspiration.',
-                      style: TextStyle(
-                        color: Color(0xFF6B7280),
-                        fontSize: 12,
+                      'Real people. Real Progress. Real Inspiration.',
+                      style: GoogleFonts.inter(
+                        color: AppTheme.coolGray,
+                        fontSize: AppFontSizes.bodyMedium,
+                        fontWeight: AppFontWeights.regular,
                       ),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(height: AppSpacing.lg),
 
-              const SizedBox(height: 14),
-
-              // Testimonial Quote Card 1
               _buildQuoteCard(
                 context,
-                quote: 'This 15 mins of yoga every day changed the way I start my mornings',
+                quote:
+                    'This 15 mins of yoga every day changed the way I start my mornings',
                 name: 'Priya S',
                 photoPath: 'assets/community_priya.png',
                 avatarPath: 'assets/avatar_priya.png',
               ),
+              const SizedBox(height: AppSpacing.md),
 
-              const SizedBox(height: 14),
-
-              // Testimonial Quote Card 2
               _buildQuoteCard(
                 context,
-                quote: 'I feel Stronger, calmer and more focused than even before',
+                quote:
+                    'I feel Stronger, calmer and more focused than even before',
                 name: 'Rohit K',
                 photoPath: 'assets/community_rohit.png',
                 avatarPath: 'assets/avatar_rohit.png',
               ),
-
-              const SizedBox(height: 32),
+              const SizedBox(height: AppSpacing.xxxl),
             ],
           ),
         ),
       ),
-      // 5. Guest Bottom Navigation Bar
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 1, // Program selected
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFF00A859),
-        unselectedItemColor: const Color(0xFF94A3B8),
-        onTap: (index) {
-          if (index != 1) {
-            context.go('/login'); // Redirect to login if user clicks any other tab
-          }
-        },
-        items: [
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.grid_view_rounded),
-            activeIcon: Column(
-              mainAxisSize: MainAxisSize.min,
+    );
+  }
+
+  // ─── Header Banner ────────────────────────────────────────────────────────
+
+  Widget _buildHeader(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 130),
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('assets/unregistered-header_bg.png'),
+          fit: BoxFit.contain,
+          alignment: Alignment.center,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.lg,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top row: greeting + streak badge + profile
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const Icon(Icons.grid_view_rounded, color: Color(0xFF00A859)),
-                const SizedBox(height: 2),
+                // Greeting text
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Vanakkam',
+                      style: GoogleFonts.inter(
+                        color: AppTheme.figmaMutedGray,
+                        fontSize: AppFontSizes.bodyMedium,
+                        fontWeight: AppFontWeights.regular,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      'User 👋',
+                      style: GoogleFonts.inter(
+                        fontSize: 20,
+                        fontWeight: AppFontWeights.bold,
+                        color: AppTheme.darkTeal,
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+
+                // Streak badge — fire + number stacked with "Day Streak" label
                 Container(
-                  width: 4,
-                  height: 4,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Color(0xFF00A859),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(AppRadii.xl),
+                    border: Border.all(color: const Color(0xFFE8EDE9)),
                   ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('🔥', style: TextStyle(fontSize: 16)),
+                      const SizedBox(width: AppSpacing.xs),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '0',
+                            style: GoogleFonts.inter(
+                              color: AppTheme.darkTeal,
+                              fontSize: AppFontSizes.bodyLarge,
+                              fontWeight: AppFontWeights.bold,
+                              height: 1.0,
+                            ),
+                          ),
+                          Text(
+                            'Day Streak',
+                            style: GoogleFonts.inter(
+                              color: AppTheme.coolGray,
+                              fontSize: 8,
+                              fontWeight: AppFontWeights.regular,
+                              height: 1.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(width: AppSpacing.sm),
+
+                // Profile icon with green online dot
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border:
+                            Border.all(color: const Color(0xFFE8EDE9)),
+                      ),
+                      child: const Icon(
+                        Icons.person_outline_rounded,
+                        color: Colors.black,
+                        size: 20,
+                      ),
+                    ),
+                    // Green online dot
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: AppTheme.figmaGreen,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: Colors.white, width: 1.5),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-            label: 'Program',
+
+            const SizedBox(height: AppSpacing.sm),
+
+            // Subtitle
+            Text(
+              'Daily discipline. Lasting transformation.',
+              style: GoogleFonts.inter(
+                color: AppTheme.figmaGreen,
+                fontSize: 9.5,
+                fontWeight: AppFontWeights.semiBold,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+  // ─── Section Header ───────────────────────────────────────────────────────
+
+  Widget _buildSectionHeader(BuildContext context, String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              color: AppTheme.figmaCharcoal,
+              fontSize: AppFontSizes.h3,
+              fontWeight: AppFontWeights.bold,
+            ),
           ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.play_circle_outline_rounded),
-            activeIcon: Icon(Icons.play_circle_filled_rounded),
-            label: 'Videos',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.directions_walk_rounded),
-            activeIcon: Icon(Icons.directions_walk_rounded),
-            label: 'Steps',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline_rounded),
-            activeIcon: Icon(Icons.person_rounded),
-            label: 'Profile',
+          GestureDetector(
+            onTap: () => context.go('/login'),
+            child: Text(
+              'See All',
+              style: GoogleFonts.inter(
+                color: AppTheme.figmaCharcoal,
+                fontSize: AppFontSizes.bodyMedium,
+                fontWeight: AppFontWeights.bold,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
+
+  // ─── Course Card ──────────────────────────────────────────────────────────
 
   Widget _buildCourseCard(
     BuildContext context, {
@@ -319,118 +398,190 @@ class UnregisteredHomeScreen extends StatelessWidget {
     required String imagePath,
   }) {
     return GestureDetector(
-      onTap: () => context.go('/login'),
+      onTap: () => context.push('/program_details', extra: {
+        'title': title,
+        'imagePath': imagePath,
+      }),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 6.0),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
         child: Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
-            boxShadow: [
+            borderRadius: BorderRadius.circular(AppRadii.xxl),
+            border: Border.all(color: const Color(0xFFF0F0F0)),
+            boxShadow: const [
               BoxShadow(
-                color: Colors.black.withOpacity(0.03),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
+                color: Color(0x08000000),
+                blurRadius: 12,
+                offset: Offset(0, 4),
               ),
             ],
           ),
-          clipBehavior: Clip.hardEdge,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Course Thumbnail Image with Price overlay
-              Stack(
-                children: [
-                  Image.asset(
-                    imagePath,
-                    height: 160,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
-                  Positioned(
-                    right: 12,
-                    bottom: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF00A859), // Green badge
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        price,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
+              // Image: padded + rounded corners inside the card
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadii.xl),
+                  child: Stack(
+                    children: [
+                      Image.asset(
+                        imagePath,
+                        height: 185,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            Container(
+                          height: 185,
+                          color: AppTheme.lightGray,
+                          child: const Center(
+                            child: Icon(Icons.image_outlined,
+                                size: 48, color: AppTheme.coolGray),
+                          ),
                         ),
                       ),
-                    ),
+                      // Price badge
+                      Positioned(
+                        right: AppSpacing.md,
+                        bottom: AppSpacing.md,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.xs,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.figmaGreen,
+                            borderRadius:
+                                BorderRadius.circular(AppRadii.xl),
+                          ),
+                          child: Text(
+                            price,
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontWeight: AppFontWeights.bold,
+                              fontSize: AppFontSizes.bodyLarge,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
+
+              // Card body
               Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg, AppSpacing.xs, AppSpacing.lg, AppSpacing.md,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Course Title
+                    // Title
                     Text(
                       title,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF00A859),
+                      style: GoogleFonts.inter(
+                        fontSize: AppFontSizes.bodyLarge,
+                        fontWeight: AppFontWeights.bold,
+                        color: AppTheme.figmaGreen,
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    // Course Tags Row
-                    Row(
-                      children: [
-                        Icon(Icons.calendar_today_outlined, size: 13, color: Colors.grey[600]),
-                        const SizedBox(width: 4),
-                        Text(
-                          days,
-                          style: TextStyle(color: Colors.grey[600], fontSize: 11.5),
-                        ),
-                        const SizedBox(width: 10),
-                        Text('|', style: TextStyle(color: Colors.grey[300])),
-                        const SizedBox(width: 10),
-                        Icon(Icons.bar_chart_rounded, size: 14, color: Colors.grey[600]),
-                        const SizedBox(width: 4),
-                        Text(
-                          level,
-                          style: TextStyle(color: Colors.grey[600], fontSize: 11.5),
-                        ),
-                        const SizedBox(width: 10),
-                        Text('|', style: TextStyle(color: Colors.grey[300])),
-                        const SizedBox(width: 10),
-                        Icon(Icons.access_time_rounded, size: 13, color: Colors.grey[600]),
-                        const SizedBox(width: 4),
-                        Text(
-                          duration,
-                          style: TextStyle(color: Colors.grey[600], fontSize: 11.5),
-                        ),
-                      ],
+                    const SizedBox(height: AppSpacing.sm),
+
+                    // Stats row — evenly distributed
+                    IntrinsicHeight(
+                      child: Row(
+                        children: [
+                          // Days
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Icon(Icons.calendar_today_outlined,
+                                    size: 13, color: AppTheme.coolGray),
+                                const SizedBox(width: AppSpacing.xs),
+                                Text(
+                                  days,
+                                  style: GoogleFonts.inter(
+                                    color: AppTheme.coolGray,
+                                    fontSize: AppFontSizes.bodyMedium,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Divider
+                          VerticalDivider(
+                            width: 1,
+                            thickness: 1,
+                            color: AppTheme.coolGray.withAlpha(60),
+                          ),
+                          // Level
+                          Expanded(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.bar_chart_rounded,
+                                    size: 15, color: AppTheme.coolGray),
+                                const SizedBox(width: AppSpacing.xs),
+                                Text(
+                                  level,
+                                  style: GoogleFonts.inter(
+                                    color: AppTheme.coolGray,
+                                    fontSize: AppFontSizes.bodyMedium,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Divider
+                          VerticalDivider(
+                            width: 1,
+                            thickness: 1,
+                            color: AppTheme.coolGray.withAlpha(60),
+                          ),
+                          // Duration
+                          Expanded(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Icon(Icons.access_time_rounded,
+                                    size: 13, color: AppTheme.coolGray),
+                                const SizedBox(width: AppSpacing.xs),
+                                Text(
+                                  duration,
+                                  style: GoogleFonts.inter(
+                                    color: AppTheme.coolGray,
+                                    fontSize: AppFontSizes.bodyMedium,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                    const Divider(height: 1, color: Color(0xFFF3F4F6)),
-                    const SizedBox(height: 10),
-                    // Footer Action Row
-                    const Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+                    const SizedBox(height: AppSpacing.md),
+                    const Divider(height: 1, color: Color(0xFFF0F0F0)),
+                    const SizedBox(height: AppSpacing.md),
+
+                    // View Details
+                    Row(
                       children: [
                         Text(
                           'View Details',
-                          style: TextStyle(
-                            color: Color(0xFF00A859),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13.5,
+                          style: GoogleFonts.inter(
+                            color: AppTheme.figmaGreen,
+                            fontWeight: AppFontWeights.semiBold,
+                            fontSize: AppFontSizes.bodyMedium,
                           ),
                         ),
-                        Icon(
+                        const Spacer(),
+                        const Icon(
                           Icons.arrow_forward_rounded,
-                          color: Color(0xFF00A859),
+                          color: AppTheme.figmaGreen,
                           size: 16,
                         ),
                       ],
@@ -445,93 +596,109 @@ class UnregisteredHomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFreeVideoItem({
+  // ─── Free Video Item ──────────────────────────────────────────────────────
+
+  Widget _buildFreeVideoItem(
+    BuildContext context, {
     required String title,
     required String category,
     required String duration,
     required String imagePath,
   }) {
-    return SizedBox(
-      width: 180,
+    return GestureDetector(
+      onTap: () => context.go('/login'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Video Thumbnail
+          // Thumbnail — 16:9 landscape rectangle
           ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Stack(
-              children: [
-                Image.asset(
-                  imagePath,
-                  height: 100,
-                  width: 180,
-                  fit: BoxFit.cover,
-                ),
-                // Overlay Play Button
-                Positioned.fill(
-                  child: Center(
+            borderRadius: BorderRadius.circular(AppRadii.xl),
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.asset(
+                    imagePath,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        Container(
+                      color: AppTheme.lightGray,
+                      child: const Center(
+                        child: Icon(Icons.play_circle_outline,
+                            size: 32, color: AppTheme.coolGray),
+                      ),
+                    ),
+                  ),
+                  // Play button
+                  Center(
                     child: Container(
-                      padding: const EdgeInsets.all(6),
+                      width: 30,
+                      height: 30,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.black.withOpacity(0.3),
+                        color: AppTheme.figmaGreen.withAlpha(220),
                       ),
                       child: const Icon(
                         Icons.play_arrow_rounded,
                         color: Colors.white,
-                        size: 24,
+                        size: 18,
                       ),
                     ),
                   ),
-                ),
-                // Duration Badge
-                Positioned(
-                  right: 8,
-                  bottom: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      duration,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
+                  // Duration badge
+                  Positioned(
+                    right: AppSpacing.xs,
+                    bottom: AppSpacing.xs,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.xs,
+                          vertical: AppSpacing.xxs),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withAlpha(153),
+                        borderRadius:
+                            BorderRadius.circular(AppRadii.sm),
+                      ),
+                      child: Text(
+                        duration,
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: AppFontSizes.bodySmall,
+                          fontWeight: AppFontWeights.semiBold,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 6),
-          // Title
+          const SizedBox(height: AppSpacing.sm),
           Text(
             title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF0F172A),
+            style: GoogleFonts.inter(
+              fontSize: AppFontSizes.bodyMedium,
+              fontWeight: AppFontWeights.semiBold,
+              color: AppTheme.figmaCharcoal,
             ),
           ),
-          // Subtitle
+          const SizedBox(height: AppSpacing.xxs),
           Text(
             category,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF00A859),
+            style: GoogleFonts.inter(
+              fontSize: AppFontSizes.bodySmall + 1,
+              fontWeight: AppFontWeights.semiBold,
+              color: AppTheme.figmaGreen,
             ),
           ),
         ],
       ),
     );
   }
+
+  // ─── Community Quote Card ─────────────────────────────────────────────────
 
   Widget _buildQuoteCard(
     BuildContext context, {
@@ -541,109 +708,135 @@ class UnregisteredHomeScreen extends StatelessWidget {
     required String avatarPath,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
       child: Container(
-        padding: const EdgeInsets.all(16.0),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE5E7EB)),
-          boxShadow: [
+          borderRadius: BorderRadius.circular(AppRadii.xxl),
+          border: Border.all(color: const Color(0xFFF0F0F0)),
+          boxShadow: const [
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
-              blurRadius: 6,
-              offset: const Offset(0, 3),
+              color: Color(0x06000000),
+              blurRadius: 10,
+              offset: Offset(0, 4),
             ),
           ],
         ),
         child: Column(
           children: [
-            // Quote content Row
+            // Photo + quote row
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Quote Image
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.asset(
-                    photoPath,
-                    width: 90,
-                    height: 90,
-                    fit: BoxFit.cover,
+                // Photo with padding + rounded corners
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(AppRadii.lg),
+                    child: Image.asset(
+                      photoPath,
+                      width: 100,
+                      height: 110,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          Container(
+                        width: 100,
+                        height: 110,
+                        color: AppTheme.lightGray,
+                        child: const Icon(Icons.person_outline,
+                            color: AppTheme.coolGray),
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 14),
-                // Quote text block
+                // Quote text
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        '“',
-                        style: TextStyle(
-                          fontSize: 32,
-                          height: 0.8,
-                          color: Color(0xFFD1D5DB),
-                          fontWeight: FontWeight.bold,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.xs, AppSpacing.md, AppSpacing.md,
+                      AppSpacing.md,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '"',
+                          style: GoogleFonts.inter(
+                            fontSize: 32,
+                            height: 0.8,
+                            color: AppTheme.figmaCharcoal,
+                            fontWeight: AppFontWeights.bold,
+                          ),
                         ),
-                      ),
-                      Text(
-                        quote,
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          height: 1.35,
-                          color: Color(0xFF374151),
-                          fontStyle: FontStyle.italic,
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          quote,
+                          style: GoogleFonts.inter(
+                            fontSize: AppFontSizes.bodyMedium,
+                            height: 1.45,
+                            color: AppTheme.figmaCharcoal,
+                            fontWeight: AppFontWeights.regular,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            const Divider(height: 1, color: Color(0xFFF3F4F6)),
-            const SizedBox(height: 8),
-            // User details row
-            Row(
-              children: [
-                // Avatar Profile Pic
-                CircleAvatar(
-                  radius: 12,
-                  backgroundImage: AssetImage(avatarPath),
-                ),
-                const SizedBox(width: 8),
-                // Name
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
+            // Bottom: avatar + name + streak
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md, AppSpacing.sm, AppSpacing.md,
+                AppSpacing.md,
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 14,
+                    backgroundImage: AssetImage(avatarPath),
+                    backgroundColor: AppTheme.lightGray,
                   ),
-                ),
-                const Spacer(),
-                // Streak badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9), // Subtle light grey badge background
-                    borderRadius: BorderRadius.circular(12),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    name,
+                    style: GoogleFonts.inter(
+                      fontSize: AppFontSizes.bodyMedium,
+                      fontWeight: AppFontWeights.bold,
+                      color: AppTheme.figmaCharcoal,
+                    ),
                   ),
-                  child: const Row(
-                    children: [
-                      Text(
-                        '🔥 2 Days Streak',
-                        style: TextStyle(
-                          color: Color(0xFF00A859),
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
+                        vertical: AppSpacing.xxs + 1),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F5EE),
+                      borderRadius:
+                          BorderRadius.circular(AppRadii.xl),
+                      border: Border.all(
+                          color: const Color(0xFFC2E0CE)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('🔥',
+                            style: TextStyle(fontSize: 11)),
+                        const SizedBox(width: AppSpacing.xxs),
+                        Text(
+                          '2 Days Streak',
+                          style: GoogleFonts.inter(
+                            color: AppTheme.figmaGreen,
+                            fontSize: AppFontSizes.bodySmall,
+                            fontWeight: AppFontWeights.semiBold,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),

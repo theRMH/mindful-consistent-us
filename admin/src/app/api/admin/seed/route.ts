@@ -22,57 +22,61 @@ const FREE_VIDEOS = [
 
 export async function POST() {
   try {
-    const existing = await prisma.course.count();
-    if (existing > 0) {
-      return NextResponse.json({ message: 'Already seeded', count: existing });
-    }
+    const [courseCount, freeCount] = await Promise.all([
+      prisma.course.count(),
+      prisma.freeVideo.count(),
+    ]);
 
-    for (const courseData of COURSES) {
-      const course = await prisma.course.create({
-        data: {
-          title:        courseData.title,
-          slug:         courseData.slug,
-          category:     courseData.category,
-          totalDays:    courseData.totalDays,
-          priceInr:     courseData.priceInr,
-          thumbnailUrl: courseData.thumbnailUrl,
-          isPublished:  true,
-          description:  `A ${courseData.totalDays}-day yoga journey designed to build strength, flexibility and inner calm through daily practice.`,
-        },
-      });
+    let seededCourses = false;
+    let seededFreeVideos = false;
 
-      for (let day = 1; day <= courseData.totalDays; day++) {
-        const courseDay = await prisma.courseDay.create({
+    if (courseCount === 0) {
+      for (const courseData of COURSES) {
+        const course = await prisma.course.create({
           data: {
-            courseId:  course.id,
-            dayNumber: day,
-            title:     `Day ${day}`,
-            description: `Day ${day} of your ${courseData.totalDays}-day journey.`,
+            title:        courseData.title,
+            slug:         courseData.slug,
+            category:     courseData.category,
+            totalDays:    courseData.totalDays,
+            priceInr:     courseData.priceInr,
+            thumbnailUrl: courseData.thumbnailUrl,
+            isPublished:  true,
+            description:  `A ${courseData.totalDays}-day yoga journey designed to build strength, flexibility and inner calm through daily practice.`,
           },
         });
 
-        for (let i = 0; i < TOPICS.length; i++) {
-          const topic = TOPICS[i];
-          await prisma.video.create({
+        for (let day = 1; day <= courseData.totalDays; day++) {
+          const courseDay = await prisma.courseDay.create({
             data: {
-              courseDayId:     courseDay.id,
-              title:           topic.title,
-              category:        courseData.category,
-              durationSeconds: topic.durationSeconds,
-              videoSource:     'youtube',
-              youtubeVideoId:  topic.youtubeVideoId,
-              thumbnailUrl:    topic.thumbnailUrl,
-              sortOrder:       i,
-              isFree:          false,
-              isPublished:     true,
+              courseId:    course.id,
+              dayNumber:   day,
+              title:       `Day ${day}`,
+              description: `Day ${day} of your ${courseData.totalDays}-day journey.`,
             },
           });
+
+          for (let i = 0; i < TOPICS.length; i++) {
+            const topic = TOPICS[i];
+            await prisma.video.create({
+              data: {
+                courseDayId:     courseDay.id,
+                title:           topic.title,
+                category:        courseData.category,
+                durationSeconds: topic.durationSeconds,
+                videoSource:     'youtube',
+                youtubeVideoId:  topic.youtubeVideoId,
+                thumbnailUrl:    topic.thumbnailUrl,
+                sortOrder:       i,
+                isFree:          false,
+                isPublished:     true,
+              },
+            });
+          }
         }
       }
+      seededCourses = true;
     }
 
-    // Seed free videos
-    const freeCount = await prisma.freeVideo.count();
     if (freeCount === 0) {
       for (let i = 0; i < FREE_VIDEOS.length; i++) {
         const v = FREE_VIDEOS[i];
@@ -89,9 +93,14 @@ export async function POST() {
           },
         });
       }
+      seededFreeVideos = true;
     }
 
-    return NextResponse.json({ success: true, message: 'Demo data seeded successfully.' });
+    if (!seededCourses && !seededFreeVideos) {
+      return NextResponse.json({ message: 'Already seeded', courseCount, freeCount });
+    }
+
+    return NextResponse.json({ success: true, seededCourses, seededFreeVideos });
   } catch (error: any) {
     console.error('Seed error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
