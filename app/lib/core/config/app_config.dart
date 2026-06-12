@@ -11,9 +11,9 @@ class AppConfig {
 
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:3000',
+    defaultValue: 'https://mindful-consistent-us.vercel.app',
   );
 
-  // Set this to true to run in local mock development mode to allow immediate screen previews without backend connections
-  static const bool useMockData = true;
+  // Set to false — app now runs against real backend. Re-enable only for UI-only work without backend.
+  static const bool useMockData = false;
 }
