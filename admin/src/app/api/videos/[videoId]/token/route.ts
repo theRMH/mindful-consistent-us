@@ -41,9 +41,13 @@ export async function GET(
       }
     }
 
+    if (!video.bunnyVideoId || !video.bunnyLibraryId) {
+      return NextResponse.json({ error: 'Video has no Bunny.net source' }, { status: 400 });
+    }
+
     // Generate signed token parameters for Bunny.net Stream
     const { token, expires } = generateBunnyToken(video.bunnyVideoId);
-    
+
     // Construct signed streaming URL
     const streamUrl = `https://iframe.mediadelivery.net/embed/${video.bunnyLibraryId}/${video.bunnyVideoId}?token=${token}&expires=${expires}`;
 
