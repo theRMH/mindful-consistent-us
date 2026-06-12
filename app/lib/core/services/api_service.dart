@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../config/app_config.dart';
 
@@ -74,6 +73,11 @@ class ApiService {
     return res as List<dynamic>;
   }
 
+  Future<List<dynamic>> getCommunityMoments() async {
+    final res = await _get('/api/mobile/community-moments');
+    return res as List<dynamic>;
+  }
+
   Future<List<dynamic>> getEnrollments() async {
     final res = await _get('/api/mobile/enrollments');
     return res as List<dynamic>;
@@ -102,9 +106,25 @@ class ApiService {
     return res as Map<String, dynamic>;
   }
 
-  Future<List<dynamic>> getLeaderboard() async {
+  Future<Map<String, dynamic>> getLeaderboard() async {
     final res = await _get('/api/mobile/leaderboard');
-    return res as List<dynamic>;
+    return res as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> getProfile() async {
+    final res = await _get('/api/mobile/profile');
+    return res as Map<String, dynamic>;
+  }
+
+  Future<void> syncSteps(int steps, double calories) async {
+    await _post('/api/mobile/steps', {'steps': steps, 'calories': calories});
+  }
+
+  Future<void> syncProfile({String? fullName, String? avatarUrl}) async {
+    final body = <String, dynamic>{};
+    if (fullName != null) body['fullName'] = fullName;
+    if (avatarUrl != null) body['avatarUrl'] = avatarUrl;
+    await _post('/api/auth/sync', body);
   }
 }
 

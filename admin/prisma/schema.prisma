@@ -198,7 +198,22 @@ model LeaderboardEntry {
   @@map("leaderboard_entries")
 }
 
-// 11. Feedback
+// 11. Community Moments
+model CommunityMoment {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  quote      String
+  photoUrl   String?  @map("photo_url")
+  avatarUrl  String?  @map("avatar_url")
+  streakDays Int      @default(0) @map("streak_days")
+  sortOrder  Int      @default(0) @map("sort_order")
+  isPublished Boolean @default(true) @map("is_published")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("community_moments")
+}
+
+// 12. Feedback
 model Feedback {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId     String   @map("user_id") @db.Uuid

@@ -20,15 +20,36 @@ const FREE_VIDEOS = [
   { title: 'Desk Neck Relief',   youtubeVideoId: 's7WpC1sL0h8', durationSeconds: 495, thumbnailUrl: 'assets/video_neck_relief.png'  },
 ];
 
+const COMMUNITY_MOMENTS = [
+  {
+    name: 'Priya S',
+    quote: 'This 15 mins of yoga every day changed the way I start my mornings',
+    photoUrl: 'assets/community_priya.png',
+    avatarUrl: 'assets/avatar_priya.png',
+    streakDays: 21,
+    sortOrder: 0,
+  },
+  {
+    name: 'Rohit K',
+    quote: 'I feel stronger, calmer and more focused than ever before',
+    photoUrl: 'assets/community_rohit.png',
+    avatarUrl: 'assets/avatar_rohit.png',
+    streakDays: 14,
+    sortOrder: 1,
+  },
+];
+
 export async function POST() {
   try {
-    const [courseCount, freeCount] = await Promise.all([
+    const [courseCount, freeCount, momentCount] = await Promise.all([
       prisma.course.count(),
       prisma.freeVideo.count(),
+      prisma.communityMoment.count(),
     ]);
 
     let seededCourses = false;
     let seededFreeVideos = false;
+    let seededMoments = false;
 
     if (courseCount === 0) {
       for (const courseData of COURSES) {
@@ -96,11 +117,18 @@ export async function POST() {
       seededFreeVideos = true;
     }
 
-    if (!seededCourses && !seededFreeVideos) {
-      return NextResponse.json({ message: 'Already seeded', courseCount, freeCount });
+    if (momentCount === 0) {
+      for (const m of COMMUNITY_MOMENTS) {
+        await prisma.communityMoment.create({ data: m });
+      }
+      seededMoments = true;
     }
 
-    return NextResponse.json({ success: true, seededCourses, seededFreeVideos });
+    if (!seededCourses && !seededFreeVideos && !seededMoments) {
+      return NextResponse.json({ message: 'Already seeded', courseCount, freeCount, momentCount });
+    }
+
+    return NextResponse.json({ success: true, seededCourses, seededFreeVideos, seededMoments });
   } catch (error: any) {
     console.error('Seed error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

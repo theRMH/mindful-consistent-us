@@ -94,6 +94,35 @@ class VideoModel {
   }
 }
 
+class CommunityMomentModel {
+  final String id;
+  final String name;
+  final String quote;
+  final String? photoUrl;
+  final String? avatarUrl;
+  final int streakDays;
+
+  const CommunityMomentModel({
+    required this.id,
+    required this.name,
+    required this.quote,
+    this.photoUrl,
+    this.avatarUrl,
+    required this.streakDays,
+  });
+
+  factory CommunityMomentModel.fromJson(Map<String, dynamic> json) {
+    return CommunityMomentModel(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      quote: json['quote'] as String,
+      photoUrl: json['photoUrl'] as String?,
+      avatarUrl: json['avatarUrl'] as String?,
+      streakDays: json['streakDays'] as int? ?? 0,
+    );
+  }
+}
+
 class FreeVideoModel {
   final String id;
   final String title;

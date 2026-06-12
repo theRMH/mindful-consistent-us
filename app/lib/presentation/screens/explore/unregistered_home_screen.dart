@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/config/theme.dart';
 import '../../providers/courses_provider.dart';
 import '../../providers/free_videos_provider.dart';
+import '../../providers/community_moments_provider.dart';
 
 class UnregisteredHomeScreen extends ConsumerWidget {
   const UnregisteredHomeScreen({super.key});
@@ -149,52 +150,52 @@ class UnregisteredHomeScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.xxl),
 
               // ── 4. Community Moments ──────────────────────────────
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                child: Column(
+              Builder(builder: (context) {
+                final moments = ref.watch(communityMomentsProvider).moments;
+                if (moments.isEmpty) return const SizedBox.shrink();
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Community Moments',
-                      style: GoogleFonts.inter(
-                        color: AppTheme.figmaGreen,
-                        fontSize: AppFontSizes.h3,
-                        fontWeight: AppFontWeights.bold,
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Community Moments',
+                            style: GoogleFonts.inter(
+                              color: AppTheme.figmaGreen,
+                              fontSize: AppFontSizes.h3,
+                              fontWeight: AppFontWeights.bold,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            'Real people. Real Progress. Real Inspiration.',
+                            style: GoogleFonts.inter(
+                              color: AppTheme.coolGray,
+                              fontSize: AppFontSizes.bodyMedium,
+                              fontWeight: AppFontWeights.regular,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'Real people. Real Progress. Real Inspiration.',
-                      style: GoogleFonts.inter(
-                        color: AppTheme.coolGray,
-                        fontSize: AppFontSizes.bodyMedium,
-                        fontWeight: AppFontWeights.regular,
+                    const SizedBox(height: AppSpacing.lg),
+                    ...moments.map((m) => Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                      child: _buildQuoteCard(
+                        context,
+                        quote: m.quote,
+                        name: m.name,
+                        photoPath: m.photoUrl ?? 'assets/community_priya.png',
+                        avatarPath: m.avatarUrl ?? 'assets/avatar_priya.png',
+                        streakDays: m.streakDays,
                       ),
-                    ),
+                    )),
                   ],
-                ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-
-              _buildQuoteCard(
-                context,
-                quote:
-                    'This 15 mins of yoga every day changed the way I start my mornings',
-                name: 'Priya S',
-                photoPath: 'assets/community_priya.png',
-                avatarPath: 'assets/avatar_priya.png',
-              ),
-              const SizedBox(height: AppSpacing.md),
-
-              _buildQuoteCard(
-                context,
-                quote:
-                    'I feel Stronger, calmer and more focused than even before',
-                name: 'Rohit K',
-                photoPath: 'assets/community_rohit.png',
-                avatarPath: 'assets/avatar_rohit.png',
-              ),
+                );
+              }),
               const SizedBox(height: AppSpacing.xxxl),
             ],
           ),
@@ -706,6 +707,7 @@ class UnregisteredHomeScreen extends ConsumerWidget {
     required String name,
     required String photoPath,
     required String avatarPath,
+    int streakDays = 0,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
@@ -825,7 +827,7 @@ class UnregisteredHomeScreen extends ConsumerWidget {
                             style: TextStyle(fontSize: 11)),
                         const SizedBox(width: AppSpacing.xxs),
                         Text(
-                          '2 Days Streak',
+                          '$streakDays Days Streak',
                           style: GoogleFonts.inter(
                             color: AppTheme.figmaGreen,
                             fontSize: AppFontSizes.bodySmall,
