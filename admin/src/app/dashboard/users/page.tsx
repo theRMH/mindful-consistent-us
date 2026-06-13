@@ -4,6 +4,17 @@ import ResetProgressButton from "./ResetProgressButton";
 
 export const dynamic = "force-dynamic";
 
+function currentDemoDay(enrolledAt: Date) {
+  const start = new Date(
+    enrolledAt.getFullYear(),
+    enrolledAt.getMonth(),
+    enrolledAt.getDate(),
+  );
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.floor((today.getTime() - start.getTime()) / 86400000) + 1;
+}
+
 export default async function UsersDirectoryPage({
   searchParams,
 }: {
@@ -341,6 +352,7 @@ export default async function UsersDirectoryPage({
                 <ResetProgressButton
                   userId={selectedUser.id}
                   userName={selectedUser.fullName || selectedUser.email}
+                  enrollments={selectedUser.enrollments}
                 />
               </div>
 
@@ -370,6 +382,15 @@ export default async function UsersDirectoryPage({
                           </span>
                           <span className="capitalize text-emerald-600 font-bold">
                             {enr.paymentStatus}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500 mt-1.5 font-medium">
+                          <span>
+                            Enrolled:{" "}
+                            {new Date(enr.enrolledAt).toLocaleDateString()}
+                          </span>
+                          <span className="text-slate-700 font-bold">
+                            Demo Day {currentDemoDay(enr.enrolledAt)}
                           </span>
                         </div>
                       </div>
