@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useEffect, useState, use } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, use } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface Video {
   id: string;
@@ -37,75 +37,87 @@ interface Course {
   courseDays: CourseDay[];
 }
 
-export default function CourseBuilder({ params }: { params: Promise<{ courseId: string }> }) {
+function formatCategory(category: string | null | undefined) {
+  if (category === "general_exercise") return "General Workout";
+  if (category === "yoga") return "Yoga";
+  return category || "Uncategorized";
+}
+
+export default function CourseBuilder({
+  params,
+}: {
+  params: Promise<{ courseId: string }>;
+}) {
   const { courseId } = use(params);
   const router = useRouter();
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   // Course Edit States
-  const [editTitle, setEditTitle] = useState('');
-  const [editSlug, setEditSlug] = useState('');
-  const [editDesc, setEditDesc] = useState('');
-  const [editPrice, setEditPrice] = useState('');
-  const [editTotalDays, setEditTotalDays] = useState('');
-  const [editThumbnail, setEditThumbnail] = useState('');
-  const [editCategory, setEditCategory] = useState('yoga');
+  const [editTitle, setEditTitle] = useState("");
+  const [editSlug, setEditSlug] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [editPrice, setEditPrice] = useState("");
+  const [editTotalDays, setEditTotalDays] = useState("");
+  const [editThumbnail, setEditThumbnail] = useState("");
+  const [editCategory, setEditCategory] = useState("yoga");
   const [editPublished, setEditPublished] = useState(false);
   const [courseSubmitting, setCourseSubmitting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Day Form States
   const [showDayForm, setShowDayForm] = useState(false);
-  const [dayNumber, setDayNumber] = useState('');
-  const [dayTitle, setDayTitle] = useState('');
-  const [dayDesc, setDayDesc] = useState('');
+  const [dayNumber, setDayNumber] = useState("");
+  const [dayTitle, setDayTitle] = useState("");
+  const [dayDesc, setDayDesc] = useState("");
   const [daySubmitting, setDaySubmitting] = useState(false);
 
   // Add Video Form States
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
-  const [videoTitle, setVideoTitle] = useState('');
-  const [videoCategory, setVideoCategory] = useState('yoga');
-  const [videoDuration, setVideoDuration] = useState('1200');
-  const [videoSource, setVideoSource] = useState<'bunny' | 'youtube'>('bunny');
-  const [bunnyVideoId, setBunnyVideoId] = useState('');
-  const [bunnyLibraryId, setBunnyLibraryId] = useState('mock_lib_123');
-  const [youtubeVideoId, setYoutubeVideoId] = useState('');
+  const [videoTitle, setVideoTitle] = useState("");
+  const [videoCategory, setVideoCategory] = useState("yoga");
+  const [videoDuration, setVideoDuration] = useState("1200");
+  const [videoSource, setVideoSource] = useState<"bunny" | "youtube">("bunny");
+  const [bunnyVideoId, setBunnyVideoId] = useState("");
+  const [bunnyLibraryId, setBunnyLibraryId] = useState("mock_lib_123");
+  const [youtubeVideoId, setYoutubeVideoId] = useState("");
   const [isFree, setIsFree] = useState(false);
-  const [videoThumbnail, setVideoThumbnail] = useState('');
+  const [videoThumbnail, setVideoThumbnail] = useState("");
   const [videoSubmitting, setVideoSubmitting] = useState(false);
 
   // Edit Video Form States
   const [editingVideo, setEditingVideo] = useState<Video | null>(null);
-  const [editVideoTitle, setEditVideoTitle] = useState('');
-  const [editVideoCategory, setEditVideoCategory] = useState('yoga');
-  const [editVideoDuration, setEditVideoDuration] = useState('1200');
-  const [editVideoSource, setEditVideoSource] = useState<'bunny' | 'youtube'>('bunny');
-  const [editBunnyVideoId, setEditBunnyVideoId] = useState('');
-  const [editBunnyLibraryId, setEditBunnyLibraryId] = useState('');
-  const [editYoutubeVideoId, setEditYoutubeVideoId] = useState('');
+  const [editVideoTitle, setEditVideoTitle] = useState("");
+  const [editVideoCategory, setEditVideoCategory] = useState("yoga");
+  const [editVideoDuration, setEditVideoDuration] = useState("1200");
+  const [editVideoSource, setEditVideoSource] = useState<"bunny" | "youtube">(
+    "bunny",
+  );
+  const [editBunnyVideoId, setEditBunnyVideoId] = useState("");
+  const [editBunnyLibraryId, setEditBunnyLibraryId] = useState("");
+  const [editYoutubeVideoId, setEditYoutubeVideoId] = useState("");
   const [editVideoIsFree, setEditVideoIsFree] = useState(false);
   const [editVideoSubmitting, setEditVideoSubmitting] = useState(false);
 
   const fetchCourseData = async () => {
     try {
       const res = await fetch(`/api/courses/${courseId}`);
-      if (!res.ok) throw new Error('Failed to fetch course details');
+      if (!res.ok) throw new Error("Failed to fetch course details");
       const data = await res.json();
       setCourse(data);
       // Initialize edit states
       setEditTitle(data.title);
       setEditSlug(data.slug);
-      setEditDesc(data.description || '');
+      setEditDesc(data.description || "");
       setEditPrice(Number(data.priceInr).toString());
       setEditTotalDays(data.totalDays.toString());
-      setEditThumbnail(data.thumbnailUrl || '');
-      setEditCategory(data.category || 'yoga');
+      setEditThumbnail(data.thumbnailUrl || "");
+      setEditCategory(data.category || "yoga");
       setEditPublished(data.isPublished);
       setLoading(false);
     } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+      setError(err.message || "Something went wrong");
       setLoading(false);
     }
   };
@@ -117,28 +129,28 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
   const handleAddDay = async (e: React.FormEvent) => {
     e.preventDefault();
     if (daySubmitting) return;
-    setError('');
+    setError("");
     setDaySubmitting(true);
- 
+
     try {
       const res = await fetch(`/api/courses/${courseId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: 'add_day',
+          action: "add_day",
           dayNumber,
           title: dayTitle,
           description: dayDesc,
         }),
       });
- 
-      if (!res.ok) throw new Error('Failed to add course day');
-       
+
+      if (!res.ok) throw new Error("Failed to add course day");
+
       // Reset & Reload
       setShowDayForm(false);
-      setDayNumber('');
-      setDayTitle('');
-      setDayDesc('');
+      setDayNumber("");
+      setDayTitle("");
+      setDayDesc("");
       fetchCourseData();
     } catch (err: any) {
       setError(err.message);
@@ -146,41 +158,42 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
       setDaySubmitting(false);
     }
   };
- 
+
   const handleAddVideo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (videoSubmitting) return;
-    setError('');
+    setError("");
     setVideoSubmitting(true);
- 
+
     try {
       const res = await fetch(`/api/courses/${courseId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: 'add_video',
+          action: "add_video",
           courseDayId: activeDayId,
           title: videoTitle,
           category: videoCategory,
           durationSeconds: videoDuration,
           videoSource,
-          bunnyVideoId: videoSource === 'bunny' ? bunnyVideoId : undefined,
-          bunnyLibraryId: videoSource === 'bunny' ? bunnyLibraryId : undefined,
-          youtubeVideoId: videoSource === 'youtube' ? youtubeVideoId : undefined,
+          bunnyVideoId: videoSource === "bunny" ? bunnyVideoId : undefined,
+          bunnyLibraryId: videoSource === "bunny" ? bunnyLibraryId : undefined,
+          youtubeVideoId:
+            videoSource === "youtube" ? youtubeVideoId : undefined,
           isFree,
           thumbnailUrl: videoThumbnail || undefined,
         }),
       });
 
-      if (!res.ok) throw new Error('Failed to link video');
+      if (!res.ok) throw new Error("Failed to link video");
 
       // Reset & Reload
       setActiveDayId(null);
-      setVideoTitle('');
-      setVideoSource('bunny');
-      setBunnyVideoId('');
-      setYoutubeVideoId('');
-      setVideoThumbnail('');
+      setVideoTitle("");
+      setVideoSource("bunny");
+      setBunnyVideoId("");
+      setYoutubeVideoId("");
+      setVideoThumbnail("");
       fetchCourseData();
     } catch (err: any) {
       setError(err.message);
@@ -194,10 +207,10 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
     setEditVideoTitle(vid.title);
     setEditVideoCategory(vid.category);
     setEditVideoDuration(vid.durationSeconds.toString());
-    setEditVideoSource(vid.videoSource as 'bunny' | 'youtube');
-    setEditBunnyVideoId(vid.bunnyVideoId ?? '');
-    setEditBunnyLibraryId(vid.bunnyLibraryId ?? '');
-    setEditYoutubeVideoId(vid.youtubeVideoId ?? '');
+    setEditVideoSource(vid.videoSource as "bunny" | "youtube");
+    setEditBunnyVideoId(vid.bunnyVideoId ?? "");
+    setEditBunnyLibraryId(vid.bunnyLibraryId ?? "");
+    setEditYoutubeVideoId(vid.youtubeVideoId ?? "");
     setEditVideoIsFree(vid.isFree);
     setActiveDayId(null);
     setShowDayForm(false);
@@ -206,24 +219,27 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
   const handleUpdateVideo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingVideo || editVideoSubmitting) return;
-    setError('');
+    setError("");
     setEditVideoSubmitting(true);
     try {
       const res = await fetch(`/api/videos/${editingVideo.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: editVideoTitle,
           category: editVideoCategory,
           durationSeconds: editVideoDuration,
           videoSource: editVideoSource,
-          bunnyVideoId: editVideoSource === 'bunny' ? editBunnyVideoId : undefined,
-          bunnyLibraryId: editVideoSource === 'bunny' ? editBunnyLibraryId : undefined,
-          youtubeVideoId: editVideoSource === 'youtube' ? editYoutubeVideoId : undefined,
+          bunnyVideoId:
+            editVideoSource === "bunny" ? editBunnyVideoId : undefined,
+          bunnyLibraryId:
+            editVideoSource === "bunny" ? editBunnyLibraryId : undefined,
+          youtubeVideoId:
+            editVideoSource === "youtube" ? editYoutubeVideoId : undefined,
           isFree: editVideoIsFree,
         }),
       });
-      if (!res.ok) throw new Error('Failed to update video');
+      if (!res.ok) throw new Error("Failed to update video");
       setEditingVideo(null);
       fetchCourseData();
     } catch (err: any) {
@@ -234,11 +250,11 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
   };
 
   const handleDeleteVideo = async (videoId: string) => {
-    if (!confirm('Delete this video? This cannot be undone.')) return;
-    setError('');
+    if (!confirm("Delete this video? This cannot be undone.")) return;
+    setError("");
     try {
-      const res = await fetch(`/api/videos/${videoId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete video');
+      const res = await fetch(`/api/videos/${videoId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete video");
       fetchCourseData();
     } catch (err: any) {
       setError(err.message);
@@ -248,13 +264,13 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
   const handleUpdateCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (courseSubmitting) return;
-    setError('');
+    setError("");
     setCourseSubmitting(true);
 
     try {
       const res = await fetch(`/api/courses/${courseId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: editTitle,
           slug: editSlug,
@@ -269,7 +285,7 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
 
       if (!res.ok) {
         const errData = await res.json();
-        throw new Error(errData.error || 'Failed to update course details');
+        throw new Error(errData.error || "Failed to update course details");
       }
       fetchCourseData();
     } catch (err: any) {
@@ -282,10 +298,10 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
   const handleDeleteCourse = async () => {
     try {
       const res = await fetch(`/api/courses/${courseId}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
-      if (!res.ok) throw new Error('Failed to delete course');
-      router.push('/dashboard/courses');
+      if (!res.ok) throw new Error("Failed to delete course");
+      router.push("/dashboard/courses");
     } catch (err: any) {
       setError(err.message);
       setShowDeleteConfirm(false);
@@ -303,7 +319,7 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
   if (error || !course) {
     return (
       <div className="bg-red-50 text-red-600 p-4 rounded-lg border border-red-100 font-medium text-sm">
-        {error || 'Course not found'}
+        {error || "Course not found"}
       </div>
     );
   }
@@ -312,14 +328,31 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center space-x-3">
-        <Link href="/dashboard/courses" className="text-gray-500 hover:text-gray-700">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+        <Link
+          href="/dashboard/courses"
+          className="text-gray-500 hover:text-gray-700"
+        >
+          <svg
+            className="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"
+            />
           </svg>
         </Link>
         <div>
-          <h2 className="text-2xl font-extrabold text-gray-900">{course.title}</h2>
-          <p className="text-sm text-gray-500 mt-1">Manage day schedules, focus summaries, and linked videos.</p>
+          <h2 className="text-2xl font-extrabold text-gray-900">
+            {course.title}
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Manage day schedules, focus summaries, and linked videos.
+          </p>
         </div>
       </div>
 
@@ -327,7 +360,9 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
         {/* Days & Videos Manager List */}
         <div className="lg:col-span-2 space-y-6">
           <div className="flex justify-between items-center bg-gray-50 p-4 rounded-lg border border-gray-100">
-            <h3 className="font-bold text-gray-800 text-lg">Program Days list</h3>
+            <h3 className="font-bold text-gray-800 text-lg">
+              Program Days list
+            </h3>
             <button
               onClick={() => setShowDayForm(true)}
               className="inline-flex items-center px-3 py-1.5 text-xs font-bold rounded-lg text-white bg-emerald-600 hover:bg-emerald-700 transition-colors"
@@ -338,16 +373,24 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
 
           {course.courseDays.length === 0 ? (
             <div className="p-12 border-2 border-dashed border-gray-200 rounded-lg text-center text-sm text-gray-400">
-              No Days configured yet. Click "Add Day" to structure your program curriculum.
+              No Days configured yet. Click "Add Day" to structure your program
+              curriculum.
             </div>
           ) : (
             <div className="space-y-6">
               {course.courseDays.map((day) => (
-                <div key={day.id} className="bg-white shadow rounded-lg border border-gray-100 overflow-hidden">
+                <div
+                  key={day.id}
+                  className="bg-white shadow rounded-lg border border-gray-100 overflow-hidden"
+                >
                   <div className="bg-gray-50/70 p-4 border-b border-gray-100 flex justify-between items-center">
                     <div>
-                      <h4 className="font-extrabold text-gray-800">Day {day.dayNumber}: {day.title || 'Untitled Day'}</h4>
-                      <p className="text-xs text-gray-500 mt-1">{day.description || 'No focus description set.'}</p>
+                      <h4 className="font-extrabold text-gray-800">
+                        Day {day.dayNumber}: {day.title || "Untitled Day"}
+                      </h4>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {day.description || "No focus description set."}
+                      </p>
                     </div>
                     <button
                       onClick={() => setActiveDayId(day.id)}
@@ -361,17 +404,24 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                   <div className="p-4 space-y-3">
                     {day.videos.length === 0 ? (
                       <div className="text-center py-6 text-xs text-gray-400 font-medium">
-                        No videos linked for this day. Click "Link Video" to add sessions.
+                        No videos linked for this day. Click "Link Video" to add
+                        sessions.
                       </div>
                     ) : (
                       day.videos.map((vid) => (
-                        <div key={vid.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg text-sm border border-gray-100">
+                        <div
+                          key={vid.id}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg text-sm border border-gray-100"
+                        >
                           <div className="min-w-0 flex-1">
-                            <div className="font-bold text-gray-800">{vid.title}</div>
+                            <div className="font-bold text-gray-800">
+                              {vid.title}
+                            </div>
                             <div className="text-xs text-gray-400 mt-0.5">
-                              {vid.category} • {Math.round(vid.durationSeconds / 60)} mins •{' '}
+                              {formatCategory(vid.category)} •{" "}
+                              {Math.round(vid.durationSeconds / 60)} mins •{" "}
                               <span className="font-medium">
-                                {vid.videoSource === 'youtube'
+                                {vid.videoSource === "youtube"
                                   ? `YouTube: ${vid.youtubeVideoId}`
                                   : `Bunny: ${vid.bunnyVideoId}`}
                               </span>
@@ -406,10 +456,14 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
           {/* Add Day Box */}
           {showDayForm && (
             <div className="bg-white shadow rounded-lg border border-gray-100 p-6 space-y-4">
-              <h3 className="font-bold text-gray-900 border-b border-gray-50 pb-2">Add Program Day</h3>
+              <h3 className="font-bold text-gray-900 border-b border-gray-50 pb-2">
+                Add Program Day
+              </h3>
               <form onSubmit={handleAddDay} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500">Day Number</label>
+                  <label className="block text-xs font-bold text-gray-500">
+                    Day Number
+                  </label>
                   <input
                     type="number"
                     required
@@ -420,7 +474,9 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500">Day Title</label>
+                  <label className="block text-xs font-bold text-gray-500">
+                    Day Title
+                  </label>
                   <input
                     type="text"
                     required
@@ -431,7 +487,9 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500">Description / Focus</label>
+                  <label className="block text-xs font-bold text-gray-500">
+                    Description / Focus
+                  </label>
                   <textarea
                     value={dayDesc}
                     onChange={(e) => setDayDesc(e.target.value)}
@@ -452,7 +510,7 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                     disabled={daySubmitting}
                     className="px-3 py-1.5 text-xs font-bold rounded-lg text-white bg-emerald-600 disabled:opacity-50"
                   >
-                    {daySubmitting ? 'Saving...' : 'Save Day'}
+                    {daySubmitting ? "Saving..." : "Save Day"}
                   </button>
                 </div>
               </form>
@@ -462,10 +520,14 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
           {/* Add Video Box */}
           {activeDayId && (
             <div className="bg-white shadow rounded-lg border border-gray-100 p-6 space-y-4">
-              <h3 className="font-bold text-gray-900 border-b border-gray-50 pb-2">Link Session Video</h3>
+              <h3 className="font-bold text-gray-900 border-b border-gray-50 pb-2">
+                Link Session Video
+              </h3>
               <form onSubmit={handleAddVideo} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500">Video Title</label>
+                  <label className="block text-xs font-bold text-gray-500">
+                    Video Title
+                  </label>
                   <input
                     type="text"
                     required
@@ -477,7 +539,9 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-gray-500">Category</label>
+                    <label className="block text-xs font-bold text-gray-500">
+                      Category
+                    </label>
                     <select
                       value={videoCategory}
                       onChange={(e) => setVideoCategory(e.target.value)}
@@ -488,7 +552,9 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500">Duration (Secs)</label>
+                    <label className="block text-xs font-bold text-gray-500">
+                      Duration (Secs)
+                    </label>
                     <input
                       type="number"
                       required
@@ -499,28 +565,32 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500">Video Source</label>
+                  <label className="block text-xs font-bold text-gray-500">
+                    Video Source
+                  </label>
                   <div className="mt-1 flex rounded-md border border-gray-300 overflow-hidden text-xs font-bold">
                     <button
                       type="button"
-                      onClick={() => setVideoSource('bunny')}
-                      className={`flex-1 py-1.5 transition-colors ${videoSource === 'bunny' ? 'bg-emerald-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                      onClick={() => setVideoSource("bunny")}
+                      className={`flex-1 py-1.5 transition-colors ${videoSource === "bunny" ? "bg-emerald-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
                     >
                       BunnyNet
                     </button>
                     <button
                       type="button"
-                      onClick={() => setVideoSource('youtube')}
-                      className={`flex-1 py-1.5 transition-colors ${videoSource === 'youtube' ? 'bg-red-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                      onClick={() => setVideoSource("youtube")}
+                      className={`flex-1 py-1.5 transition-colors ${videoSource === "youtube" ? "bg-red-500 text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
                     >
                       YouTube
                     </button>
                   </div>
                 </div>
-                {videoSource === 'bunny' ? (
+                {videoSource === "bunny" ? (
                   <>
                     <div>
-                      <label className="block text-xs font-bold text-gray-500">Bunny Video ID</label>
+                      <label className="block text-xs font-bold text-gray-500">
+                        Bunny Video ID
+                      </label>
                       <input
                         type="text"
                         required
@@ -530,7 +600,9 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-gray-500">Bunny Library ID</label>
+                      <label className="block text-xs font-bold text-gray-500">
+                        Bunny Library ID
+                      </label>
                       <input
                         type="text"
                         required
@@ -542,7 +614,9 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                   </>
                 ) : (
                   <div>
-                    <label className="block text-xs font-bold text-gray-500">YouTube Video ID</label>
+                    <label className="block text-xs font-bold text-gray-500">
+                      YouTube Video ID
+                    </label>
                     <input
                       type="text"
                       required
@@ -554,7 +628,12 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                   </div>
                 )}
                 <div>
-                  <label className="block text-xs font-bold text-gray-500">Icon / Thumbnail URL <span className="font-normal text-gray-400">(optional)</span></label>
+                  <label className="block text-xs font-bold text-gray-500">
+                    Icon / Thumbnail URL{" "}
+                    <span className="font-normal text-gray-400">
+                      (optional)
+                    </span>
+                  </label>
                   <input
                     type="text"
                     value={videoThumbnail}
@@ -571,7 +650,10 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                     onChange={(e) => setIsFree(e.target.checked)}
                     className="h-4 w-4 text-emerald-600 border-gray-300 rounded"
                   />
-                  <label htmlFor="isFreeVideo" className="ml-2 block text-xs font-bold text-gray-900">
+                  <label
+                    htmlFor="isFreeVideo"
+                    className="ml-2 block text-xs font-bold text-gray-900"
+                  >
                     Free video preview (visible to guests)
                   </label>
                 </div>
@@ -588,7 +670,7 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                     disabled={videoSubmitting}
                     className="px-3 py-1.5 text-xs font-bold rounded-lg text-white bg-emerald-600 disabled:opacity-50"
                   >
-                    {videoSubmitting ? 'Saving...' : 'Save Video'}
+                    {videoSubmitting ? "Saving..." : "Save Video"}
                   </button>
                 </div>
               </form>
@@ -600,11 +682,18 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
             <div className="bg-white shadow rounded-lg border border-emerald-100 p-6 space-y-4">
               <div className="flex justify-between items-center border-b border-gray-50 pb-2">
                 <h3 className="font-bold text-gray-900">Edit Video</h3>
-                <button onClick={() => setEditingVideo(null)} className="text-gray-400 hover:text-gray-600 text-xs font-bold">✕ Cancel</button>
+                <button
+                  onClick={() => setEditingVideo(null)}
+                  className="text-gray-400 hover:text-gray-600 text-xs font-bold"
+                >
+                  ✕ Cancel
+                </button>
               </div>
               <form onSubmit={handleUpdateVideo} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500">Video Title</label>
+                  <label className="block text-xs font-bold text-gray-500">
+                    Video Title
+                  </label>
                   <input
                     type="text"
                     required
@@ -615,7 +704,9 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-gray-500">Category</label>
+                    <label className="block text-xs font-bold text-gray-500">
+                      Category
+                    </label>
                     <select
                       value={editVideoCategory}
                       onChange={(e) => setEditVideoCategory(e.target.value)}
@@ -626,7 +717,9 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500">Duration (Secs)</label>
+                    <label className="block text-xs font-bold text-gray-500">
+                      Duration (Secs)
+                    </label>
                     <input
                       type="number"
                       required
@@ -637,28 +730,32 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500">Video Source</label>
+                  <label className="block text-xs font-bold text-gray-500">
+                    Video Source
+                  </label>
                   <div className="mt-1 flex rounded-md border border-gray-300 overflow-hidden text-xs font-bold">
                     <button
                       type="button"
-                      onClick={() => setEditVideoSource('bunny')}
-                      className={`flex-1 py-1.5 transition-colors ${editVideoSource === 'bunny' ? 'bg-emerald-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                      onClick={() => setEditVideoSource("bunny")}
+                      className={`flex-1 py-1.5 transition-colors ${editVideoSource === "bunny" ? "bg-emerald-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
                     >
                       BunnyNet
                     </button>
                     <button
                       type="button"
-                      onClick={() => setEditVideoSource('youtube')}
-                      className={`flex-1 py-1.5 transition-colors ${editVideoSource === 'youtube' ? 'bg-red-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                      onClick={() => setEditVideoSource("youtube")}
+                      className={`flex-1 py-1.5 transition-colors ${editVideoSource === "youtube" ? "bg-red-500 text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
                     >
                       YouTube
                     </button>
                   </div>
                 </div>
-                {editVideoSource === 'bunny' ? (
+                {editVideoSource === "bunny" ? (
                   <>
                     <div>
-                      <label className="block text-xs font-bold text-gray-500">Bunny Video ID</label>
+                      <label className="block text-xs font-bold text-gray-500">
+                        Bunny Video ID
+                      </label>
                       <input
                         type="text"
                         required
@@ -668,7 +765,9 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-gray-500">Bunny Library ID</label>
+                      <label className="block text-xs font-bold text-gray-500">
+                        Bunny Library ID
+                      </label>
                       <input
                         type="text"
                         required
@@ -680,7 +779,9 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                   </>
                 ) : (
                   <div>
-                    <label className="block text-xs font-bold text-gray-500">YouTube Video ID</label>
+                    <label className="block text-xs font-bold text-gray-500">
+                      YouTube Video ID
+                    </label>
                     <input
                       type="text"
                       required
@@ -699,7 +800,10 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                     onChange={(e) => setEditVideoIsFree(e.target.checked)}
                     className="h-4 w-4 text-emerald-600 border-gray-300 rounded"
                   />
-                  <label htmlFor="editVideoIsFree" className="ml-2 block text-xs font-bold text-gray-900">
+                  <label
+                    htmlFor="editVideoIsFree"
+                    className="ml-2 block text-xs font-bold text-gray-900"
+                  >
                     Free video preview (visible to guests)
                   </label>
                 </div>
@@ -709,7 +813,7 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                     disabled={editVideoSubmitting}
                     className="px-4 py-2 text-xs font-bold rounded-lg text-white bg-emerald-600 disabled:opacity-50"
                   >
-                    {editVideoSubmitting ? 'Saving...' : 'Save Changes'}
+                    {editVideoSubmitting ? "Saving..." : "Save Changes"}
                   </button>
                 </div>
               </form>
@@ -719,23 +823,34 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
           {/* Program settings (default sidebar panel) */}
           {!showDayForm && !activeDayId && !editingVideo && (
             <div className="bg-white shadow rounded-lg border border-gray-100 p-6 space-y-4">
-              <h3 className="font-bold text-gray-900 border-b border-gray-50 pb-2">Program Settings</h3>
+              <h3 className="font-bold text-gray-900 border-b border-gray-50 pb-2">
+                Program Settings
+              </h3>
               <form onSubmit={handleUpdateCourse} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Title</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    Title
+                  </label>
                   <input
                     type="text"
                     required
                     value={editTitle}
                     onChange={(e) => {
                       setEditTitle(e.target.value);
-                      setEditSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''));
+                      setEditSlug(
+                        e.target.value
+                          .toLowerCase()
+                          .replace(/[^a-z0-9]+/g, "-")
+                          .replace(/(^-|-$)/g, ""),
+                      );
                     }}
                     className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Slug URL</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    Slug URL
+                  </label>
                   <input
                     type="text"
                     required
@@ -745,7 +860,9 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Category</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    Category
+                  </label>
                   <select
                     value={editCategory}
                     onChange={(e) => setEditCategory(e.target.value)}
@@ -756,7 +873,9 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Description</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    Description
+                  </label>
                   <textarea
                     value={editDesc}
                     onChange={(e) => setEditDesc(e.target.value)}
@@ -766,7 +885,9 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">INR Price (₹)</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">
+                      INR Price (₹)
+                    </label>
                     <input
                       type="number"
                       required
@@ -776,7 +897,9 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Total Days</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">
+                      Total Days
+                    </label>
                     <input
                       type="number"
                       required
@@ -787,7 +910,9 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Thumbnail Image URL</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    Thumbnail Image URL
+                  </label>
                   <input
                     type="text"
                     value={editThumbnail}
@@ -804,7 +929,10 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                     onChange={(e) => setEditPublished(e.target.checked)}
                     className="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
                   />
-                  <label htmlFor="editPublished" className="ml-2 block text-xs font-bold text-gray-900">
+                  <label
+                    htmlFor="editPublished"
+                    className="ml-2 block text-xs font-bold text-gray-900"
+                  >
                     Publish program immediately
                   </label>
                 </div>
@@ -814,14 +942,18 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
                     disabled={courseSubmitting}
                     className="px-4 py-2 text-xs font-bold rounded-lg text-white bg-emerald-600 disabled:opacity-50"
                   >
-                    {courseSubmitting ? 'Saving...' : 'Save Settings'}
+                    {courseSubmitting ? "Saving..." : "Save Settings"}
                   </button>
                 </div>
               </form>
               <div className="pt-4 border-t border-gray-100 flex justify-between items-center">
                 <div>
-                  <h4 className="text-xs font-bold text-red-500 uppercase tracking-wider">Danger Zone</h4>
-                  <p className="text-[10px] text-gray-400 mt-0.5">Completely delete this course catalog.</p>
+                  <h4 className="text-xs font-bold text-red-500 uppercase tracking-wider">
+                    Danger Zone
+                  </h4>
+                  <p className="text-[10px] text-gray-400 mt-0.5">
+                    Completely delete this course catalog.
+                  </p>
                 </div>
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
@@ -841,14 +973,31 @@ export default function CourseBuilder({ params }: { params: Promise<{ courseId: 
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden border border-gray-100">
             <div className="p-6 text-center space-y-4">
               <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 text-red-600">
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
                 </svg>
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Delete Program</h3>
+                <h3 className="text-lg font-bold text-gray-900">
+                  Delete Program
+                </h3>
                 <p className="text-sm text-gray-500 mt-2">
-                  Are you sure you want to delete <span className="font-semibold text-gray-800">"{course.title}"</span>? This will permanently delete the course, all associated days, and all linked videos. This action cannot be undone.
+                  Are you sure you want to delete{" "}
+                  <span className="font-semibold text-gray-800">
+                    "{course.title}"
+                  </span>
+                  ? This will permanently delete the course, all associated
+                  days, and all linked videos. This action cannot be undone.
                 </p>
               </div>
               <div className="flex justify-center space-x-3 pt-2">

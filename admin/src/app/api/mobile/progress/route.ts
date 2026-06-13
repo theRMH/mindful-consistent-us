@@ -1,12 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { verifyAuth } from '@/lib/auth-middleware';
+import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+import { verifyAuth } from "@/lib/auth-middleware";
 
 export async function GET(req: NextRequest) {
   try {
     const user = await verifyAuth(req);
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Get UserStats
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
         userId: user.id,
         isActive: true,
       },
-      orderBy: { enrolledAt: 'desc' },
+      orderBy: { enrolledAt: "desc" },
     });
 
     let completedDays: number[] = [];
@@ -42,24 +42,38 @@ export async function GET(req: NextRequest) {
           courseDay: true,
         },
       });
-      completedDays = progress.map(p => p.courseDay.dayNumber);
+      completedDays = progress.map((p) => p.courseDay.dayNumber);
     }
 
-    return NextResponse.json({
-      stats: {
-        currentStreak: stats.currentStreak,
-        longestStreak: stats.longestStreak,
-        totalSteps: stats.totalSteps,
-        totalCalories: Number(stats.totalCalories),
-        totalSessions: stats.totalSessions,
-        totalWatchSeconds: stats.totalWatchSeconds,
-        mindfulMins: Math.round(stats.totalWatchSeconds / 60),
+    // Get all completed video IDs for this user
+    const videoProgressRecords = await prisma.videoProgress.findMany({
+      where: { userId: user.id, isCompleted: true },
+      select: { videoId: true },
+    });
+    const completedVideoIds = videoProgressRecords.map((vp) => vp.videoId);
+
+    return NextResponse.json(
+      {
+        stats: {
+          currentStreak: stats.currentStreak,
+          longestStreak: stats.longestStreak,
+          totalSteps: stats.totalSteps,
+          totalCalories: Number(stats.totalCalories),
+          totalSessions: stats.totalSessions,
+          totalWatchSeconds: stats.totalWatchSeconds,
+          mindfulMins: Math.round(stats.totalWatchSeconds / 60),
+        },
+        completedDays,
+        completedVideoIds,
+        activeCourseId: activeEnrollment?.courseId || null,
       },
-      completedDays,
-      activeCourseId: activeEnrollment?.courseId || null,
-    }, { status: 200 });
+      { status: 200 },
+    );
   } catch (error: any) {
-    console.error('Error fetching mobile progress:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error("Error fetching mobile progress:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }

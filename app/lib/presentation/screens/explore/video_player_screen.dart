@@ -11,6 +11,7 @@ import '../../../core/config/theme.dart';
 class VideoPlayerScreen extends ConsumerStatefulWidget {
   final String courseId;
   final int dayNumber;
+  final String? videoId;
   final String videoSource; // 'youtube' | 'bunny'
   final String youtubeVideoId;
   final String? bunnyVideoId;
@@ -21,6 +22,7 @@ class VideoPlayerScreen extends ConsumerStatefulWidget {
     super.key,
     required this.courseId,
     required this.dayNumber,
+    this.videoId,
     this.videoSource = 'youtube',
     required this.youtubeVideoId,
     this.bunnyVideoId,
@@ -63,7 +65,8 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
         ),
       )..addListener(_ytListener);
     } else {
-      final bunnyUrl = 'https://iframe.mediadelivery.net/embed/'
+      final bunnyUrl =
+          'https://iframe.mediadelivery.net/embed/'
           '${widget.bunnyLibraryId}/${widget.bunnyVideoId}'
           '?autoplay=true&loop=false&muted=false&preload=true&responsive=true';
       _webController = WebViewController()
@@ -106,9 +109,12 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
   void _completeSession() {
     if (_isCompletedLogged) return;
     _isCompletedLogged = true;
-    ref.read(progressProvider.notifier).markDayComplete(
+    ref
+        .read(progressProvider.notifier)
+        .markDayComplete(
           widget.dayNumber,
           courseId: widget.courseId,
+          videoId: widget.videoId,
         );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -152,32 +158,41 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
       player: YoutubePlayer(
         controller: _ytController!,
         showVideoProgressIndicator: true,
-        progressIndicatorColor: AppTheme.primaryGreen,
+        progressIndicatorColor: AppTheme.figmaGreen,
         progressColors: const ProgressBarColors(
-          playedColor: AppTheme.primaryGreen,
-          handleColor: AppTheme.accentGold,
+          playedColor: AppTheme.figmaGreen,
+          handleColor: AppTheme.figmaGreen,
         ),
         onReady: () => setState(() => _isPlayerReady = true),
       ),
       builder: (context, player) => Scaffold(
-        backgroundColor: AppTheme.backgroundCream,
+        backgroundColor: Colors.white,
         appBar: AppBar(
-          title: Text(
-            widget.videoTitle,
-            style: GoogleFonts.inter(
-              fontWeight: FontWeight.bold,
-              color: AppTheme.darkTeal,
-              fontSize: 18,
-            ),
-          ),
-          backgroundColor: AppTheme.backgroundCream,
+          backgroundColor: Colors.white,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded),
+            icon: const Icon(
+              Icons.arrow_back_rounded,
+              color: AppTheme.figmaGreen,
+            ),
             onPressed: () {
               _restorePortrait();
               context.pop();
             },
+          ),
+          title: Text(
+            widget.videoTitle,
+            style: GoogleFonts.inter(
+              fontWeight: AppFontWeights.semiBold,
+              color: AppTheme.figmaCharcoal,
+              fontSize: AppFontSizes.bodyLarge,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(1),
+            child: Container(height: 1, color: AppTheme.figmaLightBorder),
           ),
         ),
         body: SafeArea(
@@ -187,7 +202,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
               player,
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(AppSpacing.xxl),
                   child: _buildVideoInfo(),
                 ),
               ),
@@ -248,11 +263,16 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
                   ),
                   elevation: 0,
                 ),
-                icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+                icon: const Icon(
+                  Icons.check_circle_outline,
+                  color: Colors.white,
+                ),
                 label: Text(
                   'Complete Session & Back',
                   style: GoogleFonts.inter(
-                      fontSize: 15, fontWeight: FontWeight.bold),
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
@@ -266,49 +286,85 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Day ${widget.dayNumber} Practice Session',
-          style: GoogleFonts.inter(
-            color: AppTheme.coolGray,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
+        // Day badge
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.xs,
+          ),
+          decoration: BoxDecoration(
+            color: AppTheme.figmaGreen.withAlpha(20),
+            borderRadius: BorderRadius.circular(AppRadii.pill),
+          ),
+          child: Text(
+            'Day ${widget.dayNumber} · Practice Session',
+            style: GoogleFonts.inter(
+              color: AppTheme.figmaGreen,
+              fontSize: AppFontSizes.bodySmall + 1,
+              fontWeight: AppFontWeights.semiBold,
+            ),
           ),
         ),
-        const SizedBox(height: 8),
+
+        const SizedBox(height: AppSpacing.md),
+
         Text(
           widget.videoTitle,
           style: GoogleFonts.inter(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.darkTeal,
+            fontSize: AppFontSizes.h3,
+            fontWeight: AppFontWeights.bold,
+            color: AppTheme.figmaCharcoal,
           ),
         ),
-        const SizedBox(height: 12),
+
+        const SizedBox(height: AppSpacing.md),
+
+        Container(height: 1, color: AppTheme.figmaLightBorder),
+
+        const SizedBox(height: AppSpacing.md),
+
         Text(
           'Maintain focus, sync your breath with movement, and hold postures gracefully. Keep practicing daily to build consistency.',
           style: GoogleFonts.inter(
-            color: AppTheme.coolGray,
-            fontSize: 14,
-            height: 1.45,
+            color: AppTheme.figmaMutedGray,
+            fontSize: AppFontSizes.bodyLarge,
+            height: 1.5,
           ),
         ),
-        const SizedBox(height: 32),
-        ElevatedButton.icon(
-          onPressed: _markCompleteAndBack,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppTheme.primaryGreen,
-            foregroundColor: Colors.white,
-            minimumSize: const Size.fromHeight(54),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+
+        const SizedBox(height: AppSpacing.xxxl),
+
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton(
+            onPressed: _markCompleteAndBack,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.figmaGreen,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadii.pill),
+              ),
             ),
-            elevation: 0,
-          ),
-          icon: const Icon(Icons.check_circle_outline, color: Colors.white),
-          label: Text(
-            'Complete Session & Back',
-            style: GoogleFonts.inter(
-                fontSize: 16, fontWeight: FontWeight.bold),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.check_circle_outline_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  'Complete Session',
+                  style: GoogleFonts.inter(
+                    fontSize: AppFontSizes.bodyLarge,
+                    fontWeight: AppFontWeights.semiBold,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],

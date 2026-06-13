@@ -5,8 +5,13 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/courses_provider.dart';
 import '../../providers/progress_provider.dart';
+import '../../providers/course_detail_provider.dart';
 import '../../widgets/login_prompt.dart';
 import '../../../core/config/theme.dart';
+import '../../../data/models/course_model.dart';
+
+bool _isNetworkPath(String path) =>
+    path.startsWith('http://') || path.startsWith('https://');
 
 class ProgramDetailsScreen extends ConsumerStatefulWidget {
   final bool showBackButton;
@@ -23,7 +28,8 @@ class ProgramDetailsScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<ProgramDetailsScreen> createState() => _ProgramDetailsScreenState();
+  ConsumerState<ProgramDetailsScreen> createState() =>
+      _ProgramDetailsScreenState();
 }
 
 class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
@@ -34,14 +40,24 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
     final authState = ref.watch(authProvider);
     final bool isGuest = authState.user == null;
     final double statusBarHeight = MediaQuery.of(context).padding.top;
-    final int sessionCount = _isExpanded ? 30 : 5;
 
     final String title = widget.courseTitle ?? '30 Days Yoga Course';
-    final String imagePath = widget.courseImagePath ?? 'assets/course_30_days.png';
+    final String imagePath =
+        widget.courseImagePath ?? 'assets/course_30_days.png';
     final courseId = widget.courseId ?? '30-days-yoga';
 
     final coursesState = ref.watch(coursesProvider);
     final progressState = ref.watch(progressProvider);
+    final courseAsync = ref.watch(courseDetailProvider(courseId));
+    final List<CourseDayModel> courseDays =
+        courseAsync.whenOrNull(data: (d) => d.days) ?? [];
+    final List<CourseDayModel> visibleDays = courseDays
+        .where((day) => day.videos.isNotEmpty)
+        .toList();
+    final List<CourseDayModel> displayedDays = _isExpanded
+        ? visibleDays
+        : visibleDays.take(5).toList();
+    final completedVideoIds = progressState.completedVideoIds;
     final bool isEnrolled = coursesState.enrolledCourseIds.contains(courseId);
     final bool isEnrollLoading = coursesState.isLoading;
 
@@ -52,69 +68,72 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
       floatingActionButton: (!isGuest && isEnrolled)
           ? null
           : Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: SizedBox(
-          width: double.infinity,
-          height: 56,
-          child: ElevatedButton(
-            onPressed: isEnrollLoading
-                ? null
-                : () {
-                    if (isGuest) {
-                      showLoginPrompt(context);
-                    } else {
-                      context.push('/cart?courseId=$courseId');
-                    }
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryGreen,
-              foregroundColor: Colors.white,
-              elevation: 8,
-              shadowColor: AppTheme.primaryGreen.withAlpha(102),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(32),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-            ),
-            child: isEnrollLoading
-                ? const Center(
-                    child: SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: isEnrollLoading
+                      ? null
+                      : () {
+                          if (isGuest) {
+                            showLoginPrompt(context);
+                          } else {
+                            context.push('/cart?courseId=$courseId');
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryGreen,
+                    foregroundColor: Colors.white,
+                    elevation: 8,
+                    shadowColor: AppTheme.primaryGreen.withAlpha(102),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(32),
                     ),
-                  )
-                : Row(
-                    children: [
-                      const CircleAvatar(
-                        radius: 16,
-                        backgroundColor: Colors.white24,
-                        child: Icon(
-                          Icons.play_arrow_rounded,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        'Enroll Now',
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const Spacer(),
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ],
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                   ),
-          ),
-        ),
-      ),
+                  child: isEnrollLoading
+                      ? const Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          ),
+                        )
+                      : Row(
+                          children: [
+                            const CircleAvatar(
+                              radius: 16,
+                              backgroundColor: Colors.white24,
+                              child: Icon(
+                                Icons.play_arrow_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              'Enroll Now',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const Spacer(),
+                            const Icon(
+                              Icons.chevron_right_rounded,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+            ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
 
       body: Stack(
@@ -135,11 +154,14 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                     height: 360,
                     width: double.infinity,
                     color: const Color(0xFFE8F5E9),
-                    child: const Icon(Icons.self_improvement,
-                        color: AppTheme.primaryGreen, size: 80),
+                    child: const Icon(
+                      Icons.self_improvement,
+                      color: AppTheme.primaryGreen,
+                      size: 80,
+                    ),
                   ),
                 ),
-                
+
                 // Overlapping details card
                 Column(
                   children: [
@@ -153,7 +175,10 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                           topRight: Radius.circular(50.0),
                         ),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 28.0),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20.0,
+                        vertical: 28.0,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -185,7 +210,11 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      const Icon(Icons.calendar_today_outlined, size: 12, color: Colors.white),
+                                      const Icon(
+                                        Icons.calendar_today_outlined,
+                                        size: 12,
+                                        color: Colors.white,
+                                      ),
                                       const SizedBox(width: 4),
                                       Text(
                                         '30 days',
@@ -207,7 +236,11 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      const Icon(Icons.bar_chart_rounded, size: 14, color: Colors.white),
+                                      const Icon(
+                                        Icons.bar_chart_rounded,
+                                        size: 14,
+                                        color: Colors.white,
+                                      ),
                                       const SizedBox(width: 4),
                                       Text(
                                         'Beginner',
@@ -229,7 +262,11 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      const Icon(Icons.access_time_rounded, size: 13, color: Colors.white),
+                                      const Icon(
+                                        Icons.access_time_rounded,
+                                        size: 13,
+                                        color: Colors.white,
+                                      ),
                                       const SizedBox(width: 4),
                                       Text(
                                         '15m /day',
@@ -269,11 +306,16 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
 
                           // Instructor Card
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              border: Border.all(
+                                color: const Color(0xFFE2E8F0),
+                              ),
                               boxShadow: const [
                                 BoxShadow(
                                   color: Color(0x02000000),
@@ -290,7 +332,9 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                                   decoration: const BoxDecoration(
                                     shape: BoxShape.circle,
                                     image: DecorationImage(
-                                      image: AssetImage('assets/avatar_priya.png'),
+                                      image: AssetImage(
+                                        'assets/avatar_priya.png',
+                                      ),
                                       fit: BoxFit.cover,
                                     ),
                                   ),
@@ -298,7 +342,8 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
@@ -334,7 +379,9 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     color: Colors.white,
-                                    border: Border.all(color: AppTheme.figmaGreen.withAlpha(76)),
+                                    border: Border.all(
+                                      color: AppTheme.figmaGreen.withAlpha(76),
+                                    ),
                                   ),
                                   child: const Center(
                                     child: Icon(
@@ -361,7 +408,8 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                                   color: AppTheme.figmaCharcoal,
                                 ),
                               ),
-                              if (!_isExpanded)
+                              if (!_isExpanded &&
+                                  visibleDays.length > displayedDays.length)
                                 GestureDetector(
                                   onTap: () {
                                     setState(() {
@@ -383,29 +431,59 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                           const SizedBox(height: 12),
 
                           // Sessions Outline List
-                          Column(
-                            children: List.generate(sessionCount, (index) {
-                              final int dayNumber = index + 1;
-                              final String dayStr = dayNumber.toString().padLeft(2, '0');
-                              return SessionDayTile(
-                                index: dayStr,
-                                title: 'Day $dayNumber',
-                                subtitle: '5 Deep Sessions',
-                                duration: '20Mins',
-                                isGuest: isGuest,
-                                isEnrolled: isEnrolled,
-                                courseId: courseId,
-                                isCompleted: progressState.completedDays.contains(dayNumber),
-                                onTap: () {
-                                  if (isGuest) {
-                                    showLoginPrompt(context);
-                                  } else {
-                                    context.push('/course/$courseId');
-                                  }
-                                },
-                              );
-                            }),
-                          ),
+                          courseAsync.isLoading
+                              ? const Center(child: CircularProgressIndicator())
+                              : displayedDays.isEmpty
+                              ? Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  child: Text(
+                                    'No sessions available yet.',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13,
+                                      color: AppTheme.coolGray,
+                                    ),
+                                  ),
+                                )
+                              : Column(
+                                  children: displayedDays.map((dayModel) {
+                                    final int dayNumber = dayModel.dayNumber;
+                                    final String dayStr = dayNumber
+                                        .toString()
+                                        .padLeft(2, '0');
+                                    final dayVideos = dayModel.videos;
+                                    final totalSecs = dayVideos.fold<int>(
+                                      0,
+                                      (sum, v) => sum + v.durationSeconds,
+                                    );
+                                    return SessionDayTile(
+                                      index: dayStr,
+                                      title: dayModel.title?.isNotEmpty == true
+                                          ? dayModel.title!
+                                          : 'Day $dayNumber',
+                                      subtitle:
+                                          '${dayVideos.length} ${dayVideos.length == 1 ? 'Session' : 'Sessions'}',
+                                      duration: totalSecs > 0
+                                          ? '${(totalSecs / 60).round()} Mins'
+                                          : '',
+                                      isGuest: isGuest,
+                                      isEnrolled: isEnrolled,
+                                      courseId: courseId,
+                                      isCompleted: progressState.completedDays
+                                          .contains(dayNumber),
+                                      videos: dayVideos,
+                                      completedVideoIds: completedVideoIds,
+                                      onTap: () {
+                                        if (isGuest) {
+                                          showLoginPrompt(context);
+                                        } else {
+                                          context.push('/course/$courseId');
+                                        }
+                                      },
+                                    );
+                                  }).toList(),
+                                ),
                         ],
                       ),
                     ),
@@ -464,6 +542,8 @@ class SessionDayTile extends StatefulWidget {
   final bool isEnrolled;
   final String courseId;
   final bool isCompleted;
+  final List<VideoModel> videos;
+  final List<String> completedVideoIds;
   final VoidCallback onTap;
 
   const SessionDayTile({
@@ -476,6 +556,8 @@ class SessionDayTile extends StatefulWidget {
     required this.isEnrolled,
     required this.courseId,
     required this.isCompleted,
+    this.videos = const [],
+    this.completedVideoIds = const [],
     required this.onTap,
   });
 
@@ -495,6 +577,7 @@ class _SessionDayTileState extends State<SessionDayTile> {
       {'title': 'Pranayama', 'duration': '20 mins'},
       {'title': 'Kriya', 'duration': '35 mins'},
     ];
+    final useRealVideos = widget.videos.isNotEmpty;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -502,7 +585,9 @@ class _SessionDayTileState extends State<SessionDayTile> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: _isExpanded ? const Color(0xFFE2E8F0) : const Color(0xFFC8D6CE),
+          color: _isExpanded
+              ? const Color(0xFFE2E8F0)
+              : const Color(0xFFC8D6CE),
           width: 1.5,
         ),
         boxShadow: const [
@@ -537,29 +622,45 @@ class _SessionDayTileState extends State<SessionDayTile> {
                     ? BorderRadius.circular(16)
                     : BorderRadius.circular(20),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
                   child: Row(
                     children: [
-                      // Index Badge
+                      // Index Badge — shows tick when day is completed
                       Container(
                         width: 32,
                         height: 32,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
+                          color: widget.isCompleted && !_isExpanded
+                              ? AppTheme.figmaGreen
+                              : Colors.transparent,
                           border: Border.all(
                             width: 1.5,
-                            color: _isExpanded ? Colors.white.withAlpha(153) : AppTheme.figmaGreen,
+                            color: _isExpanded
+                                ? Colors.white.withAlpha(153)
+                                : AppTheme.figmaGreen,
                           ),
                         ),
                         child: Center(
-                          child: Text(
-                            widget.index,
-                            style: GoogleFonts.inter(
-                              color: _isExpanded ? Colors.white : AppTheme.figmaGreen,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
+                          child: widget.isCompleted && !_isExpanded
+                              ? const Icon(
+                                  Icons.check_rounded,
+                                  color: Colors.white,
+                                  size: 18,
+                                )
+                              : Text(
+                                  widget.index,
+                                  style: GoogleFonts.inter(
+                                    color: _isExpanded
+                                        ? Colors.white
+                                        : AppTheme.figmaGreen,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -573,7 +674,9 @@ class _SessionDayTileState extends State<SessionDayTile> {
                               widget.title,
                               style: GoogleFonts.inter(
                                 fontWeight: FontWeight.w600,
-                                color: _isExpanded ? Colors.white : AppTheme.darkSlate,
+                                color: _isExpanded
+                                    ? Colors.white
+                                    : AppTheme.darkSlate,
                                 fontSize: 15,
                               ),
                             ),
@@ -583,7 +686,9 @@ class _SessionDayTileState extends State<SessionDayTile> {
                                 Text(
                                   widget.subtitle,
                                   style: GoogleFonts.inter(
-                                    color: _isExpanded ? Colors.white.withAlpha(204) : AppTheme.figmaGreen,
+                                    color: _isExpanded
+                                        ? Colors.white.withAlpha(204)
+                                        : AppTheme.figmaGreen,
                                     fontWeight: FontWeight.w600,
                                     fontSize: 10,
                                   ),
@@ -592,13 +697,17 @@ class _SessionDayTileState extends State<SessionDayTile> {
                                 Icon(
                                   Icons.access_time_outlined,
                                   size: 11,
-                                  color: _isExpanded ? Colors.white.withAlpha(204) : AppTheme.coolGray,
+                                  color: _isExpanded
+                                      ? Colors.white.withAlpha(204)
+                                      : AppTheme.coolGray,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
                                   widget.duration,
                                   style: GoogleFonts.inter(
-                                    color: _isExpanded ? Colors.white.withAlpha(204) : AppTheme.coolGray,
+                                    color: _isExpanded
+                                        ? Colors.white.withAlpha(204)
+                                        : AppTheme.coolGray,
                                     fontWeight: FontWeight.w600,
                                     fontSize: 10,
                                   ),
@@ -615,14 +724,20 @@ class _SessionDayTileState extends State<SessionDayTile> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: _isExpanded ? Colors.white : AppTheme.figmaGreen,
+                            color: _isExpanded
+                                ? Colors.white
+                                : AppTheme.figmaGreen,
                             width: 1.5,
                           ),
                         ),
                         child: Center(
                           child: Icon(
-                            _isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-                            color: _isExpanded ? Colors.white : AppTheme.figmaGreen,
+                            _isExpanded
+                                ? Icons.keyboard_arrow_up_rounded
+                                : Icons.keyboard_arrow_down_rounded,
+                            color: _isExpanded
+                                ? Colors.white
+                                : AppTheme.figmaGreen,
                             size: 16,
                           ),
                         ),
@@ -639,131 +754,312 @@ class _SessionDayTileState extends State<SessionDayTile> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
               child: Column(
-                children: List.generate(subSessions.length, (subIndex) {
-                  final session = subSessions[subIndex];
-                  
-                  String iconPath = '';
-                  String description = '';
-                  if (subIndex == 0) {
-                    iconPath = 'assets/icon_asana.png';
-                    description = 'Build Strength & Flexibility';
-                  } else if (subIndex == 1 || subIndex == 3) {
-                    iconPath = 'assets/icon_lungs.png';
-                    description = 'Breath. Calm. Energize.';
-                  } else {
-                    iconPath = 'assets/icon_kriya.png';
-                    description = 'Activate & Strengthen';
-                  }
-
-                  return InkWell(
-                    onTap: () {
-                      if (widget.isGuest) {
-                        widget.onTap();
-                      } else if (!widget.isEnrolled) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Please enroll to view sessions')),
-                        );
-                      } else {
-                        // Mark as complete and go to video
-                        final container = ProviderScope.containerOf(context);
-                        container.read(progressProvider.notifier).markDayComplete(int.tryParse(widget.index) ?? 1, courseId: widget.courseId);
-                        
-                        context.push('/play', extra: {
-                          'courseId': widget.courseId,
-                          'dayNumber': int.tryParse(widget.index) ?? 1,
-                          'videoTitle': session['title'],
-                        });
-                      }
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 20.0),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: widget.isCompleted ? AppTheme.figmaGreen : const Color(0xFFE8F5E9),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Center(
-                              child: widget.isCompleted
-                                ? const Icon(Icons.check_rounded, color: Colors.white, size: 28)
-                                : Image.asset(
-                                    iconPath,
-                                    width: 28,
-                                    height: 28,
-                                    fit: BoxFit.contain,
+                children: useRealVideos
+                    ? List.generate(widget.videos.length, (subIndex) {
+                        final video = widget.videos[subIndex];
+                        final isVideoCompleted = widget.completedVideoIds
+                            .contains(video.id);
+                        final iconPath = video.thumbnailUrl?.isNotEmpty == true
+                            ? video.thumbnailUrl!
+                            : 'assets/icon_asana.png';
+                        return InkWell(
+                          onTap: () {
+                            if (widget.isGuest) {
+                              widget.onTap();
+                            } else if (!widget.isEnrolled) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Please enroll to view sessions',
                                   ),
+                                ),
+                              );
+                            } else {
+                              context.push(
+                                '/play',
+                                extra: {
+                                  'courseId': widget.courseId,
+                                  'dayNumber': int.tryParse(widget.index) ?? 1,
+                                  'videoId': video.id,
+                                  'videoSource': video.videoSource,
+                                  'youtubeVideoId': video.youtubeVideoId ?? '',
+                                  'bunnyVideoId': video.bunnyVideoId,
+                                  'bunnyLibraryId': video.bunnyLibraryId,
+                                  'videoTitle': video.title,
+                                },
+                              );
+                            }
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 20.0),
+                            child: Row(
+                              children: [
+                                if (isVideoCompleted)
+                                  Container(
+                                    width: 48,
+                                    height: 48,
+                                    decoration: const BoxDecoration(
+                                      color: AppTheme.figmaGreen,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.check_rounded,
+                                      color: Colors.white,
+                                      size: 24,
+                                    ),
+                                  )
+                                else
+                                  Container(
+                                    width: 48,
+                                    height: 48,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFE8F5E9),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Center(
+                                      child: _isNetworkPath(iconPath)
+                                          ? Image.network(
+                                              iconPath,
+                                              width: 28,
+                                              height: 28,
+                                              fit: BoxFit.contain,
+                                              errorBuilder: (_, _, _) =>
+                                                  const Icon(
+                                                    Icons
+                                                        .self_improvement_rounded,
+                                                    color: AppTheme.figmaGreen,
+                                                    size: 24,
+                                                  ),
+                                            )
+                                          : Image.asset(
+                                              iconPath,
+                                              width: 28,
+                                              height: 28,
+                                              fit: BoxFit.contain,
+                                              errorBuilder: (_, _, _) =>
+                                                  const Icon(
+                                                    Icons
+                                                        .self_improvement_rounded,
+                                                    color: AppTheme.figmaGreen,
+                                                    size: 24,
+                                                  ),
+                                            ),
+                                    ),
+                                  ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        video.title,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.normal,
+                                          color: AppTheme.darkSlate,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        video.durationSeconds > 0
+                                            ? '${video.durationSeconds ~/ 60} mins'
+                                            : '',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.figmaGreen,
+                                        ),
+                                      ),
+                                      if (isVideoCompleted) ...[
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'Completed',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppTheme.figmaGreen,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                if (isVideoCompleted)
+                                  Container(
+                                    width: 30,
+                                    height: 30,
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: AppTheme.figmaGreen,
+                                    ),
+                                    child: const Icon(
+                                      Icons.check_rounded,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                                  )
+                                else
+                                  Container(
+                                    width: 30,
+                                    height: 30,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: AppTheme.figmaGreen,
+                                        width: 1.0,
+                                      ),
+                                    ),
+                                    padding: const EdgeInsets.all(2.0),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: AppTheme.figmaGreen,
+                                          width: 1.0,
+                                        ),
+                                      ),
+                                      child: const Center(
+                                        child: Icon(
+                                          Icons.play_arrow_rounded,
+                                          color: AppTheme.figmaGreen,
+                                          size: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                        );
+                      })
+                    : List.generate(subSessions.length, (subIndex) {
+                        final session = subSessions[subIndex];
+
+                        String iconPath = '';
+                        String description = '';
+                        if (subIndex == 0) {
+                          iconPath = 'assets/icon_asana.png';
+                          description = 'Build Strength & Flexibility';
+                        } else if (subIndex == 1 || subIndex == 3) {
+                          iconPath = 'assets/icon_lungs.png';
+                          description = 'Breath. Calm. Energize.';
+                        } else {
+                          iconPath = 'assets/icon_kriya.png';
+                          description = 'Activate & Strengthen';
+                        }
+
+                        return InkWell(
+                          onTap: () {
+                            if (widget.isGuest) {
+                              widget.onTap();
+                            } else if (!widget.isEnrolled) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Please enroll to view sessions',
+                                  ),
+                                ),
+                              );
+                            } else {
+                              context.push(
+                                '/play',
+                                extra: {
+                                  'courseId': widget.courseId,
+                                  'dayNumber': int.tryParse(widget.index) ?? 1,
+                                  'videoTitle': session['title'],
+                                },
+                              );
+                            }
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 20.0),
+                            child: Row(
                               children: [
-                                Text(
-                                  session['title']!,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.normal,
-                                    color: AppTheme.darkSlate,
+                                Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFE8F5E9),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Center(
+                                    child: Image.asset(
+                                      iconPath,
+                                      width: 28,
+                                      height: 28,
+                                      fit: BoxFit.contain,
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  session['duration']!,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppTheme.figmaGreen,
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        session['title']!,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.normal,
+                                          color: AppTheme.darkSlate,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        session['duration']!,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.figmaGreen,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        description,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.coolGray,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  description,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppTheme.coolGray,
+                                Container(
+                                  width: 30,
+                                  height: 30,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: AppTheme.figmaGreen,
+                                      width: 1.0,
+                                    ),
+                                  ),
+                                  padding: const EdgeInsets.all(2.0),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: AppTheme.figmaGreen,
+                                        width: 1.0,
+                                      ),
+                                    ),
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.play_arrow_rounded,
+                                        color: AppTheme.figmaGreen,
+                                        size: 14,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          Container(
-                            width: 30,
-                            height: 30,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: AppTheme.figmaGreen,
-                                width: 1.0,
-                              ),
-                            ),
-                            padding: const EdgeInsets.all(2.0),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppTheme.figmaGreen,
-                                  width: 1.0,
-                                ),
-                              ),
-                              child: const Center(
-                                child: Icon(
-                                  Icons.play_arrow_rounded,
-                                  color: AppTheme.figmaGreen,
-                                  size: 14,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
+                        );
+                      }),
               ),
             ),
           ],
@@ -792,13 +1088,17 @@ class AsanaIconPainter extends CustomPainter {
     final double h = size.height;
 
     canvas.drawCircle(Offset(w * 0.65, h * 0.25), w * 0.08, paint);
-    
+
     final spine = Path();
     spine.moveTo(w * 0.65, h * 0.33);
     spine.quadraticBezierTo(w * 0.50, h * 0.35, w * 0.40, h * 0.50);
     canvas.drawPath(spine, paint);
 
-    canvas.drawLine(Offset(w * 0.58, h * 0.35), Offset(w * 0.35, h * 0.60), paint);
+    canvas.drawLine(
+      Offset(w * 0.58, h * 0.35),
+      Offset(w * 0.35, h * 0.60),
+      paint,
+    );
 
     final leg = Path();
     leg.moveTo(w * 0.40, h * 0.50);
@@ -882,18 +1182,34 @@ class KriyaIconPainter extends CustomPainter {
     body.quadraticBezierTo(cx, h * 0.62, cx - w * 0.20, h * 0.75);
     canvas.drawPath(body, paint);
 
-    canvas.drawLine(Offset(cx - w * 0.08, h * 0.48), Offset(cx - w * 0.16, h * 0.65), paint);
-    canvas.drawLine(Offset(cx + w * 0.08, h * 0.48), Offset(cx + w * 0.16, h * 0.65), paint);
+    canvas.drawLine(
+      Offset(cx - w * 0.08, h * 0.48),
+      Offset(cx - w * 0.16, h * 0.65),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(cx + w * 0.08, h * 0.48),
+      Offset(cx + w * 0.16, h * 0.65),
+      paint,
+    );
 
     canvas.drawArc(
-      Rect.fromCenter(center: Offset(cx, h * 0.35), width: w * 0.32, height: h * 0.32),
+      Rect.fromCenter(
+        center: Offset(cx, h * 0.35),
+        width: w * 0.32,
+        height: h * 0.32,
+      ),
       -3.14159 * 0.8,
       3.14159 * 0.6,
       false,
       paint,
     );
     canvas.drawArc(
-      Rect.fromCenter(center: Offset(cx, h * 0.35), width: w * 0.48, height: h * 0.48),
+      Rect.fromCenter(
+        center: Offset(cx, h * 0.35),
+        width: w * 0.48,
+        height: h * 0.48,
+      ),
       -3.14159 * 0.8,
       3.14159 * 0.6,
       false,

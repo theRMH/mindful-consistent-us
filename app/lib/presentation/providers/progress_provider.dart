@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/services/api_service.dart';
 import '../../core/config/app_config.dart';
+import 'auth_provider.dart';
 
 class LeaderboardUser {
   final int rank;
@@ -39,6 +41,7 @@ class ProgressState {
   final int completedSessionsToday;
   final int totalSessionsToday;
   final List<int> completedDays; // e.g. [1, 2, 4]
+  final List<String> completedVideoIds;
   final List<LeaderboardUser> leaderboard;
   final String? activeCourseId;
   final int? userRank;
@@ -53,6 +56,7 @@ class ProgressState {
     this.completedSessionsToday = 0,
     this.totalSessionsToday = 0,
     this.completedDays = const [],
+    this.completedVideoIds = const [],
     this.leaderboard = const [],
     this.activeCourseId,
     this.userRank,
@@ -68,6 +72,7 @@ class ProgressState {
     int? completedSessionsToday,
     int? totalSessionsToday,
     List<int>? completedDays,
+    List<String>? completedVideoIds,
     List<LeaderboardUser>? leaderboard,
     String? activeCourseId,
     int? userRank,
@@ -79,9 +84,11 @@ class ProgressState {
       calories: calories ?? this.calories,
       mindfulMins: mindfulMins ?? this.mindfulMins,
       currentStreak: currentStreak ?? this.currentStreak,
-      completedSessionsToday: completedSessionsToday ?? this.completedSessionsToday,
+      completedSessionsToday:
+          completedSessionsToday ?? this.completedSessionsToday,
       totalSessionsToday: totalSessionsToday ?? this.totalSessionsToday,
       completedDays: completedDays ?? this.completedDays,
+      completedVideoIds: completedVideoIds ?? this.completedVideoIds,
       leaderboard: leaderboard ?? this.leaderboard,
       activeCourseId: activeCourseId ?? this.activeCourseId,
       userRank: userRank ?? this.userRank,
@@ -93,16 +100,52 @@ class ProgressState {
 
 class ProgressNotifier extends StateNotifier<ProgressState> {
   final ApiService _apiService = ApiService();
+  final Ref _ref;
 
-  ProgressNotifier() : super(ProgressState()) {
+  ProgressNotifier(this._ref) : super(ProgressState()) {
     loadInitialData();
+    _ref.listen(authProvider, (prev, next) {
+      if (prev?.isAuthenticated != next.isAuthenticated) {
+        refreshFromApi();
+      }
+    });
   }
 
   Future<void> loadInitialData() async {
     await refreshFromApi();
   }
 
+  Future<void> _loadGuestStreak() async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now();
+    final todayStr =
+        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final lastOpened = prefs.getString('guest_last_opened_date');
+    int streak = prefs.getInt('guest_streak') ?? 0;
+
+    if (lastOpened == null) {
+      streak = 1;
+    } else if (lastOpened != todayStr) {
+      final last = DateTime.parse(lastOpened);
+      final diff = DateTime(
+        today.year,
+        today.month,
+        today.day,
+      ).difference(DateTime(last.year, last.month, last.day)).inDays;
+      streak = diff == 1 ? streak + 1 : 1;
+    }
+
+    await prefs.setString('guest_last_opened_date', todayStr);
+    await prefs.setInt('guest_streak', streak);
+    state = state.copyWith(currentStreak: streak, isLoading: false);
+  }
+
   Future<void> refreshFromApi() async {
+    if (!_ref.read(authProvider).isAuthenticated) {
+      await _loadGuestStreak();
+      return;
+    }
+
     state = state.copyWith(isLoading: true, error: null);
     try {
       final progressData = await _apiService.getProgress();
@@ -110,8 +153,12 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
 
       final stats = progressData['stats'] ?? {};
       final compDays = List<int>.from(progressData['completedDays'] ?? []);
+      final compVideoIds = List<String>.from(
+        progressData['completedVideoIds'] ?? [],
+      );
 
-      final leaderboardEntries = leaderboardData['entries'] as List<dynamic>? ?? [];
+      final leaderboardEntries =
+          leaderboardData['entries'] as List<dynamic>? ?? [];
       final leaderboardList = leaderboardEntries
           .map((item) => LeaderboardUser.fromJson(item as Map<String, dynamic>))
           .toList();
@@ -123,6 +170,7 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
         currentStreak: stats['currentStreak'] ?? 0,
         completedSessionsToday: stats['totalSessions'] ?? 0,
         completedDays: compDays,
+        completedVideoIds: compVideoIds,
         leaderboard: leaderboardList,
         activeCourseId: progressData['activeCourseId'] as String?,
         userRank: leaderboardData['userRank'] as int?,
@@ -171,8 +219,8 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
     if (AppConfig.useMockData) {
       final nextSessionCount = state.completedSessionsToday + 1;
       state = state.copyWith(
-        completedSessionsToday: nextSessionCount > state.totalSessionsToday 
-            ? state.totalSessionsToday 
+        completedSessionsToday: nextSessionCount > state.totalSessionsToday
+            ? state.totalSessionsToday
             : nextSessionCount,
       );
     } else {
@@ -180,7 +228,11 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
     }
   }
 
-  Future<void> markDayComplete(int dayNumber, {String courseId = ''}) async {
+  Future<void> markDayComplete(
+    int dayNumber, {
+    String courseId = '',
+    String? videoId,
+  }) async {
     if (AppConfig.useMockData) {
       if (!state.completedDays.contains(dayNumber)) {
         final updatedDays = List<int>.from(state.completedDays)..add(dayNumber);
@@ -195,7 +247,7 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
     } else {
       state = state.copyWith(isLoading: true);
       try {
-        await _apiService.completeDay(courseId, dayNumber);
+        await _apiService.completeDay(courseId, dayNumber, videoId: videoId);
         await refreshFromApi();
       } catch (e) {
         state = state.copyWith(isLoading: false, error: e.toString());
@@ -293,9 +345,30 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
         completedSessionsToday: 0,
         completedDays: [],
         leaderboard: [
-          LeaderboardUser(rank: 1, name: 'Priya S', avatarUrl: 'assets/avatar_priya.png', streak: 12, score: 1420, isCurrentUser: false),
-          LeaderboardUser(rank: 2, name: 'Rohit K', avatarUrl: 'assets/avatar_rohit.png', streak: 8, score: 980, isCurrentUser: false),
-          LeaderboardUser(rank: 3, name: 'You', avatarUrl: '', streak: 0, score: 0, isCurrentUser: true),
+          LeaderboardUser(
+            rank: 1,
+            name: 'Priya S',
+            avatarUrl: 'assets/avatar_priya.png',
+            streak: 12,
+            score: 1420,
+            isCurrentUser: false,
+          ),
+          LeaderboardUser(
+            rank: 2,
+            name: 'Rohit K',
+            avatarUrl: 'assets/avatar_rohit.png',
+            streak: 8,
+            score: 980,
+            isCurrentUser: false,
+          ),
+          LeaderboardUser(
+            rank: 3,
+            name: 'You',
+            avatarUrl: '',
+            streak: 0,
+            score: 0,
+            isCurrentUser: true,
+          ),
         ],
       );
     } else {
@@ -313,7 +386,8 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
 
   void _updateMockLeaderboardScore() {
     // Score formula = days completed * 100 + streak * 10
-    final calculatedScore = state.completedDays.length * 100 + state.currentStreak * 10;
+    final calculatedScore =
+        state.completedDays.length * 100 + state.currentStreak * 10;
     final updatedLeaderboard = state.leaderboard.map((user) {
       if (user.isCurrentUser) {
         return LeaderboardUser(
@@ -335,19 +409,23 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
     final rankedList = <LeaderboardUser>[];
     for (int i = 0; i < list.length; i++) {
       final user = list[i];
-      rankedList.add(LeaderboardUser(
-        rank: i + 1,
-        name: user.name,
-        avatarUrl: user.avatarUrl,
-        streak: user.streak,
-        score: user.score,
-        isCurrentUser: user.isCurrentUser,
-      ));
+      rankedList.add(
+        LeaderboardUser(
+          rank: i + 1,
+          name: user.name,
+          avatarUrl: user.avatarUrl,
+          streak: user.streak,
+          score: user.score,
+          isCurrentUser: user.isCurrentUser,
+        ),
+      );
     }
     state = state.copyWith(leaderboard: rankedList);
   }
 }
 
-final progressProvider = StateNotifierProvider<ProgressNotifier, ProgressState>((ref) {
-  return ProgressNotifier();
-});
+final progressProvider = StateNotifierProvider<ProgressNotifier, ProgressState>(
+  (ref) {
+    return ProgressNotifier(ref);
+  },
+);

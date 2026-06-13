@@ -16,27 +16,34 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
-    _phoneController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
   void _handleLogin() async {
-    final phone = _phoneController.text.trim();
-    if (phone.isEmpty) {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your mobile number')),
+        const SnackBar(content: Text('Please enter your email and password')),
       );
       return;
     }
 
-    final success = await ref.read(authProvider.notifier).login(phone);
+    final success = await ref.read(authProvider.notifier).login(email, password);
     if (success && mounted) {
-      final redirectParam = widget.redirect != null ? '&redirect=${Uri.encodeComponent(widget.redirect!)}' : '';
-      context.go('/otp?phone=${Uri.encodeComponent(phone)}&mode=login$redirectParam');
+      if (widget.redirect != null) {
+        context.go(widget.redirect!);
+      } else {
+        context.go('/home');
+      }
     } else if (mounted) {
       final errorMsg =
           ref.read(authProvider).errorMessage ?? 'Authentication failed';
@@ -178,7 +185,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                         const SizedBox(height: AppSpacing.xxl),
 
-                        // Mobile Number field
+                        // Email field
                         Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: AppSpacing.md),
@@ -186,7 +193,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Mobile Number',
+                                'Email Address',
                                 style: GoogleFonts.inter(
                                   color: AppTheme.figmaCharcoal,
                                   fontSize: AppFontSizes.bodyLarge,
@@ -204,66 +211,102 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                       color: AppTheme.figmaLightBorder,
                                       width: 1.0),
                                 ),
-                                child: Row(
-                                  children: [
-                                    // Country code
-                                    SizedBox(
-                                      width: 80,
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Text(
-                                            '+91',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 14,
-                                              fontWeight:
-                                                  AppFontWeights.semiBold,
-                                              color: AppTheme.figmaGreen,
-                                            ),
-                                          ),
-                                          const SizedBox(
-                                              width: AppSpacing.xxs),
-                                          const Icon(
-                                            Icons
-                                                .keyboard_arrow_down_rounded,
-                                            color: AppTheme.figmaGreen,
-                                            size: 18,
-                                          ),
-                                        ],
-                                      ),
+                                child: TextField(
+                                  controller: _emailController,
+                                  keyboardType: TextInputType.emailAddress,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    color: AppTheme.figmaCharcoal,
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: 'Enter your email address',
+                                    hintStyle: GoogleFonts.inter(
+                                      color: AppTheme.figmaMutedGray,
+                                      fontSize: 11,
                                     ),
-                                    // Divider
-                                    Container(
-                                      width: 1,
+                                    border: InputBorder.none,
+                                    prefixIcon: const Icon(
+                                      Icons.email_outlined,
+                                      color: AppTheme.figmaGreen,
+                                      size: 20,
+                                    ),
+                                    contentPadding:
+                                        const EdgeInsets.symmetric(
+                                      horizontal: AppSpacing.md,
+                                      vertical: AppSpacing.md,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: AppSpacing.lg),
+
+                        // Password field
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Password',
+                                style: GoogleFonts.inter(
+                                  color: AppTheme.figmaCharcoal,
+                                  fontSize: AppFontSizes.bodyLarge,
+                                  fontWeight: AppFontWeights.semiBold,
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.md),
+                              Container(
+                                height: 52,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.figmaBgGray,
+                                  borderRadius: BorderRadius.circular(
+                                      AppRadii.xxl),
+                                  border: Border.all(
                                       color: AppTheme.figmaLightBorder,
+                                      width: 1.0),
+                                ),
+                                child: TextField(
+                                  controller: _passwordController,
+                                  obscureText: _obscurePassword,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    color: AppTheme.figmaCharcoal,
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: 'Enter your password',
+                                    hintStyle: GoogleFonts.inter(
+                                      color: AppTheme.figmaMutedGray,
+                                      fontSize: 11,
                                     ),
-                                    // Phone input
-                                    Expanded(
-                                      child: TextField(
-                                        controller: _phoneController,
-                                        keyboardType: TextInputType.phone,
-                                        style: GoogleFonts.inter(
-                                          fontSize: 14,
-                                          color: AppTheme.figmaCharcoal,
-                                        ),
-                                        decoration: InputDecoration(
-                                          hintText:
-                                              'Enter your mobile number',
-                                          hintStyle: GoogleFonts.inter(
-                                            color: AppTheme.figmaMutedGray,
-                                            fontSize: 11,
-                                          ),
-                                          border: InputBorder.none,
-                                          contentPadding:
-                                              const EdgeInsets.symmetric(
-                                            horizontal: AppSpacing.md,
-                                            vertical: AppSpacing.md,
-                                          ),
-                                        ),
+                                    border: InputBorder.none,
+                                    prefixIcon: const Icon(
+                                      Icons.lock_outline_rounded,
+                                      color: AppTheme.figmaGreen,
+                                      size: 20,
+                                    ),
+                                    suffixIcon: GestureDetector(
+                                      onTap: () => setState(() =>
+                                          _obscurePassword =
+                                              !_obscurePassword),
+                                      child: Icon(
+                                        _obscurePassword
+                                            ? Icons.visibility_outlined
+                                            : Icons.visibility_off_outlined,
+                                        color: AppTheme.figmaMutedGray,
+                                        size: 20,
                                       ),
                                     ),
-                                  ],
+                                    contentPadding:
+                                        const EdgeInsets.symmetric(
+                                      horizontal: AppSpacing.md,
+                                      vertical: AppSpacing.md,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
@@ -334,7 +377,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                             const SizedBox(width: AppSpacing.xs),
                             Text(
-                              'We never share your number with anyone',
+                              'We never share your data with anyone',
                               style: GoogleFonts.inter(
                                 color: AppTheme.figmaCharcoal,
                                 fontSize: AppFontSizes.bodyMedium,

@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../providers/progress_provider.dart';
 import '../../providers/courses_provider.dart';
 import '../../../core/config/theme.dart';
-import '../../../core/services/api_service.dart';
 import '../../../data/models/course_model.dart';
 
 import '../../providers/course_detail_provider.dart';
@@ -79,12 +78,8 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
             ),
           ),
         ),
-        data: (courseDetail) => _buildContent(
-          context,
-          courseDetail,
-          progressState,
-          enrolledAt,
-        ),
+        data: (courseDetail) =>
+            _buildContent(context, courseDetail, progressState, enrolledAt),
       ),
     );
   }
@@ -160,7 +155,8 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
                   strokeWidth: 6,
                   backgroundColor: AppTheme.lightGray,
                   valueColor: const AlwaysStoppedAnimation<Color>(
-                      AppTheme.primaryGreen),
+                    AppTheme.primaryGreen,
+                  ),
                 ),
               ),
             ],
@@ -174,8 +170,10 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
               ? Center(
                   child: Text(
                     'No days found for this course.',
-                    style:
-                        GoogleFonts.inter(color: AppTheme.coolGray, fontSize: 14),
+                    style: GoogleFonts.inter(
+                      color: AppTheme.coolGray,
+                      fontSize: 14,
+                    ),
                   ),
                 )
               : ListView.builder(
@@ -185,15 +183,23 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
                   itemBuilder: (context, index) {
                     final day = courseDetail.days[index];
                     final enrolledDate = DateTime(
-                        enrolledAt.year, enrolledAt.month, enrolledAt.day);
+                      enrolledAt.year,
+                      enrolledAt.month,
+                      enrolledAt.day,
+                    );
                     final today = DateTime.now();
-                    final todayDate =
-                        DateTime(today.year, today.month, today.day);
-                    final unlockDate = enrolledDate
-                        .add(Duration(days: day.dayNumber - 1));
+                    final todayDate = DateTime(
+                      today.year,
+                      today.month,
+                      today.day,
+                    );
+                    final unlockDate = enrolledDate.add(
+                      Duration(days: day.dayNumber - 1),
+                    );
                     final isUnlocked = !todayDate.isBefore(unlockDate);
-                    final isCompleted =
-                        progress.completedDays.contains(day.dayNumber);
+                    final isCompleted = progress.completedDays.contains(
+                      day.dayNumber,
+                    );
                     final isToday = unlockDate == todayDate;
                     final isExpanded = _expandedDay == day.dayNumber;
 
@@ -230,8 +236,10 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
       borderCol = AppTheme.primaryGreen.withAlpha(76);
     }
 
-    final totalDuration =
-        day.videos.fold<int>(0, (sum, v) => sum + v.durationSeconds);
+    final totalDuration = day.videos.fold<int>(
+      0,
+      (sum, v) => sum + v.durationSeconds,
+    );
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -256,9 +264,8 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
           InkWell(
             onTap: isUnlocked
                 ? () => setState(() {
-                      _expandedDay =
-                          isExpanded ? null : day.dayNumber;
-                    })
+                    _expandedDay = isExpanded ? null : day.dayNumber;
+                  })
                 : null,
             borderRadius: BorderRadius.circular(20),
             child: Padding(
@@ -273,21 +280,21 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
                       color: isCompleted
                           ? AppTheme.primaryGreen
                           : (!isUnlocked
-                              ? AppTheme.lightGray
-                              : AppTheme.primaryGreen.withAlpha(25)),
+                                ? AppTheme.lightGray
+                                : AppTheme.primaryGreen.withAlpha(25)),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       isCompleted
                           ? Icons.check
                           : (!isUnlocked
-                              ? Icons.lock_outline_rounded
-                              : Icons.play_arrow_rounded),
+                                ? Icons.lock_outline_rounded
+                                : Icons.play_arrow_rounded),
                       color: isCompleted
                           ? Colors.white
                           : (!isUnlocked
-                              ? AppTheme.coolGray
-                              : AppTheme.primaryGreen),
+                                ? AppTheme.coolGray
+                                : AppTheme.primaryGreen),
                       size: 20,
                     ),
                   ),
@@ -315,16 +322,20 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
                         const SizedBox(height: 2),
                         Text(
                           _daySubtitle(
-                              isCompleted, isToday, isUnlocked, unlockDate,
-                              videoCount: day.videos.length,
-                              totalSeconds: totalDuration),
+                            isCompleted,
+                            isToday,
+                            isUnlocked,
+                            unlockDate,
+                            videoCount: day.videos.length,
+                            totalSeconds: totalDuration,
+                          ),
                           style: GoogleFonts.inter(
                             fontSize: 12,
                             color: isCompleted
                                 ? AppTheme.primaryGreen
                                 : (isToday && isUnlocked
-                                    ? AppTheme.accentGold
-                                    : AppTheme.coolGray),
+                                      ? AppTheme.accentGold
+                                      : AppTheme.coolGray),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -365,14 +376,27 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
     if (isCompleted) return 'Completed';
     if (!isUnlocked) {
       final months = [
-        '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+        '',
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
       ];
       return 'Unlocks ${unlockDate.day} ${months[unlockDate.month]}';
     }
     if (isToday) return 'Today\'s practice';
     final parts = <String>[];
-    if (videoCount > 0) parts.add('$videoCount video${videoCount > 1 ? 's' : ''}');
+    if (videoCount > 0) {
+      parts.add('$videoCount video${videoCount > 1 ? 's' : ''}');
+    }
     if (totalSeconds > 0) parts.add('${(totalSeconds / 60).round()}m');
     return parts.isNotEmpty ? parts.join(' · ') : 'Available';
   }
@@ -425,9 +449,7 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Image.asset(
-                isYoga
-                    ? 'assets/icon_asana.png'
-                    : 'assets/icon_kriya.png',
+                isYoga ? 'assets/icon_asana.png' : 'assets/icon_kriya.png',
                 width: 20,
                 height: 20,
               ),
@@ -484,14 +506,18 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
   }
 
   void _playVideo(BuildContext context, VideoModel video, CourseDayModel day) {
-    context.push('/play', extra: {
-      'courseId': widget.courseId,
-      'dayNumber': day.dayNumber,
-      'videoSource': video.videoSource,
-      'youtubeVideoId': video.youtubeVideoId ?? '',
-      'bunnyVideoId': video.bunnyVideoId,
-      'bunnyLibraryId': video.bunnyLibraryId,
-      'videoTitle': video.title,
-    });
+    context.push(
+      '/play',
+      extra: {
+        'courseId': widget.courseId,
+        'dayNumber': day.dayNumber,
+        'videoId': video.id,
+        'videoSource': video.videoSource,
+        'youtubeVideoId': video.youtubeVideoId ?? '',
+        'bunnyVideoId': video.bunnyVideoId,
+        'bunnyLibraryId': video.bunnyLibraryId,
+        'videoTitle': video.title,
+      },
+    );
   }
 }

@@ -7,17 +7,14 @@ class ApiService {
   factory ApiService() => _instance;
   ApiService._internal();
 
-  // Simple token storage for mock/demo auth
-  String? _authToken = 'mock-user-123';
+  String? _authToken;
 
   void setToken(String? token) {
     _authToken = token;
   }
 
   Map<String, String> _getHeaders() {
-    final headers = {
-      'Content-Type': 'application/json',
-    };
+    final headers = {'Content-Type': 'application/json'};
     if (_authToken != null) {
       headers['Authorization'] = 'Bearer $_authToken';
     }
@@ -31,7 +28,9 @@ class ApiService {
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
-        throw HttpException('API Error: ${response.statusCode} - ${response.body}');
+        throw HttpException(
+          'API Error: ${response.statusCode} - ${response.body}',
+        );
       }
     } catch (e) {
       throw Exception('Failed to connect to backend: $e');
@@ -49,7 +48,9 @@ class ApiService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         return jsonDecode(response.body);
       } else {
-        throw HttpException('API Error: ${response.statusCode} - ${response.body}');
+        throw HttpException(
+          'API Error: ${response.statusCode} - ${response.body}',
+        );
       }
     } catch (e) {
       throw Exception('Failed to connect to backend: $e');
@@ -93,15 +94,23 @@ class ApiService {
     return res as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> completeDay(String courseId, int dayNumber) async {
-    final res = await _post('/api/mobile/progress/complete-day', {
+  Future<Map<String, dynamic>> completeDay(
+    String courseId,
+    int dayNumber, {
+    String? videoId,
+  }) async {
+    final body = <String, dynamic>{
       'courseId': courseId,
       'dayNumber': dayNumber,
-    });
+    };
+    if (videoId != null) body['videoId'] = videoId;
+    final res = await _post('/api/mobile/progress/complete-day', body);
     return res as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> simulateProgress(Map<String, dynamic> params) async {
+  Future<Map<String, dynamic>> simulateProgress(
+    Map<String, dynamic> params,
+  ) async {
     final res = await _post('/api/mobile/progress/simulate', params);
     return res as Map<String, dynamic>;
   }

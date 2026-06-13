@@ -6,6 +6,7 @@ import '../../../core/config/theme.dart';
 import '../../providers/courses_provider.dart';
 import '../../providers/free_videos_provider.dart';
 import '../../providers/community_moments_provider.dart';
+import '../../providers/progress_provider.dart';
 import '../../widgets/login_prompt.dart';
 
 class UnregisteredHomeScreen extends ConsumerStatefulWidget {
@@ -307,7 +308,7 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            '0',
+                            '${ref.watch(progressProvider).currentStreak}',
                             style: GoogleFonts.inter(
                               color: AppTheme.darkTeal,
                               fontSize: AppFontSizes.bodyLarge,

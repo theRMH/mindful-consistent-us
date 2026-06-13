@@ -23,8 +23,12 @@ import '../../presentation/screens/cart/cart_screen.dart';
 import '../../presentation/screens/cart/thank_you_screen.dart';
 
 // Root navigation key
-final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
-final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
+final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(
+  debugLabel: 'root',
+);
+final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(
+  debugLabel: 'shell',
+);
 
 class AppRouter {
   static String _initialLocation() {
@@ -36,147 +40,149 @@ class AppRouter {
   }
 
   static final GoRouter router = GoRouter(
-      navigatorKey: _rootNavigatorKey,
-      initialLocation: _initialLocation(),
-      routes: [
-        // 1. Authentication Flow
-        GoRoute(
-          path: '/login',
-          builder: (context, state) {
-            final redirect = state.uri.queryParameters['redirect'];
-            return LoginScreen(redirect: redirect);
-          },
-        ),
-        GoRoute(
-          path: '/signup',
-          builder: (context, state) {
-            final phone = state.uri.queryParameters['phone'] ?? '';
-            final redirect = state.uri.queryParameters['redirect'];
-            return SignupScreen(initialPhone: phone, redirect: redirect);
-          },
-        ),
-        GoRoute(
-          path: '/otp',
-          builder: (context, state) {
-            final phone = state.uri.queryParameters['phone'] ?? '';
-            final mode = state.uri.queryParameters['mode'] ?? 'register';
-            final redirect = state.uri.queryParameters['redirect'];
-            return OTPScreen(phone: phone, mode: mode, redirect: redirect);
-          },
-        ),
+    navigatorKey: _rootNavigatorKey,
+    initialLocation: _initialLocation(),
+    routes: [
+      // 1. Authentication Flow
+      GoRoute(
+        path: '/login',
+        builder: (context, state) {
+          final redirect = state.uri.queryParameters['redirect'];
+          return LoginScreen(redirect: redirect);
+        },
+      ),
+      GoRoute(
+        path: '/signup',
+        builder: (context, state) {
+          final redirect = state.uri.queryParameters['redirect'];
+          return SignupScreen(redirect: redirect);
+        },
+      ),
+      GoRoute(
+        path: '/otp',
+        builder: (context, state) {
+          final phone = state.uri.queryParameters['phone'] ?? '';
+          final mode = state.uri.queryParameters['mode'] ?? 'register';
+          final redirect = state.uri.queryParameters['redirect'];
+          return OTPScreen(phone: phone, mode: mode, redirect: redirect);
+        },
+      ),
 
-        // 3. Main Registered User Navigation Shell (Persistent Bottom Navigation Bar)
-        ShellRoute(
-          navigatorKey: _shellNavigatorKey,
-          builder: (context, state, child) {
-            return AppNavigationShell(child: child);
-          },
-          routes: [
-            GoRoute(
-              path: '/unregistered',
-              builder: (context, state) => const UnregisteredHomeScreen(),
-            ),
-            GoRoute(
-              path: '/home',
-              builder: (context, state) => const HomeScreen(),
-            ),
-            GoRoute(
-              path: '/programs',
-              builder: (context, state) {
-                final tab = state.uri.queryParameters['tab'] ?? 'active';
-                return ProgramsScreen(initialTab: tab);
-              },
-            ),
-            GoRoute(
-              path: '/videos',
-              builder: (context, state) => const VideosScreen(),
-            ),
-            GoRoute(
-              path: '/steps',
-              builder: (context, state) => const StepsScreen(),
-            ),
-            GoRoute(
-              path: '/profile',
-              builder: (context, state) => const ProfileScreen(),
-            ),
-          ],
-        ),
-        // 4. Course Detail and Day List Screen
-        GoRoute(
-          path: '/course/:courseId',
-          builder: (context, state) {
-            final courseId = state.pathParameters['courseId'] ?? '';
-            return DayListScreen(courseId: courseId);
-          },
-        ),
+      // 3. Main Registered User Navigation Shell (Persistent Bottom Navigation Bar)
+      ShellRoute(
+        navigatorKey: _shellNavigatorKey,
+        builder: (context, state, child) {
+          return AppNavigationShell(child: child);
+        },
+        routes: [
+          GoRoute(
+            path: '/unregistered',
+            builder: (context, state) => const UnregisteredHomeScreen(),
+          ),
+          GoRoute(
+            path: '/home',
+            builder: (context, state) => const HomeScreen(),
+          ),
+          GoRoute(
+            path: '/programs',
+            builder: (context, state) {
+              final tab = state.uri.queryParameters['tab'] ?? 'active';
+              return ProgramsScreen(initialTab: tab);
+            },
+          ),
+          GoRoute(
+            path: '/videos',
+            builder: (context, state) => const VideosScreen(),
+          ),
+          GoRoute(
+            path: '/steps',
+            builder: (context, state) => const StepsScreen(),
+          ),
+          GoRoute(
+            path: '/profile',
+            builder: (context, state) => const ProfileScreen(),
+          ),
+        ],
+      ),
+      // 4. Course Detail and Day List Screen
+      GoRoute(
+        path: '/course/:courseId',
+        builder: (context, state) {
+          final courseId = state.pathParameters['courseId'] ?? '';
+          return DayListScreen(courseId: courseId);
+        },
+      ),
 
-        // 5. Course Completion Success Celebration Screen
-        GoRoute(
-          path: '/course_completed',
-          builder: (context, state) => const ProgramsCompletedScreen(),
-        ),
+      // 5. Course Completion Success Celebration Screen
+      GoRoute(
+        path: '/course_completed',
+        builder: (context, state) => const ProgramsCompletedScreen(),
+      ),
 
-        GoRoute(
-          path: '/program_details',
-          builder: (context, state) {
-            final extra = state.extra as Map<String, dynamic>?;
-            final title = extra?['title'] as String?;
-            final imagePath = extra?['imagePath'] as String?;
-            final courseId = extra?['courseId'] as String?;
-            return ProgramDetailsScreen(
-              courseId: courseId,
-              courseTitle: title,
-              courseImagePath: imagePath,
-              showBackButton: true,
-            );
-          },
-        ),
+      GoRoute(
+        path: '/program_details',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final title = extra?['title'] as String?;
+          final imagePath = extra?['imagePath'] as String?;
+          final courseId = extra?['courseId'] as String?;
+          return ProgramDetailsScreen(
+            courseId: courseId,
+            courseTitle: title,
+            courseImagePath: imagePath,
+            showBackButton: true,
+          );
+        },
+      ),
 
-        // 7. Video Player Screen
-        GoRoute(
-          path: '/play',
-          builder: (context, state) {
-            final extra = state.extra as Map<String, dynamic>?;
-            final courseId = extra?['courseId'] as String? ?? '';
-            final dayNumber = extra?['dayNumber'] as int? ?? 1;
-            final videoSource = extra?['videoSource'] as String? ?? 'youtube';
-            final youtubeVideoId = extra?['youtubeVideoId'] as String? ?? '';
-            final bunnyVideoId = extra?['bunnyVideoId'] as String?;
-            final bunnyLibraryId = extra?['bunnyLibraryId'] as String?;
-            final videoTitle = extra?['videoTitle'] as String? ?? 'Yoga Session';
-            return VideoPlayerScreen(
-              courseId: courseId,
-              dayNumber: dayNumber,
-              videoSource: videoSource,
-              youtubeVideoId: youtubeVideoId,
-              bunnyVideoId: bunnyVideoId,
-              bunnyLibraryId: bunnyLibraryId,
-              videoTitle: videoTitle,
-            );
-          },
-        ),
-        
-        // 8. Cart Screen
-        GoRoute(
-          path: '/cart',
-          builder: (context, state) {
-            final courseId = state.uri.queryParameters['courseId'] ?? '30-days-yoga';
-            return CartScreen(courseId: courseId);
-          },
-        ),
+      // 7. Video Player Screen
+      GoRoute(
+        path: '/play',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final courseId = extra?['courseId'] as String? ?? '';
+          final dayNumber = extra?['dayNumber'] as int? ?? 1;
+          final videoId = extra?['videoId'] as String?;
+          final videoSource = extra?['videoSource'] as String? ?? 'youtube';
+          final youtubeVideoId = extra?['youtubeVideoId'] as String? ?? '';
+          final bunnyVideoId = extra?['bunnyVideoId'] as String?;
+          final bunnyLibraryId = extra?['bunnyLibraryId'] as String?;
+          final videoTitle = extra?['videoTitle'] as String? ?? 'Yoga Session';
+          return VideoPlayerScreen(
+            courseId: courseId,
+            dayNumber: dayNumber,
+            videoId: videoId,
+            videoSource: videoSource,
+            youtubeVideoId: youtubeVideoId,
+            bunnyVideoId: bunnyVideoId,
+            bunnyLibraryId: bunnyLibraryId,
+            videoTitle: videoTitle,
+          );
+        },
+      ),
 
-        // 9. Thank You Screen
-        GoRoute(
-          path: '/thank-you',
-          builder: (context, state) => const ThankYouScreen(),
-        ),
+      // 8. Cart Screen
+      GoRoute(
+        path: '/cart',
+        builder: (context, state) {
+          final courseId =
+              state.uri.queryParameters['courseId'] ?? '30-days-yoga';
+          return CartScreen(courseId: courseId);
+        },
+      ),
 
-        // 10. Free Videos (accessible by registered users, no bottom nav)
-        GoRoute(
-          path: '/free-videos',
-          builder: (context, state) => const FreeVideosScreen(),
-        ),
-      ],
+      // 9. Thank You Screen
+      GoRoute(
+        path: '/thank-you',
+        builder: (context, state) => const ThankYouScreen(),
+      ),
+
+      // 10. Free Videos (accessible by registered users, no bottom nav)
+      GoRoute(
+        path: '/free-videos',
+        builder: (context, state) => const FreeVideosScreen(),
+      ),
+    ],
   );
 }
 
@@ -223,7 +229,9 @@ class AppNavigationShell extends ConsumerWidget {
                 context.go('/programs?tab=explore');
               } else {
                 final coursesState = ref.read(coursesProvider);
-                final tab = coursesState.activeCourses.isNotEmpty ? 'active' : 'explore';
+                final tab = coursesState.activeCourses.isNotEmpty
+                    ? 'active'
+                    : 'explore';
                 context.go('/programs?tab=$tab');
               }
               break;
@@ -287,5 +295,3 @@ class AppNavigationShell extends ConsumerWidget {
     );
   }
 }
-
-

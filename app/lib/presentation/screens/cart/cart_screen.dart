@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/courses_provider.dart';
-import '../../providers/progress_provider.dart';
 import '../../../core/config/theme.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
@@ -16,8 +15,9 @@ class CartScreen extends ConsumerStatefulWidget {
 }
 
 class _CartScreenState extends ConsumerState<CartScreen> {
-  final TextEditingController _couponController =
-      TextEditingController(text: 'FIT20');
+  final TextEditingController _couponController = TextEditingController(
+    text: 'FIT20',
+  );
   bool _couponApplied = false;
   int _selectedUpiIndex = 0; // 0 for GPay/PhonePe, 1 for More UPI Apps
   final int _quantity = 1;
@@ -25,7 +25,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   static const double _originalPrice = 999;
   static const double _discount = 300;
 
-  double get _unitPrice => _couponApplied ? (_originalPrice - _discount) : _originalPrice;
+  double get _unitPrice =>
+      _couponApplied ? (_originalPrice - _discount) : _originalPrice;
   double get _totalPayable => _unitPrice * _quantity;
 
   @override
@@ -74,7 +75,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                       width: 40,
                       height: 40,
                       fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => _buildUpiLogo(),
+                      errorBuilder: (context, error, stackTrace) =>
+                          _buildUpiLogo(),
                     ),
                     title: 'Google pay / Phonepe',
                     subtitle: 'Pay instantly via your UPI',
@@ -158,7 +160,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
@@ -196,7 +201,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       ),
     );
   }
-
 
   // ─── Section Header ──────────────────────────────────────────────────────
   Widget _buildSectionHeader() {
@@ -270,8 +274,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   width: 80,
                   height: 80,
                   color: const Color(0xFFE8F5E9),
-                  child: const Icon(Icons.self_improvement,
-                      color: AppTheme.figmaGreen, size: 36),
+                  child: const Icon(
+                    Icons.self_improvement,
+                    color: AppTheme.figmaGreen,
+                    size: 36,
+                  ),
                 ),
               ),
             ),
@@ -291,7 +298,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   const SizedBox(height: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppTheme.figmaGreen,
                       borderRadius: BorderRadius.circular(6),
@@ -643,7 +652,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+                      const Icon(
+                        Icons.arrow_forward_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
                     ],
                   ),
                 ),
@@ -767,7 +780,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   },
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(
-                        color: AppTheme.primaryGreen, width: 2),
+                      color: AppTheme.primaryGreen,
+                      width: 2,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -795,9 +810,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       barrierDismissible: false,
       builder: (_) => AlertDialog(
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         content: Padding(
           padding: const EdgeInsets.symmetric(vertical: 16),
           child: Column(

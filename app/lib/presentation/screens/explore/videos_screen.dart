@@ -14,6 +14,9 @@ import '../../providers/courses_provider.dart';
 final videoCategoryProvider = StateProvider<String>((ref) => 'Yoga');
 final viewingCourseIdProvider = StateProvider<String?>((ref) => null);
 
+bool _isNetworkPath(String path) =>
+    path.startsWith('http://') || path.startsWith('https://');
+
 class VideosScreen extends ConsumerWidget {
   const VideosScreen({super.key});
 
@@ -24,13 +27,17 @@ class VideosScreen extends ConsumerWidget {
     final progressState = ref.watch(progressProvider);
     final streak = progressState.currentStreak;
     final coursesState = ref.watch(coursesProvider);
+    final bool hasEnrolledCourses = coursesState.activeCourses.isNotEmpty;
 
     // Track the currently viewing course
-    final viewingCourseId = ref.watch(viewingCourseIdProvider) ?? progressState.activeCourseId;
-    
-    String headerTitle = 'No Active Course';
+    final viewingCourseId =
+        ref.watch(viewingCourseIdProvider) ?? progressState.activeCourseId;
+
+    String headerTitle = '';
     if (viewingCourseId != null) {
-      final matches = coursesState.activeCourses.where((c) => c.id == viewingCourseId);
+      final matches = coursesState.activeCourses.where(
+        (c) => c.id == viewingCourseId,
+      );
       if (matches.isNotEmpty) {
         headerTitle = matches.first.title;
       }
@@ -42,42 +49,60 @@ class VideosScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(context, ref, streak, headerTitle, coursesState.activeCourses),
-            const SizedBox(height: AppSpacing.lg),
-            // Category Tabs
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _buildCategoryChip(
-                      ref,
-                      'Yoga',
-                      '3 Courses',
-                      ref.watch(videoCategoryProvider) == 'Yoga',
-                      coursesState.activeCourses,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: _buildCategoryChip(
-                      ref,
-                      'General Workout',
-                      '2 Courses',
-                      ref.watch(videoCategoryProvider) == 'General Workout',
-                      coursesState.activeCourses,
-                    ),
-                  ),
-                ],
-              ),
+            _buildHeader(
+              context,
+              ref,
+              streak,
+              headerTitle,
+              coursesState.activeCourses,
+              isGuest,
             ),
-            const SizedBox(height: AppSpacing.xl),
+            if (!isGuest && hasEnrolledCourses) ...[
+              const SizedBox(height: AppSpacing.lg),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildCategoryChip(
+                        ref,
+                        'Yoga',
+                        '3 Courses',
+                        ref.watch(videoCategoryProvider) == 'Yoga',
+                        coursesState.activeCourses,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: _buildCategoryChip(
+                        ref,
+                        'General Workout',
+                        '2 Courses',
+                        ref.watch(videoCategoryProvider) == 'General Workout',
+                        coursesState.activeCourses,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+            ],
             Expanded(
               child: isGuest
                   ? (fvState.isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : _buildGuestContent(context, fvState.videos, ref.watch(videoCategoryProvider)))
-                  : _buildRegisteredContent(context, ref, viewingCourseId, fvState.videos.isNotEmpty && fvState.videos.first.youtubeVideoId != null ? fvState.videos.first.youtubeVideoId! : 'dJMOsV_2nXI'),
+                        ? const Center(child: CircularProgressIndicator())
+                        : _buildGuestContent(context, fvState.videos))
+                  : hasEnrolledCourses
+                  ? _buildRegisteredContent(
+                      context,
+                      ref,
+                      viewingCourseId,
+                      fvState.videos.isNotEmpty &&
+                              fvState.videos.first.youtubeVideoId != null
+                          ? fvState.videos.first.youtubeVideoId!
+                          : 'dJMOsV_2nXI',
+                    )
+                  : _buildLoggedInNoCourseContent(context, fvState),
             ),
           ],
         ),
@@ -85,7 +110,14 @@ class VideosScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context, WidgetRef ref, int streak, String headerTitle, List<CourseModel> activeCourses) {
+  Widget _buildHeader(
+    BuildContext context,
+    WidgetRef ref,
+    int streak,
+    String headerTitle,
+    List<CourseModel> activeCourses,
+    bool isGuest,
+  ) {
     return Container(
       width: double.infinity,
       constraints: const BoxConstraints(minHeight: 120),
@@ -97,7 +129,11 @@ class VideosScreen extends ConsumerWidget {
         ),
       ),
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.lg),
+        AppSpacing.xl,
+        AppSpacing.lg,
+        AppSpacing.xl,
+        AppSpacing.lg,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -114,7 +150,9 @@ class VideosScreen extends ConsumerWidget {
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(AppRadii.xl),
@@ -163,65 +201,90 @@ class VideosScreen extends ConsumerWidget {
               fontWeight: AppFontWeights.regular,
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          GestureDetector(
-            onTap: () {
-              if (activeCourses.isNotEmpty) {
-                showModalBottomSheet(
-                  context: context,
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                  ),
-                  builder: (ctx) {
-                    return SafeArea(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const SizedBox(height: 16),
-                          Text('Select Active Course', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 16),
-                          ...activeCourses.map((c) => ListTile(
-                            title: Text(c.title),
-                            onTap: () {
-                              ref.read(viewingCourseIdProvider.notifier).state = c.id;
-                              if (c.category != null && c.category!.isNotEmpty) {
-                                ref.read(videoCategoryProvider.notifier).state = c.category!;
-                              }
-                              Navigator.pop(ctx);
-                            },
-                          )),
-                          const SizedBox(height: 16),
-                        ],
+          if (!isGuest && activeCourses.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            GestureDetector(
+              onTap: () {
+                if (activeCourses.isNotEmpty) {
+                  showModalBottomSheet(
+                    context: context,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(24),
                       ),
-                    );
-                  },
-                );
-              }
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md, vertical: AppSpacing.xs + 2),
-              decoration: BoxDecoration(
-                color: AppTheme.figmaGreen,
-                borderRadius: BorderRadius.circular(AppRadii.xl),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    headerTitle,
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: AppFontSizes.bodyMedium,
-                      fontWeight: AppFontWeights.semiBold,
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.arrow_drop_down, color: Colors.white, size: 16),
-                ],
+                    builder: (ctx) {
+                      return SafeArea(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const SizedBox(height: 16),
+                            Text(
+                              'Select Active Course',
+                              style: GoogleFonts.inter(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            ...activeCourses.map(
+                              (c) => ListTile(
+                                title: Text(c.title),
+                                onTap: () {
+                                  ref
+                                      .read(viewingCourseIdProvider.notifier)
+                                      .state = c
+                                      .id;
+                                  if (c.category != null &&
+                                      c.category!.isNotEmpty) {
+                                    ref
+                                        .read(videoCategoryProvider.notifier)
+                                        .state = c
+                                        .category!;
+                                  }
+                                  Navigator.pop(ctx);
+                                },
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.xs + 2,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.figmaGreen,
+                  borderRadius: BorderRadius.circular(AppRadii.xl),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      headerTitle,
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: AppFontSizes.bodyMedium,
+                        fontWeight: AppFontWeights.semiBold,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.arrow_drop_down,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -229,9 +292,8 @@ class VideosScreen extends ConsumerWidget {
 
   // ─── Guest Content ────────────────────────────────────────────────────────
 
-  Widget _buildGuestContent(BuildContext context, List<FreeVideoModel> videos, String activeCategory) {
-    final filtered = videos.where((v) => (v.category ?? 'Yoga').toLowerCase() == activeCategory.toLowerCase()).toList();
-    if (filtered.isEmpty) {
+  Widget _buildGuestContent(BuildContext context, List<FreeVideoModel> videos) {
+    if (videos.isEmpty) {
       return Center(
         child: Text(
           'No free videos available yet.',
@@ -256,17 +318,20 @@ class VideosScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          ...filtered.map((video) => Padding(
-                padding: const EdgeInsets.only(
-                    left: AppSpacing.xl,
-                    right: AppSpacing.xl,
-                    bottom: AppSpacing.xl),
-                child: _buildFreeVideoCard(
-                  context,
-                  video: video,
-                  onTap: () => showLoginPrompt(context),
-                ),
-              )),
+          ...videos.map(
+            (video) => Padding(
+              padding: const EdgeInsets.only(
+                left: AppSpacing.xl,
+                right: AppSpacing.xl,
+                bottom: AppSpacing.xl,
+              ),
+              child: _buildFreeVideoCard(
+                context,
+                video: video,
+                onTap: () => showLoginPrompt(context),
+              ),
+            ),
+          ),
           const SizedBox(height: AppSpacing.lg),
         ],
       ),
@@ -291,14 +356,18 @@ class VideosScreen extends ConsumerWidget {
     final courseAsync = ref.watch(courseDetailProvider(viewingCourseId));
     final progressState = ref.watch(progressProvider);
     final coursesState = ref.watch(coursesProvider);
-    
+
     String category = 'yoga';
-    final match = coursesState.activeCourses.where((c) => c.id == viewingCourseId);
+    final match = coursesState.activeCourses.where(
+      (c) => c.id == viewingCourseId,
+    );
     if (match.isNotEmpty) {
       category = match.first.category ?? 'yoga';
     }
-    
-    final String imagePath = category == 'yoga' ? 'assets/icon_asana.png' : 'assets/icon_kriya.png';
+
+    final String imagePath = category == 'yoga'
+        ? 'assets/icon_asana.png'
+        : 'assets/icon_kriya.png';
 
     return courseAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -372,7 +441,9 @@ class VideosScreen extends ConsumerWidget {
                           imagePath,
                           i,
                           courseDetail.days.length,
-                          progressState.completedDays.contains(courseDetail.days[i].dayNumber),
+                          progressState.completedDays.contains(
+                            courseDetail.days[i].dayNumber,
+                          ),
                           fallbackVideoId,
                         ),
                     ],
@@ -400,7 +471,11 @@ class VideosScreen extends ConsumerWidget {
                           color: AppTheme.darkTeal,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.star_rounded, color: Colors.white, size: 24),
+                        child: const Icon(
+                          Icons.star_rounded,
+                          color: Colors.white,
+                          size: 24,
+                        ),
                       ),
                       const SizedBox(width: AppSpacing.md),
                       Expanded(
@@ -459,7 +534,11 @@ class VideosScreen extends ConsumerWidget {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.play_circle_outline_rounded, color: Colors.white, size: 32),
+                        const Icon(
+                          Icons.play_circle_outline_rounded,
+                          color: Colors.white,
+                          size: 32,
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -477,7 +556,11 @@ class VideosScreen extends ConsumerWidget {
                             ],
                           ),
                         ),
-                        const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 28),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
                       ],
                     ),
                   ),
@@ -517,10 +600,17 @@ class VideosScreen extends ConsumerWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: isCompleted ? AppTheme.primaryGreen : Colors.white,
-                    border: Border.all(color: AppTheme.primaryGreen, width: 1.5),
+                    border: Border.all(
+                      color: AppTheme.primaryGreen,
+                      width: 1.5,
+                    ),
                   ),
                   child: isCompleted
-                      ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
+                      ? const Icon(
+                          Icons.check_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        )
                       : null,
                 ),
                 if (index < total - 1)
@@ -530,8 +620,7 @@ class VideosScreen extends ConsumerWidget {
                       color: const Color(0xFFE0E0E0),
                     ),
                   ),
-                if (index == total - 1)
-                  const Spacer(),
+                if (index == total - 1) const Spacer(),
               ],
             ),
           ),
@@ -542,39 +631,62 @@ class VideosScreen extends ConsumerWidget {
               padding: EdgeInsets.only(bottom: index < total - 1 ? 24.0 : 0.0),
               child: GestureDetector(
                 onTap: () {
-                  ref.read(progressProvider.notifier).markDayComplete(day.dayNumber, courseId: courseId);
-                  context.push('/play', extra: {
-                    'courseId': courseId,
-                    'dayNumber': day.dayNumber,
-                    'youtubeVideoId': (day.videos.isNotEmpty && day.videos.first.youtubeVideoId != null) ? day.videos.first.youtubeVideoId : fallbackVideoId,
-                    'videoTitle': day.videos.isNotEmpty ? day.videos.first.title : day.title,
-                  });
+                  final video = day.videos.isNotEmpty ? day.videos.first : null;
+                  context.push(
+                    '/play',
+                    extra: {
+                      'courseId': courseId,
+                      'dayNumber': day.dayNumber,
+                      'videoId': video?.id,
+                      'videoSource': video?.videoSource ?? 'youtube',
+                      'youtubeVideoId':
+                          video?.youtubeVideoId ?? fallbackVideoId,
+                      'bunnyVideoId': video?.bunnyVideoId,
+                      'bunnyLibraryId': video?.bunnyLibraryId,
+                      'videoTitle': video?.title ?? day.title,
+                    },
+                  );
                 },
                 child: Row(
                   children: [
-                    // Thumbnail
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFFE0E0E0)),
-                      ),
-                      child: ClipOval(
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Image.asset(
-                            imagePath,
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, _, _) => const Icon(
-                              Icons.self_improvement_rounded,
-                              color: AppTheme.figmaGreen,
-                              size: 24,
+                    // Thumbnail — shows tick when completed
+                    if (isCompleted)
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppTheme.figmaGreen,
+                        ),
+                        child: const Icon(
+                          Icons.check_rounded,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      )
+                    else
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: const Color(0xFFE0E0E0)),
+                        ),
+                        child: ClipOval(
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Image.asset(
+                              imagePath,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, _, _) => const Icon(
+                                Icons.self_improvement_rounded,
+                                color: AppTheme.figmaGreen,
+                                size: 24,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
                     const SizedBox(width: AppSpacing.md),
                     Expanded(
                       child: Column(
@@ -591,7 +703,9 @@ class VideosScreen extends ConsumerWidget {
                           Text(
                             '${day.videos.isNotEmpty ? day.videos.first.durationSeconds ~/ 60 : 15} mins • ${isCompleted ? 'Completed' : 'Up Next'}',
                             style: GoogleFonts.inter(
-                              color: isCompleted ? AppTheme.primaryGreen : AppTheme.coolGray,
+                              color: isCompleted
+                                  ? AppTheme.primaryGreen
+                                  : AppTheme.coolGray,
                               fontWeight: AppFontWeights.semiBold,
                               fontSize: AppFontSizes.bodySmall,
                             ),
@@ -604,10 +718,16 @@ class VideosScreen extends ConsumerWidget {
                       height: 32,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: AppTheme.figmaGreen, width: 1.5),
+                        border: Border.all(
+                          color: AppTheme.figmaGreen,
+                          width: 1.5,
+                        ),
                       ),
-                      child: const Icon(Icons.play_arrow_rounded,
-                          color: AppTheme.figmaGreen, size: 18),
+                      child: const Icon(
+                        Icons.play_arrow_rounded,
+                        color: AppTheme.figmaGreen,
+                        size: 18,
+                      ),
                     ),
                   ],
                 ),
@@ -619,8 +739,7 @@ class VideosScreen extends ConsumerWidget {
     );
   }
 
-
-
+  // ignore: unused_element
   Widget _buildSessionTile(
     BuildContext context,
     FreeVideoModel video,
@@ -633,18 +752,30 @@ class VideosScreen extends ConsumerWidget {
 
     return InkWell(
       onTap: () {
-        if (video.youtubeVideoId != null && video.youtubeVideoId!.isNotEmpty) {
-          context.push('/play', extra: {
-            'courseId': 'free',
-            'dayNumber': 1,
-            'youtubeVideoId': video.youtubeVideoId,
-            'videoTitle': video.title,
-          });
+        final hasPlayableSource = video.videoSource == 'youtube'
+            ? (video.youtubeVideoId?.isNotEmpty ?? false)
+            : ((video.bunnyVideoId?.isNotEmpty ?? false) &&
+                  (video.bunnyLibraryId?.isNotEmpty ?? false));
+        if (hasPlayableSource) {
+          context.push(
+            '/play',
+            extra: {
+              'courseId': 'free',
+              'dayNumber': 1,
+              'videoSource': video.videoSource,
+              'youtubeVideoId': video.youtubeVideoId ?? '',
+              'bunnyVideoId': video.bunnyVideoId,
+              'bunnyLibraryId': video.bunnyLibraryId,
+              'videoTitle': video.title,
+            },
+          );
         }
       },
       borderRadius: BorderRadius.vertical(
         top: index == 0 ? const Radius.circular(AppRadii.xxl) : Radius.zero,
-        bottom: index == total - 1 ? const Radius.circular(AppRadii.xxl) : Radius.zero,
+        bottom: index == total - 1
+            ? const Radius.circular(AppRadii.xxl)
+            : Radius.zero,
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -659,15 +790,25 @@ class VideosScreen extends ConsumerWidget {
                 border: Border.all(color: const Color(0xFFE0E0E0)),
               ),
               child: ClipOval(
-                child: Image.asset(
-                  imagePath,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => const Icon(
-                    Icons.self_improvement_rounded,
-                    color: AppTheme.figmaGreen,
-                    size: 24,
-                  ),
-                ),
+                child: _isNetworkPath(imagePath)
+                    ? Image.network(
+                        imagePath,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => const Icon(
+                          Icons.self_improvement_rounded,
+                          color: AppTheme.figmaGreen,
+                          size: 24,
+                        ),
+                      )
+                    : Image.asset(
+                        imagePath,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => const Icon(
+                          Icons.self_improvement_rounded,
+                          color: AppTheme.figmaGreen,
+                          size: 24,
+                        ),
+                      ),
               ),
             ),
             const SizedBox(width: AppSpacing.md),
@@ -701,8 +842,11 @@ class VideosScreen extends ConsumerWidget {
                 shape: BoxShape.circle,
                 border: Border.all(color: AppTheme.figmaGreen, width: 1.5),
               ),
-              child: const Icon(Icons.play_arrow_rounded,
-                  color: AppTheme.figmaGreen, size: 18),
+              child: const Icon(
+                Icons.play_arrow_rounded,
+                color: AppTheme.figmaGreen,
+                size: 18,
+              ),
             ),
           ],
         ),
@@ -711,19 +855,28 @@ class VideosScreen extends ConsumerWidget {
   }
 
   Widget _buildCategoryChip(
-      WidgetRef ref, String label, String subtext, bool isActive, List<CourseModel> activeCourses) {
+    WidgetRef ref,
+    String label,
+    String subtext,
+    bool isActive,
+    List<CourseModel> activeCourses,
+  ) {
     return GestureDetector(
       onTap: () {
         ref.read(videoCategoryProvider.notifier).state = label;
         // Find if there's an active course matching this category
-        final matches = activeCourses.where((c) => (c.category ?? 'Yoga').toLowerCase() == label.toLowerCase());
+        final matches = activeCourses.where(
+          (c) => (c.category ?? 'Yoga').toLowerCase() == label.toLowerCase(),
+        );
         if (matches.isNotEmpty) {
           ref.read(viewingCourseIdProvider.notifier).state = matches.first.id;
         }
       },
       child: Container(
         padding: const EdgeInsets.symmetric(
-            vertical: AppSpacing.md, horizontal: AppSpacing.md),
+          vertical: AppSpacing.md,
+          horizontal: AppSpacing.md,
+        ),
         decoration: BoxDecoration(
           color: isActive ? AppTheme.figmaGreen : Colors.white,
           borderRadius: BorderRadius.circular(AppRadii.xxl),
@@ -735,7 +888,9 @@ class VideosScreen extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              isActive ? Icons.self_improvement_rounded : Icons.fitness_center_rounded,
+              isActive
+                  ? Icons.self_improvement_rounded
+                  : Icons.fitness_center_rounded,
               color: isActive ? Colors.white : AppTheme.brown,
               size: 28,
             ),
@@ -755,12 +910,174 @@ class VideosScreen extends ConsumerWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.inter(
-                color: isActive ? Colors.white.withAlpha(178) : AppTheme.coolGray,
+                color: isActive
+                    ? Colors.white.withAlpha(178)
+                    : AppTheme.coolGray,
                 fontSize: AppFontSizes.bodySmall,
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // ─── Logged-in, no purchased courses ─────────────────────────────────────
+
+  Widget _buildLoggedInNoCourseContent(
+    BuildContext context,
+    FreeVideosState fvState,
+  ) {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: AppSpacing.xl),
+
+          // Purchase course box
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+            child: _buildPurchaseCourseBox(context),
+          ),
+
+          const SizedBox(height: AppSpacing.xl),
+
+          // Free videos
+          if (fvState.isLoading)
+            const Padding(
+              padding: EdgeInsets.only(top: AppSpacing.xxxl),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (fvState.videos.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+              child: Text(
+                'Free Videos',
+                style: GoogleFonts.inter(
+                  fontSize: AppFontSizes.h3,
+                  fontWeight: AppFontWeights.bold,
+                  color: AppTheme.figmaCharcoal,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            ...fvState.videos.map(
+              (video) => Padding(
+                padding: const EdgeInsets.only(
+                  left: AppSpacing.xl,
+                  right: AppSpacing.xl,
+                  bottom: AppSpacing.xl,
+                ),
+                child: _buildFreeVideoCard(
+                  context,
+                  video: video,
+                  onTap: () {
+                    final hasPlayableSource = video.videoSource == 'youtube'
+                        ? (video.youtubeVideoId?.isNotEmpty ?? false)
+                        : ((video.bunnyVideoId?.isNotEmpty ?? false) &&
+                              (video.bunnyLibraryId?.isNotEmpty ?? false));
+                    if (hasPlayableSource) {
+                      context.push(
+                        '/play',
+                        extra: {
+                          'courseId': 'free',
+                          'dayNumber': 1,
+                          'videoSource': video.videoSource,
+                          'youtubeVideoId': video.youtubeVideoId ?? '',
+                          'bunnyVideoId': video.bunnyVideoId,
+                          'bunnyLibraryId': video.bunnyLibraryId,
+                          'videoTitle': video.title,
+                        },
+                      );
+                    }
+                  },
+                ),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: AppSpacing.xxxl),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPurchaseCourseBox(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5FAF2),
+        borderRadius: BorderRadius.circular(AppRadii.xxl),
+        border: Border.all(color: const Color(0xFFD4EAC8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  color: AppTheme.figmaGreen,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.lock_open_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Unlock Your Program',
+                      style: GoogleFonts.inter(
+                        fontSize: AppFontSizes.bodyLarge,
+                        fontWeight: AppFontWeights.bold,
+                        color: AppTheme.figmaCharcoal,
+                      ),
+                    ),
+                    Text(
+                      'Enroll in a course to access daily sessions',
+                      style: GoogleFonts.inter(
+                        fontSize: AppFontSizes.bodyMedium,
+                        color: AppTheme.figmaMutedGray,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: () => context.go('/programs'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.figmaGreen,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadii.pill),
+                ),
+              ),
+              child: Text(
+                'Browse Programs',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: AppFontWeights.semiBold,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -787,50 +1104,77 @@ class VideosScreen extends ConsumerWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.asset(
-                    imagePath,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => Container(
-                      color: AppTheme.lightGray,
-                      child: const Icon(Icons.play_circle_outline,
-                          size: 48, color: AppTheme.coolGray),
+                  _isNetworkPath(imagePath)
+                      ? Image.network(
+                          imagePath,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => Container(
+                            color: AppTheme.lightGray,
+                            child: const Icon(
+                              Icons.play_circle_outline,
+                              size: 48,
+                              color: AppTheme.coolGray,
+                            ),
+                          ),
+                        )
+                      : Image.asset(
+                          imagePath,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => Container(
+                            color: AppTheme.lightGray,
+                            child: const Icon(
+                              Icons.play_circle_outline,
+                              size: 48,
+                              color: AppTheme.coolGray,
+                            ),
+                          ),
+                        ),
+                  Positioned.fill(
+                    child: Center(
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isCompleted
+                              ? AppTheme.figmaGreen
+                              : AppTheme.figmaGreen,
+                          border: isCompleted
+                              ? Border.all(color: Colors.white, width: 2)
+                              : null,
+                        ),
+                        child: Icon(
+                          isCompleted
+                              ? Icons.check_rounded
+                              : Icons.play_arrow_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
                     ),
                   ),
-                Positioned.fill(
-                  child: Center(
+                  Positioned(
+                    right: AppSpacing.md,
+                    bottom: AppSpacing.md,
                     child: Container(
-                      width: 48,
-                      height: 48,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isCompleted ? AppTheme.figmaGreen : AppTheme.figmaGreen,
-                        border: isCompleted ? Border.all(color: Colors.white, width: 2) : null,
+                        color: Colors.black.withAlpha(153),
+                        borderRadius: BorderRadius.circular(AppRadii.sm),
                       ),
-                      child: Icon(isCompleted ? Icons.check_rounded : Icons.play_arrow_rounded,
-                          color: Colors.white, size: 28),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: AppSpacing.md,
-                  bottom: AppSpacing.md,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.sm, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withAlpha(153),
-                      borderRadius: BorderRadius.circular(AppRadii.sm),
-                    ),
-                    child: Text(
-                      video.durationLabel,
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: AppFontSizes.bodySmall,
-                        fontWeight: AppFontWeights.bold,
+                      child: Text(
+                        video.durationLabel,
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: AppFontSizes.bodySmall,
+                          fontWeight: AppFontWeights.bold,
+                        ),
                       ),
                     ),
                   ),
-                ),
                 ],
               ),
             ),
@@ -857,5 +1201,4 @@ class VideosScreen extends ConsumerWidget {
       ),
     );
   }
-
 }

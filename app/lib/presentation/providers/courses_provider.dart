@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
 import '../../core/services/api_service.dart';
 import '../../data/models/course_model.dart';
+import 'auth_provider.dart';
 
 class CoursesState {
   final List<CourseModel> allCourses;
@@ -49,9 +50,15 @@ class CoursesState {
 
 class CoursesNotifier extends StateNotifier<CoursesState> {
   final ApiService _apiService = ApiService();
+  final Ref _ref;
 
-  CoursesNotifier() : super(const CoursesState()) {
+  CoursesNotifier(this._ref) : super(const CoursesState()) {
     _load();
+    _ref.listen(authProvider, (prev, next) {
+      if (prev?.isAuthenticated != next.isAuthenticated) {
+        _load();
+      }
+    });
   }
 
   Future<void> _load() async {
@@ -65,12 +72,14 @@ class CoursesNotifier extends StateNotifier<CoursesState> {
       debugPrint('[Courses] Loaded ${coursesData.length} courses');
 
       List<dynamic> enrollmentsData = [];
-      try {
-        enrollmentsData = await _apiService
-            .getEnrollments()
-            .timeout(const Duration(seconds: 10));
-      } catch (e) {
-        debugPrint('[Courses] Enrollments skipped (no auth): $e');
+      if (_ref.read(authProvider).isAuthenticated) {
+        try {
+          enrollmentsData = await _apiService
+              .getEnrollments()
+              .timeout(const Duration(seconds: 10));
+        } catch (e) {
+          debugPrint('[Courses] Enrollments skipped (no auth): $e');
+        }
       }
 
       final courses = coursesData
@@ -98,31 +107,8 @@ class CoursesNotifier extends StateNotifier<CoursesState> {
   Future<void> enroll(String courseId) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      // MOCK: Add directly to enrolledCourseIds without relying on backend
-      final newEnrolled = Set<String>.from(state.enrolledCourseIds)..add(courseId);
-      
-      // Also mock an EnrollmentModel so it shows up correctly
-      final newEnrollments = List<EnrollmentModel>.from(state.enrollments);
-      if (!newEnrollments.any((e) => e.courseId == courseId)) {
-        newEnrollments.add(EnrollmentModel(
-          id: 'mock_${DateTime.now().millisecondsSinceEpoch}',
-          courseId: courseId,
-          isActive: true,
-          enrolledAt: DateTime.now(),
-        ));
-      }
-      
-      state = state.copyWith(
-        enrolledCourseIds: newEnrolled,
-        enrollments: newEnrollments,
-        isLoading: false,
-      );
-      
-      // Attempt API call but ignore errors
-      try {
-        await _apiService.enrollInCourse(courseId);
-      } catch (_) {}
-      
+      await _apiService.enrollInCourse(courseId);
+      await _load();
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
@@ -133,5 +119,5 @@ class CoursesNotifier extends StateNotifier<CoursesState> {
 
 final coursesProvider =
     StateNotifierProvider<CoursesNotifier, CoursesState>((ref) {
-  return CoursesNotifier();
+  return CoursesNotifier(ref);
 });

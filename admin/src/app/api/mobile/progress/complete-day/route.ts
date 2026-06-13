@@ -1,48 +1,60 @@
-import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { verifyAuth } from '@/lib/auth-middleware';
+import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+import { verifyAuth } from "@/lib/auth-middleware";
 
 export async function POST(req: NextRequest) {
   try {
     const user = await verifyAuth(req);
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await req.json().catch(() => ({}));
-    const { courseId, dayNumber } = body;
+    const { courseId, dayNumber, videoId } = body;
 
     if (!courseId || !dayNumber) {
-      return NextResponse.json({ error: 'Missing courseId or dayNumber' }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing courseId or dayNumber" },
+        { status: 400 },
+      );
     }
 
-    // 1. Get Course Day
+    const parsedDayNumber = parseInt(dayNumber, 10);
+    const today = new Date();
+    const dayDate = new Date(
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
+    );
+
     const courseDay = await prisma.courseDay.findFirst({
       where: {
-        courseId: courseId,
-        dayNumber: parseInt(dayNumber, 10),
+        courseId,
+        dayNumber: parsedDayNumber,
       },
     });
 
     if (!courseDay) {
-      return NextResponse.json({ error: 'Course Day not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: "Course Day not found" },
+        { status: 404 },
+      );
     }
 
-    // 2. Get active enrollment
     const enrollment = await prisma.enrollment.findUnique({
       where: {
         userId_courseId: {
           userId: user.id,
-          courseId: courseId,
+          courseId,
         },
       },
     });
 
     if (!enrollment || !enrollment.isActive) {
-      return NextResponse.json({ error: 'Not enrolled in this course' }, { status: 403 });
+      return NextResponse.json(
+        { error: "Not enrolled in this course" },
+        { status: 403 },
+      );
     }
 
-    // 3. Check if already completed
     const existingProgress = await prisma.dailyProgress.findUnique({
       where: {
         userId_enrollmentId_courseDayId: {
@@ -53,15 +65,73 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    if (existingProgress && existingProgress.isComplete) {
-      return NextResponse.json({ message: 'Day already completed', progress: existingProgress }, { status: 200 });
+    let completedVideoCount = existingProgress?.videosWatched ?? 0;
+    let shouldCompleteDay = !videoId;
+    let isNewVideoCompletion = !videoId;
+
+    if (videoId) {
+      const video = await prisma.video.findFirst({
+        where: {
+          id: videoId,
+          courseDayId: courseDay.id,
+        },
+      });
+
+      if (!video) {
+        return NextResponse.json(
+          { error: "Video not found for this day" },
+          { status: 404 },
+        );
+      }
+
+      const existingVideoProgress = await prisma.videoProgress.findUnique({
+        where: { userId_videoId: { userId: user.id, videoId } },
+      });
+      isNewVideoCompletion = !existingVideoProgress?.isCompleted;
+
+      await prisma.videoProgress.upsert({
+        where: { userId_videoId: { userId: user.id, videoId } },
+        update: { isCompleted: true, watchedAt: today },
+        create: {
+          userId: user.id,
+          videoId,
+          enrollmentId: enrollment.id,
+          isCompleted: true,
+          watchDurationSeconds: 0,
+          lastPositionSeconds: 0,
+        },
+      });
+
+      const totalDayVideos = await prisma.video.count({
+        where: {
+          courseDayId: courseDay.id,
+          isPublished: true,
+        },
+      });
+
+      completedVideoCount = await prisma.videoProgress.count({
+        where: {
+          userId: user.id,
+          isCompleted: true,
+          video: {
+            courseDayId: courseDay.id,
+            isPublished: true,
+          },
+        },
+      });
+
+      shouldCompleteDay =
+        totalDayVideos > 0 && completedVideoCount >= totalDayVideos;
+    } else if (existingProgress?.isComplete) {
+      return NextResponse.json(
+        { message: "Day already completed", progress: existingProgress },
+        { status: 200 },
+      );
     }
 
-    const today = new Date();
-    // Normalize to date-only
-    const dayDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+    const wasDayComplete = existingProgress?.isComplete ?? false;
+    const newlyCompletedDay = shouldCompleteDay && !wasDayComplete;
 
-    // 4. Create or complete daily progress
     const progress = await prisma.dailyProgress.upsert({
       where: {
         userId_enrollmentId_courseDayId: {
@@ -71,69 +141,72 @@ export async function POST(req: NextRequest) {
         },
       },
       update: {
-        isComplete: true,
-        completedAt: today,
-        dayDate: dayDate,
-        totalWatchSeconds: { increment: 900 }, // Simulate 15 min video session
+        isComplete: shouldCompleteDay ? true : wasDayComplete,
+        completedAt: newlyCompletedDay ? today : existingProgress?.completedAt,
+        dayDate,
+        videosWatched: completedVideoCount,
+        ...(isNewVideoCompletion
+          ? { totalWatchSeconds: { increment: 900 } }
+          : {}),
       },
       create: {
         userId: user.id,
         enrollmentId: enrollment.id,
         courseDayId: courseDay.id,
-        isComplete: true,
-        completedAt: today,
-        dayDate: dayDate,
-        totalWatchSeconds: 900,
+        isComplete: shouldCompleteDay,
+        completedAt: shouldCompleteDay ? today : null,
+        dayDate,
+        videosWatched: completedVideoCount,
+        totalWatchSeconds: isNewVideoCompletion ? 900 : 0,
         caloriesBurnt: 0,
         stepsCount: 0,
       },
     });
 
-    // 5. Update user stats & streak
     const userStats = await prisma.userStats.findUnique({
       where: { userId: user.id },
     });
 
     const currentStreak = userStats?.currentStreak ?? 0;
-    let newStreak: number;
+    let newStreak = currentStreak;
 
-    // Check if the user already completed a different day today (streak already counted for today)
-    const completedTodayElsewhere = await prisma.dailyProgress.findFirst({
-      where: {
-        userId: user.id,
-        isComplete: true,
-        dayDate: dayDate,
-        NOT: {
-          AND: [
-            { userId: user.id },
-            { enrollmentId: enrollment.id },
-            { courseDayId: courseDay.id },
-          ],
-        },
-      },
-    });
-
-    if (completedTodayElsewhere) {
-      // Streak already counted for today — don't change it
-      newStreak = currentStreak;
-    } else {
-      // Find the most recently completed day strictly before today
-      const lastCompleted = await prisma.dailyProgress.findFirst({
+    if (newlyCompletedDay || !videoId) {
+      const completedTodayElsewhere = await prisma.dailyProgress.findFirst({
         where: {
           userId: user.id,
           isComplete: true,
-          dayDate: { lt: dayDate },
+          dayDate,
+          NOT: {
+            AND: [
+              { userId: user.id },
+              { enrollmentId: enrollment.id },
+              { courseDayId: courseDay.id },
+            ],
+          },
         },
-        orderBy: { dayDate: 'desc' },
       });
 
-      if (!lastCompleted) {
-        newStreak = 1;
+      if (completedTodayElsewhere) {
+        newStreak = currentStreak;
       } else {
-        const daysDiff = Math.round(
-          (dayDate.getTime() - new Date(lastCompleted.dayDate).getTime()) / (1000 * 60 * 60 * 24)
-        );
-        newStreak = daysDiff === 1 ? currentStreak + 1 : 1;
+        const lastCompleted = await prisma.dailyProgress.findFirst({
+          where: {
+            userId: user.id,
+            isComplete: true,
+            dayDate: { lt: dayDate },
+          },
+          orderBy: { dayDate: "desc" },
+        });
+
+        if (!lastCompleted) {
+          newStreak = 1;
+        } else {
+          const daysDiff = Math.round(
+            (dayDate.getTime() - new Date(lastCompleted.dayDate).getTime()) /
+              (1000 * 60 * 60 * 24),
+          );
+          newStreak = daysDiff === 1 ? currentStreak + 1 : 1;
+        }
       }
     }
 
@@ -142,22 +215,25 @@ export async function POST(req: NextRequest) {
     const updatedStats = await prisma.userStats.upsert({
       where: { userId: user.id },
       update: {
-        totalWatchSeconds: { increment: 900 },
-        totalSessions: { increment: 1 },
+        ...(isNewVideoCompletion
+          ? {
+              totalWatchSeconds: { increment: 900 },
+              totalSessions: { increment: 1 },
+            }
+          : {}),
         currentStreak: newStreak,
         longestStreak: newLongest,
         updatedAt: today,
       },
       create: {
         userId: user.id,
-        totalWatchSeconds: 900,
-        totalSessions: 1,
-        currentStreak: 1,
-        longestStreak: 1,
+        totalWatchSeconds: isNewVideoCompletion ? 900 : 0,
+        totalSessions: isNewVideoCompletion ? 1 : 0,
+        currentStreak: newStreak,
+        longestStreak: newLongest,
       },
     });
 
-    // 6. Update Leaderboard Entry score
     const allCompletedCount = await prisma.dailyProgress.count({
       where: {
         userId: user.id,
@@ -166,7 +242,6 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Score = days completed * 100 + streak * 10
     const newScore = allCompletedCount * 100 + newStreak * 10;
 
     await prisma.leaderboardEntry.upsert({
@@ -183,7 +258,7 @@ export async function POST(req: NextRequest) {
       },
       create: {
         userId: user.id,
-        courseId: courseId,
+        courseId,
         enrollmentId: enrollment.id,
         daysCompleted: allCompletedCount,
         score: newScore,
@@ -191,13 +266,21 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      progress,
-      stats: updatedStats,
-    }, { status: 200 });
+    return NextResponse.json(
+      {
+        success: true,
+        progress,
+        stats: updatedStats,
+        completedVideoCount,
+        dayCompleted: shouldCompleteDay,
+      },
+      { status: 200 },
+    );
   } catch (error: any) {
-    console.error('Error completing course day:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error("Error completing course day:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }
