@@ -196,7 +196,7 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
                     final unlockDate = enrolledDate.add(
                       Duration(days: day.dayNumber - 1),
                     );
-                    final isUnlocked = !todayDate.isBefore(unlockDate);
+                    final isPlayable = todayDate == unlockDate;
                     final isCompleted = progress.completedDays.contains(
                       day.dayNumber,
                     );
@@ -206,11 +206,12 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
                     return _buildDayCard(
                       context,
                       day: day,
-                      isUnlocked: isUnlocked,
+                      isPlayable: isPlayable,
                       isCompleted: isCompleted,
                       isToday: isToday,
                       isExpanded: isExpanded,
                       unlockDate: unlockDate,
+                      progress: progress,
                     );
                   },
                 ),
@@ -222,16 +223,17 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
   Widget _buildDayCard(
     BuildContext context, {
     required CourseDayModel day,
-    required bool isUnlocked,
+    required bool isPlayable,
     required bool isCompleted,
     required bool isToday,
     required bool isExpanded,
     required DateTime unlockDate,
+    required ProgressState progress,
   }) {
     Color cardBg = Colors.white;
     Color borderCol = const Color(0xFFF1F3F5);
 
-    if (isToday && isUnlocked && !isCompleted) {
+    if (isPlayable && !isCompleted) {
       cardBg = AppTheme.primaryGreen.withAlpha(8);
       borderCol = AppTheme.primaryGreen.withAlpha(76);
     }
@@ -248,7 +250,7 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: borderCol,
-          width: (isToday && isUnlocked && !isCompleted) ? 1.5 : 1.0,
+          width: (isToday && isPlayable && !isCompleted) ? 1.5 : 1.0,
         ),
         boxShadow: const [
           BoxShadow(
@@ -262,7 +264,7 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
         children: [
           // Day header row
           InkWell(
-            onTap: isUnlocked
+            onTap: isPlayable
                 ? () => setState(() {
                     _expandedDay = isExpanded ? null : day.dayNumber;
                   })
@@ -279,7 +281,7 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
                     decoration: BoxDecoration(
                       color: isCompleted
                           ? AppTheme.primaryGreen
-                          : (!isUnlocked
+                          : (!isPlayable
                                 ? AppTheme.lightGray
                                 : AppTheme.primaryGreen.withAlpha(25)),
                       shape: BoxShape.circle,
@@ -287,12 +289,12 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
                     child: Icon(
                       isCompleted
                           ? Icons.check
-                          : (!isUnlocked
+                          : (!isPlayable
                                 ? Icons.lock_outline_rounded
                                 : Icons.play_arrow_rounded),
                       color: isCompleted
                           ? Colors.white
-                          : (!isUnlocked
+                          : (!isPlayable
                                 ? AppTheme.coolGray
                                 : AppTheme.primaryGreen),
                       size: 20,
@@ -312,7 +314,7 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
                           style: GoogleFonts.inter(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
-                            color: !isUnlocked
+                            color: !isPlayable
                                 ? AppTheme.coolGray
                                 : AppTheme.darkSlate,
                           ),
@@ -324,7 +326,7 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
                           _daySubtitle(
                             isCompleted,
                             isToday,
-                            isUnlocked,
+                            isPlayable,
                             unlockDate,
                             videoCount: day.videos.length,
                             totalSeconds: totalDuration,
@@ -333,7 +335,7 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
                             fontSize: 12,
                             color: isCompleted
                                 ? AppTheme.primaryGreen
-                                : (isToday && isUnlocked
+                                : (isPlayable
                                       ? AppTheme.accentGold
                                       : AppTheme.coolGray),
                             fontWeight: FontWeight.w500,
@@ -344,7 +346,7 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
                   ),
 
                   // Chevron or lock
-                  if (isUnlocked)
+                  if (isPlayable)
                     Icon(
                       isExpanded
                           ? Icons.keyboard_arrow_up_rounded
@@ -359,7 +361,7 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
 
           // Expanded video list
           if (isExpanded && day.videos.isNotEmpty)
-            _buildVideoList(context, day),
+            _buildVideoList(context, day, progress),
         ],
       ),
     );
@@ -368,13 +370,13 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
   String _daySubtitle(
     bool isCompleted,
     bool isToday,
-    bool isUnlocked,
+    bool isPlayable,
     DateTime unlockDate, {
     required int videoCount,
     required int totalSeconds,
   }) {
     if (isCompleted) return 'Completed';
-    if (!isUnlocked) {
+    if (!isPlayable) {
       final months = [
         '',
         'Jan',
@@ -401,7 +403,11 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
     return parts.isNotEmpty ? parts.join(' · ') : 'Available';
   }
 
-  Widget _buildVideoList(BuildContext context, CourseDayModel day) {
+  Widget _buildVideoList(
+    BuildContext context,
+    CourseDayModel day,
+    ProgressState progress,
+  ) {
     return Column(
       children: [
         const Divider(height: 1, thickness: 1, color: Color(0xFFF1F3F5)),
@@ -409,7 +415,13 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
           final index = entry.key;
           final video = entry.value;
           final isLast = index == day.videos.length - 1;
-          return _buildVideoTile(context, video, day, isLast: isLast);
+          return _buildVideoTile(
+            context,
+            video,
+            day,
+            isLast: isLast,
+            isCompleted: progress.completedVideoIds.contains(video.id),
+          );
         }),
       ],
     );
@@ -420,6 +432,7 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
     VideoModel video,
     CourseDayModel day, {
     required bool isLast,
+    required bool isCompleted,
   }) {
     final isYoga = video.category == 'yoga';
     final durationText = video.durationSeconds > 0
@@ -485,17 +498,19 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
               ),
             ),
 
-            // Play button
+            // Status / play button
             Container(
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: AppTheme.primaryGreen.withAlpha(25),
+                color: isCompleted
+                    ? AppTheme.primaryGreen
+                    : AppTheme.primaryGreen.withAlpha(25),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.play_arrow_rounded,
-                color: AppTheme.primaryGreen,
+              child: Icon(
+                isCompleted ? Icons.check_rounded : Icons.play_arrow_rounded,
+                color: isCompleted ? Colors.white : AppTheme.primaryGreen,
                 size: 18,
               ),
             ),

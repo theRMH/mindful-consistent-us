@@ -74,6 +74,10 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
         ..setBackgroundColor(Colors.black)
         ..loadRequest(Uri.parse(bunnyUrl));
     }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _completeSession();
+    });
   }
 
   void _lockLandscape() {
@@ -96,18 +100,14 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     if (_isPlayerReady && mounted && !_ytController!.value.isFullScreen) {
       setState(() {});
     }
-    if (_isPlayerReady && mounted && !_isCompletedLogged) {
-      final duration = _ytController!.metadata.duration;
-      final position = _ytController!.value.position;
-      if (duration.inSeconds > 0 &&
-          position.inSeconds / duration.inSeconds >= 0.8) {
-        _completeSession();
-      }
-    }
   }
 
   void _completeSession() {
-    if (_isCompletedLogged) return;
+    if (_isCompletedLogged ||
+        widget.courseId == 'free' ||
+        widget.videoId == null) {
+      return;
+    }
     _isCompletedLogged = true;
     ref
         .read(progressProvider.notifier)
@@ -118,7 +118,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
         );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Progress saved! Day ${widget.dayNumber} completed.'),
+        content: const Text('Progress saved.'),
         backgroundColor: AppTheme.primaryGreen,
       ),
     );

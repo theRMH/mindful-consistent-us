@@ -60,6 +60,15 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
     final completedVideoIds = progressState.completedVideoIds;
     final bool isEnrolled = coursesState.enrolledCourseIds.contains(courseId);
     final bool isEnrollLoading = coursesState.isLoading;
+    final enrollment = coursesState.enrollmentForCourse(courseId);
+    final enrolledAt = enrollment?.enrolledAt ?? DateTime.now();
+    final enrolledDate = DateTime(
+      enrolledAt.year,
+      enrolledAt.month,
+      enrolledAt.day,
+    );
+    final now = DateTime.now();
+    final todayDate = DateTime(now.year, now.month, now.day);
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundCream,
@@ -449,6 +458,11 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                               : Column(
                                   children: displayedDays.map((dayModel) {
                                     final int dayNumber = dayModel.dayNumber;
+                                    final unlockDate = enrolledDate.add(
+                                      Duration(days: dayNumber - 1),
+                                    );
+                                    final isPlayable =
+                                        isEnrolled && todayDate == unlockDate;
                                     final String dayStr = dayNumber
                                         .toString()
                                         .padLeft(2, '0');
@@ -469,6 +483,7 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                                           : '',
                                       isGuest: isGuest,
                                       isEnrolled: isEnrolled,
+                                      isPlayable: isPlayable,
                                       courseId: courseId,
                                       isCompleted: progressState.completedDays
                                           .contains(dayNumber),
@@ -540,6 +555,7 @@ class SessionDayTile extends StatefulWidget {
   final String duration;
   final bool isGuest;
   final bool isEnrolled;
+  final bool isPlayable;
   final String courseId;
   final bool isCompleted;
   final List<VideoModel> videos;
@@ -554,6 +570,7 @@ class SessionDayTile extends StatefulWidget {
     required this.duration,
     required this.isGuest,
     required this.isEnrolled,
+    required this.isPlayable,
     required this.courseId,
     required this.isCompleted,
     this.videos = const [],
@@ -567,6 +584,91 @@ class SessionDayTile extends StatefulWidget {
 
 class _SessionDayTileState extends State<SessionDayTile> {
   bool _isExpanded = false;
+
+  Widget _buildSessionStatusIcon({
+    required String iconPath,
+    required bool isCompleted,
+    required bool isEnrolled,
+    required bool isPlayable,
+  }) {
+    if (isCompleted) {
+      return Container(
+        width: 48,
+        height: 48,
+        decoration: const BoxDecoration(
+          color: AppTheme.figmaGreen,
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(Icons.check_rounded, color: Colors.white, size: 24),
+      );
+    }
+
+    if (isEnrolled && isPlayable) {
+      return Container(
+        width: 48,
+        height: 48,
+        decoration: const BoxDecoration(
+          color: Color(0xFFFFEBEE),
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(
+          Icons.close_rounded,
+          color: Color(0xFFD32F2F),
+          size: 24,
+        ),
+      );
+    }
+
+    if (isEnrolled && !isPlayable) {
+      return Container(
+        width: 48,
+        height: 48,
+        decoration: const BoxDecoration(
+          color: Color(0xFFF1F3F5),
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(
+          Icons.lock_outline_rounded,
+          color: AppTheme.coolGray,
+          size: 22,
+        ),
+      );
+    }
+
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: const BoxDecoration(
+        color: Color(0xFFE8F5E9),
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: _isNetworkPath(iconPath)
+            ? Image.network(
+                iconPath,
+                width: 28,
+                height: 28,
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) => const Icon(
+                  Icons.self_improvement_rounded,
+                  color: AppTheme.figmaGreen,
+                  size: 24,
+                ),
+              )
+            : Image.asset(
+                iconPath,
+                width: 28,
+                height: 28,
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) => const Icon(
+                  Icons.self_improvement_rounded,
+                  color: AppTheme.figmaGreen,
+                  size: 24,
+                ),
+              ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -774,6 +876,12 @@ class _SessionDayTileState extends State<SessionDayTile> {
                                   ),
                                 ),
                               );
+                            } else if (!widget.isPlayable) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('This session is locked today'),
+                                ),
+                              );
                             } else {
                               context.push(
                                 '/play',
@@ -794,58 +902,12 @@ class _SessionDayTileState extends State<SessionDayTile> {
                             padding: const EdgeInsets.only(bottom: 20.0),
                             child: Row(
                               children: [
-                                if (isVideoCompleted)
-                                  Container(
-                                    width: 48,
-                                    height: 48,
-                                    decoration: const BoxDecoration(
-                                      color: AppTheme.figmaGreen,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.check_rounded,
-                                      color: Colors.white,
-                                      size: 24,
-                                    ),
-                                  )
-                                else
-                                  Container(
-                                    width: 48,
-                                    height: 48,
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFFE8F5E9),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Center(
-                                      child: _isNetworkPath(iconPath)
-                                          ? Image.network(
-                                              iconPath,
-                                              width: 28,
-                                              height: 28,
-                                              fit: BoxFit.contain,
-                                              errorBuilder: (_, _, _) =>
-                                                  const Icon(
-                                                    Icons
-                                                        .self_improvement_rounded,
-                                                    color: AppTheme.figmaGreen,
-                                                    size: 24,
-                                                  ),
-                                            )
-                                          : Image.asset(
-                                              iconPath,
-                                              width: 28,
-                                              height: 28,
-                                              fit: BoxFit.contain,
-                                              errorBuilder: (_, _, _) =>
-                                                  const Icon(
-                                                    Icons
-                                                        .self_improvement_rounded,
-                                                    color: AppTheme.figmaGreen,
-                                                    size: 24,
-                                                  ),
-                                            ),
-                                    ),
-                                  ),
+                                _buildSessionStatusIcon(
+                                  iconPath: iconPath,
+                                  isCompleted: isVideoCompleted,
+                                  isEnrolled: widget.isEnrolled,
+                                  isPlayable: widget.isPlayable,
+                                ),
                                 const SizedBox(width: 16),
                                 Expanded(
                                   child: Column(

@@ -94,17 +94,32 @@ class ApiService {
     return res as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> completeSession(
+    String courseId,
+    int dayNumber, {
+    required String videoId,
+  }) async {
+    final body = <String, dynamic>{
+      'courseId': courseId,
+      'dayNumber': dayNumber,
+      'videoId': videoId,
+    };
+    final res = await _post('/api/mobile/progress/complete-session', body);
+    return res as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> completeDay(
     String courseId,
     int dayNumber, {
     String? videoId,
   }) async {
-    final body = <String, dynamic>{
+    if (videoId != null) {
+      return completeSession(courseId, dayNumber, videoId: videoId);
+    }
+    final res = await _post('/api/mobile/progress/complete-day', {
       'courseId': courseId,
       'dayNumber': dayNumber,
-    };
-    if (videoId != null) body['videoId'] = videoId;
-    final res = await _post('/api/mobile/progress/complete-day', body);
+    });
     return res as Map<String, dynamic>;
   }
 

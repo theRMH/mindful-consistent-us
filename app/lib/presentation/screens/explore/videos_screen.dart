@@ -17,6 +17,12 @@ final viewingCourseIdProvider = StateProvider<String?>((ref) => null);
 bool _isNetworkPath(String path) =>
     path.startsWith('http://') || path.startsWith('https://');
 
+String _categoryLabel(String? category) =>
+    category == 'general_exercise' ? 'General Workout' : 'Yoga';
+
+String _categoryValue(String label) =>
+    label == 'General Workout' ? 'general_exercise' : 'yoga';
+
 class VideosScreen extends ConsumerWidget {
   const VideosScreen({super.key});
 
@@ -239,8 +245,9 @@ class VideosScreen extends ConsumerWidget {
                                       c.category!.isNotEmpty) {
                                     ref
                                         .read(videoCategoryProvider.notifier)
-                                        .state = c
-                                        .category!;
+                                        .state = _categoryLabel(
+                                      c.category,
+                                    );
                                   }
                                   Navigator.pop(ctx);
                                 },
@@ -373,10 +380,37 @@ class VideosScreen extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error loading course details: $e')),
       data: (courseDetail) {
-        if (courseDetail.days.isEmpty) {
+        final enrollment = coursesState.enrollmentForCourse(viewingCourseId);
+        final enrolledAt = enrollment?.enrolledAt ?? DateTime.now();
+        final enrolledDate = DateTime(
+          enrolledAt.year,
+          enrolledAt.month,
+          enrolledAt.day,
+        );
+        final now = DateTime.now();
+        final todayDate = DateTime(now.year, now.month, now.day);
+        final todayDayNumber = todayDate.difference(enrolledDate).inDays + 1;
+        final todayDays = courseDetail.days.where(
+          (day) => day.dayNumber == todayDayNumber,
+        );
+        final todayDay = todayDays.isNotEmpty ? todayDays.first : null;
+        final selectedCategory = _categoryValue(
+          ref.watch(videoCategoryProvider),
+        );
+        final todayVideos = todayDay == null
+            ? <VideoModel>[]
+            : todayDay.videos
+                  .where(
+                    (video) => (video.category ?? 'yoga') == selectedCategory,
+                  )
+                  .toList();
+
+        if (todayDay == null || todayVideos.isEmpty) {
           return Center(
             child: Text(
-              'No sessions available.',
+              todayDay == null
+                  ? 'No sessions unlocked for today.'
+                  : 'No ${ref.watch(videoCategoryProvider)} sessions today.',
               style: GoogleFonts.inter(color: AppTheme.figmaMutedGray),
             ),
           );
@@ -431,22 +465,25 @@ class VideosScreen extends ConsumerWidget {
                     ],
                   ),
                   child: Column(
-                    children: [
-                      for (int i = 0; i < courseDetail.days.length; i++)
-                        _buildTimelineTile(
-                          context,
-                          ref,
-                          courseDetail.days[i],
-                          viewingCourseId,
-                          imagePath,
-                          i,
-                          courseDetail.days.length,
-                          progressState.completedDays.contains(
-                            courseDetail.days[i].dayNumber,
+                    children: todayVideos
+                        .asMap()
+                        .entries
+                        .map(
+                          (entry) => _buildTodaySessionTile(
+                            context,
+                            todayDay,
+                            entry.value,
+                            viewingCourseId,
+                            imagePath,
+                            entry.key,
+                            todayVideos.length,
+                            progressState.completedVideoIds.contains(
+                              entry.value.id,
+                            ),
+                            fallbackVideoId,
                           ),
-                          fallbackVideoId,
-                        ),
-                    ],
+                        )
+                        .toList(),
                   ),
                 ),
               ),
@@ -574,6 +611,7 @@ class VideosScreen extends ConsumerWidget {
     );
   }
 
+  // ignore: unused_element
   Widget _buildTimelineTile(
     BuildContext context,
     WidgetRef ref,
@@ -739,6 +777,122 @@ class VideosScreen extends ConsumerWidget {
     );
   }
 
+  Widget _buildTodaySessionTile(
+    BuildContext context,
+    CourseDayModel day,
+    VideoModel video,
+    String courseId,
+    String imagePath,
+    int index,
+    int total,
+    bool isCompleted,
+    String fallbackVideoId,
+  ) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: index < total - 1 ? 18.0 : 0.0),
+      child: GestureDetector(
+        onTap: () {
+          context.push(
+            '/play',
+            extra: {
+              'courseId': courseId,
+              'dayNumber': day.dayNumber,
+              'videoId': video.id,
+              'videoSource': video.videoSource,
+              'youtubeVideoId': video.youtubeVideoId ?? fallbackVideoId,
+              'bunnyVideoId': video.bunnyVideoId,
+              'bunnyLibraryId': video.bunnyLibraryId,
+              'videoTitle': video.title,
+            },
+          );
+        },
+        child: Row(
+          children: [
+            if (isCompleted)
+              Container(
+                width: 48,
+                height: 48,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppTheme.figmaGreen,
+                ),
+                child: const Icon(
+                  Icons.check_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              )
+            else
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFE0E0E0)),
+                ),
+                child: ClipOval(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Image.asset(
+                      imagePath,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, _, _) => const Icon(
+                        Icons.self_improvement_rounded,
+                        color: AppTheme.figmaGreen,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    video.title,
+                    style: GoogleFonts.inter(
+                      fontWeight: AppFontWeights.bold,
+                      color: AppTheme.figmaCharcoal,
+                      fontSize: AppFontSizes.bodyLarge,
+                    ),
+                  ),
+                  Text(
+                    '${video.durationSeconds ~/ 60} mins • ${isCompleted ? 'Completed' : 'Today'}',
+                    style: GoogleFonts.inter(
+                      color: isCompleted
+                          ? AppTheme.primaryGreen
+                          : AppTheme.coolGray,
+                      fontWeight: AppFontWeights.semiBold,
+                      fontSize: AppFontSizes.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isCompleted ? AppTheme.figmaGreen : Colors.transparent,
+                border: isCompleted
+                    ? null
+                    : Border.all(color: AppTheme.figmaGreen, width: 1.5),
+              ),
+              child: Icon(
+                isCompleted ? Icons.check_rounded : Icons.play_arrow_rounded,
+                color: isCompleted ? Colors.white : AppTheme.figmaGreen,
+                size: 18,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ignore: unused_element
   Widget _buildSessionTile(
     BuildContext context,
@@ -866,7 +1020,7 @@ class VideosScreen extends ConsumerWidget {
         ref.read(videoCategoryProvider.notifier).state = label;
         // Find if there's an active course matching this category
         final matches = activeCourses.where(
-          (c) => (c.category ?? 'Yoga').toLowerCase() == label.toLowerCase(),
+          (c) => _categoryLabel(c.category) == label,
         );
         if (matches.isNotEmpty) {
           ref.read(viewingCourseIdProvider.notifier).state = matches.first.id;
