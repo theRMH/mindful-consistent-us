@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../../core/config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/brand_logo.dart';
 import '../../widgets/background_leaves.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+  final String? redirect;
+  const LoginScreen({super.key, this.redirect});
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -32,9 +35,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     final success = await ref.read(authProvider.notifier).login(phone);
     if (success && mounted) {
-      context.go('/home');
+      final redirectParam = widget.redirect != null ? '&redirect=${Uri.encodeComponent(widget.redirect!)}' : '';
+      context.go('/otp?phone=${Uri.encodeComponent(phone)}&mode=login$redirectParam');
     } else if (mounted) {
-      final errorMsg = ref.read(authProvider).errorMessage ?? 'Authentication failed';
+      final errorMsg =
+          ref.read(authProvider).errorMessage ?? 'Authentication failed';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(errorMsg)),
       );
@@ -45,284 +50,361 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFFFFDF8), // Extremely light cream/off-white background
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) => context.go('/unregistered'),
+      child: Scaffold(
+      backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // Background Leaf Drawings
           const BackgroundLeaves(),
 
-          // Main Scrollable Content
           SafeArea(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  // 1. Curved White Header Card
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.only(top: 20, bottom: 28),
+            child: CustomScrollView(
+              physics: const ClampingScrollPhysics(),
+              slivers: [
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Column(
+                    children: [
+                // ── 1. Header with logo ──────────────────────────────
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.only(
+                    top: AppSpacing.xxxl + AppSpacing.xl,
+                    bottom: AppSpacing.xxl,
+                  ),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(AppSpacing.xxxl),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(0x0F000000),
+                        blurRadius: AppSpacing.lg,
+                        offset: Offset(0, AppSpacing.xs),
+                      ),
+                    ],
+                  ),
+                  child: const Center(
+                    child: BrandLogo(size: 80),
+                  ),
+                ),
+
+                const SizedBox(height: AppSpacing.xxl),
+
+                // ── 2. Form card ─────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xxl),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: AppSpacing.xl,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: const BorderRadius.vertical(
-                        bottom: Radius.circular(36),
-                      ),
-                      boxShadow: [
+                      borderRadius: BorderRadius.circular(AppRadii.xxl),
+                      border: Border.all(
+                          color: AppTheme.figmaLightBorder, width: 1.0),
+                      boxShadow: const [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+                          color: Color(0x0F000000),
+                          blurRadius: AppSpacing.md,
+                          offset: Offset(0, AppSpacing.xxs),
                         ),
                       ],
                     ),
-                    child: const Center(
-                      child: BrandLogo(size: 110),
-                    ),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // 2. Central rounded form card
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                    child: Container(
-                      padding: const EdgeInsets.all(24.0),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: const Color(0xFFF1F3F5)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.03),
-                            blurRadius: 12,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Welcome Back Row
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header row
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md),
+                          child: Row(
+                            mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
                             children: [
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
                                   children: [
-                                    const Text(
+                                    Text(
                                       'Welcome Back',
-                                      style: TextStyle(
-                                        color: Color(0xFF00A859), // Vibrant green
-                                        fontSize: 26,
-                                        fontWeight: FontWeight.bold,
+                                      style: GoogleFonts.inter(
+                                        color: AppTheme.figmaGreen,
+                                        fontSize: AppFontSizes.h2,
+                                        fontWeight: AppFontWeights.bold,
                                       ),
                                     ),
-                                    const SizedBox(height: 6),
+                                    const SizedBox(height: AppSpacing.xs),
                                     Text(
                                       'Log in to continue your wellness journey',
-                                      style: TextStyle(
-                                        color: Colors.grey[600],
-                                        fontSize: 12.5,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.inter(
+                                        color: AppTheme.figmaMutedGray,
+                                        fontSize:
+                                            AppFontSizes.bodySmall + 1.0,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              // Circular avatar profile icon outline
+                              const SizedBox(width: AppSpacing.sm),
                               Container(
-                                width: 44,
-                                height: 44,
+                                width: 48,
+                                height: 48,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: const Color(0xFFE5E7EB)),
-                                  color: Colors.white,
+                                  border: Border.all(
+                                    color: AppTheme.figmaMutedGreen,
+                                    width: 0.2,
+                                  ),
+                                  color: const Color(0xFFFDFEFF),
                                 ),
                                 child: const Icon(
                                   Icons.person_rounded,
-                                  color: Color(0xFF00A859),
-                                  size: 24,
+                                  color: AppTheme.figmaGreen,
+                                  size: 26,
                                 ),
                               ),
                             ],
                           ),
+                        ),
 
-                          const SizedBox(height: 32),
+                        const SizedBox(height: AppSpacing.xxl),
 
-                          // Mobile Number Label
-                          const Text(
-                            'Mobile Number',
-                            style: TextStyle(
-                              color: Color(0xFF1F2937),
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-
-                          // Unified Country Code & Phone Input Container
-                          Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF9FAFB),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFFE5E7EB)),
-                            ),
-                            child: Row(
-                              children: [
-                                // Country Code Picker
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                  child: Row(
-                                    children: [
-                                      const Text(
-                                        '+91',
-                                        style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF1F2937),
+                        // Mobile Number field
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Mobile Number',
+                                style: GoogleFonts.inter(
+                                  color: AppTheme.figmaCharcoal,
+                                  fontSize: AppFontSizes.bodyLarge,
+                                  fontWeight: AppFontWeights.semiBold,
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.md),
+                              Container(
+                                height: 52,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.figmaBgGray,
+                                  borderRadius: BorderRadius.circular(
+                                      AppRadii.xxl),
+                                  border: Border.all(
+                                      color: AppTheme.figmaLightBorder,
+                                      width: 1.0),
+                                ),
+                                child: Row(
+                                  children: [
+                                    // Country code
+                                    SizedBox(
+                                      width: 80,
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            '+91',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 14,
+                                              fontWeight:
+                                                  AppFontWeights.semiBold,
+                                              color: AppTheme.figmaGreen,
+                                            ),
+                                          ),
+                                          const SizedBox(
+                                              width: AppSpacing.xxs),
+                                          const Icon(
+                                            Icons
+                                                .keyboard_arrow_down_rounded,
+                                            color: AppTheme.figmaGreen,
+                                            size: 18,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    // Divider
+                                    Container(
+                                      width: 1,
+                                      color: AppTheme.figmaLightBorder,
+                                    ),
+                                    // Phone input
+                                    Expanded(
+                                      child: TextField(
+                                        controller: _phoneController,
+                                        keyboardType: TextInputType.phone,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 14,
+                                          color: AppTheme.figmaCharcoal,
+                                        ),
+                                        decoration: InputDecoration(
+                                          hintText:
+                                              'Enter your mobile number',
+                                          hintStyle: GoogleFonts.inter(
+                                            color: AppTheme.figmaMutedGray,
+                                            fontSize: 11,
+                                          ),
+                                          border: InputBorder.none,
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                            horizontal: AppSpacing.md,
+                                            vertical: AppSpacing.md,
+                                          ),
                                         ),
                                       ),
-                                      const SizedBox(width: 4),
-                                      Icon(
-                                        Icons.keyboard_arrow_down_rounded,
-                                        color: Colors.grey[600],
-                                        size: 18,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: AppSpacing.lg),
+
+                        // Login button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton(
+                            onPressed: authState.isLoading
+                                ? null
+                                : _handleLogin,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.figmaGreen,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(AppRadii.pill),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: authState.isLoading
+                                ? const SizedBox(
+                                    height: 22,
+                                    width: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        'Log in',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 14,
+                                          fontWeight:
+                                              AppFontWeights.semiBold,
+                                        ),
+                                      ),
+                                      const SizedBox(width: AppSpacing.sm),
+                                      const Icon(
+                                        Icons.arrow_forward_rounded,
+                                        size: AppSpacing.xl,
+                                        color: Colors.white,
                                       ),
                                     ],
                                   ),
-                                ),
-                                // Divider Line
-                                Container(
-                                  width: 1,
-                                  height: 22,
-                                  color: const Color(0xFFE5E7EB),
-                                ),
-                                // Phone Input Field
-                                Expanded(
-                                  child: TextField(
-                                    controller: _phoneController,
-                                    keyboardType: TextInputType.phone,
-                                    style: const TextStyle(fontSize: 15),
-                                    decoration: const InputDecoration(
-                                      hintText: 'Enter your mobile number',
-                                      hintStyle: TextStyle(
-                                        color: Color(0xFF9CA3AF),
-                                        fontSize: 14,
-                                      ),
-                                      border: InputBorder.none,
-                                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                          ),
+                        ),
+
+                        const SizedBox(height: AppSpacing.lg),
+
+                        // Security notice
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.gpp_good_outlined,
+                              color: AppTheme.figmaGreen,
+                              size: 16,
                             ),
-                          ),
-
-                          const SizedBox(height: 24),
-
-                          // Login Pill Button
-                          SizedBox(
-                            width: double.infinity,
-                            height: 52,
-                            child: ElevatedButton(
-                              onPressed: authState.isLoading ? null : _handleLogin,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF00A859), // Vibrant green
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(26), // Pill shape
-                                ),
-                                elevation: 0,
+                            const SizedBox(width: AppSpacing.xs),
+                            Text(
+                              'We never share your number with anyone',
+                              style: GoogleFonts.inter(
+                                color: AppTheme.figmaCharcoal,
+                                fontSize: AppFontSizes.bodyMedium,
                               ),
-                              child: authState.isLoading
-                                  ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          'Log in',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        SizedBox(width: 8),
-                                        Icon(
-                                          Icons.arrow_forward_rounded,
-                                          size: 20,
-                                        ),
-                                      ],
-                                    ),
                             ),
-                          ),
-
-                          const SizedBox(height: 20),
-
-                          // Security Notice
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.gpp_good_outlined,
-                                color: Color(0xFF00A859),
-                                size: 18,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'We never share your number with anyone',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
+                ),
 
-                  const SizedBox(height: 36),
+                const SizedBox(height: AppSpacing.xl),
 
-                  // 3. Navigation to Register Screen
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        "Don’t have an Account ? ",
-                        style: TextStyle(
-                          color: Color(0xFF1F2937),
-                          fontSize: 15,
+                // ── 3. Sign-up link ──────────────────────────────────
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      "Don't have an Account ?  ",
+                      style: GoogleFonts.inter(
+                        color: AppTheme.figmaCharcoal,
+                        fontSize: AppFontSizes.bodyLarge,
+                        fontWeight: AppFontWeights.semiBold,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        final redirectParam = widget.redirect != null ? '?redirect=${Uri.encodeComponent(widget.redirect!)}' : '';
+                        context.go('/signup$redirectParam');
+                      },
+                      child: Text(
+                        'Create one',
+                        style: GoogleFonts.inter(
+                          color: AppTheme.figmaMutedGreen,
+                          fontWeight: AppFontWeights.semiBold,
+                          fontSize: AppFontSizes.bodyLarge,
                         ),
                       ),
-                      GestureDetector(
-                        onTap: () => context.go('/signup'),
-                        child: const Text(
-                          'Create one',
-                          style: TextStyle(
-                            color: Color(0xFF00A859),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: AppSpacing.lg),
+
+                // ── 4. Continue without login ────────────────────────
+                GestureDetector(
+                  onTap: () => context.go('/unregistered'),
+                  child: Text(
+                    'Continue without login',
+                    style: GoogleFonts.inter(
+                      color: AppTheme.figmaMutedGray,
+                      fontWeight: AppFontWeights.semiBold,
+                      fontSize: AppFontSizes.bodyLarge,
+                      decoration: TextDecoration.underline,
+                      decorationColor: AppTheme.figmaMutedGray,
+                    ),
+                  ),
+                ),
+
+                const Spacer(),
                     ],
                   ),
-
-                  const SizedBox(height: 24),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
       ),
+    ),
     );
   }
 }

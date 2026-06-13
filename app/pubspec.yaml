@@ -41,10 +41,12 @@ dependencies:
 
   # Supabase Integration
   supabase_flutter: ^2.2.0
+  http: ^1.2.0
 
   # Video Playback
   video_player: ^2.8.2
   youtube_player_flutter: ^9.0.0
+  webview_flutter: ^4.4.4
 
   # Device Integrations
   pedometer: ^4.0.0

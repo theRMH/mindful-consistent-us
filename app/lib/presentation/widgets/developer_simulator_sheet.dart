@@ -35,7 +35,7 @@ class DeveloperSimulatorSheet extends ConsumerWidget {
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 20),
                 decoration: BoxDecoration(
-                  color: AppTheme.coolGray.withOpacity(0.3),
+                  color: AppTheme.coolGray.withAlpha(76),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),

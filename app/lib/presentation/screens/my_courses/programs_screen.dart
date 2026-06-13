@@ -92,13 +92,58 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Programs',
-            style: GoogleFonts.inter(
-              color: AppTheme.figmaGreen,
-              fontSize: 20,
-              fontWeight: AppFontWeights.bold,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Programs',
+                style: GoogleFonts.inter(
+                  color: AppTheme.figmaGreen,
+                  fontSize: 20,
+                  fontWeight: AppFontWeights.bold,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(AppRadii.xl),
+                  border: Border.all(color: const Color(0xFFE8EDE9)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('🔥', style: TextStyle(fontSize: 16)),
+                    const SizedBox(width: AppSpacing.xs),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '$streak',
+                          style: GoogleFonts.inter(
+                            color: AppTheme.darkTeal,
+                            fontSize: AppFontSizes.bodyLarge,
+                            fontWeight: AppFontWeights.bold,
+                            height: 1.0,
+                          ),
+                        ),
+                        Text(
+                          'Day Streak',
+                          style: GoogleFonts.inter(
+                            color: AppTheme.coolGray,
+                            fontSize: 8,
+                            fontWeight: AppFontWeights.regular,
+                            height: 1.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: AppSpacing.xxs),
           Text(
@@ -107,30 +152,6 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
               color: AppTheme.figmaMutedGray,
               fontSize: 9.5,
               fontWeight: AppFontWeights.regular,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md, vertical: AppSpacing.xs + 2),
-            decoration: BoxDecoration(
-              color: AppTheme.figmaGreen,
-              borderRadius: BorderRadius.circular(AppRadii.xl),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('🔥', style: TextStyle(fontSize: 12)),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  '$streak Days Streak',
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontSize: AppFontSizes.bodyMedium,
-                    fontWeight: AppFontWeights.semiBold,
-                  ),
-                ),
-              ],
             ),
           ),
         ],
@@ -295,7 +316,10 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
           ),
           const SizedBox(height: AppSpacing.xl),
           ElevatedButton(
-            onPressed: () => context.go('/login'),
+            onPressed: () {
+              final redirect = Uri.encodeComponent(GoRouterState.of(context).uri.toString());
+              context.go('/login?redirect=$redirect');
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.figmaGreen,
               foregroundColor: Colors.white,
@@ -363,6 +387,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
           total: course.totalDays,
           progress: prog,
           onTap: () => context.push('/program_details', extra: {
+            'courseId': course.id,
             'title': course.title,
             'imagePath': imagePath,
           }),
@@ -590,6 +615,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
           duration: '${course.totalDays}d course',
           price: price,
           onTap: () => context.push('/program_details', extra: {
+            'courseId': course.id,
             'title': course.title,
             'imagePath': imagePath,
           }),

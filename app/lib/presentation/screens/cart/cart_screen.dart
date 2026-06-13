@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/courses_provider.dart';
 import '../../providers/progress_provider.dart';
+import '../../../core/config/theme.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
-  const CartScreen({super.key});
+  final String courseId;
+  const CartScreen({super.key, required this.courseId});
 
   @override
   ConsumerState<CartScreen> createState() => _CartScreenState();
@@ -15,12 +19,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   final TextEditingController _couponController =
       TextEditingController(text: 'FIT20');
   bool _couponApplied = false;
+  int _selectedUpiIndex = 0; // 0 for GPay/PhonePe, 1 for More UPI Apps
+  final int _quantity = 1;
 
   static const double _originalPrice = 999;
   static const double _discount = 300;
 
-  double get _totalPayable =>
-      _couponApplied ? (_originalPrice - _discount) : _originalPrice;
+  double get _unitPrice => _couponApplied ? (_originalPrice - _discount) : _originalPrice;
+  double get _totalPayable => _unitPrice * _quantity;
 
   @override
   void dispose() {
@@ -28,65 +34,72 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     super.dispose();
   }
 
-  // ─── Build ───────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5FAF7),
+      backgroundColor: Colors.white,
       body: Column(
         children: [
           _buildHeader(context),
           Expanded(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.only(bottom: 110),
+              padding: const EdgeInsets.only(bottom: 30),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
                   _buildSectionHeader(),
                   const SizedBox(height: 12),
                   _buildCourseCard(),
                   const SizedBox(height: 16),
                   _buildCouponSection(),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 28),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Text(
                       'Pay with UPI',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[700],
-                        fontFamily: 'Inter',
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: AppFontWeights.semiBold,
+                        color: AppTheme.figmaCharcoal,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   _buildUpiOption(
-                    icon: _buildUpiLogo(),
+                    index: 0,
+                    icon: Image.asset(
+                      'assets/icon_payment_logos.png',
+                      width: 40,
+                      height: 40,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => _buildUpiLogo(),
+                    ),
                     title: 'Google pay / Phonepe',
                     subtitle: 'Pay instantly via your UPI',
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   _buildUpiOption(
+                    index: 1,
                     icon: Container(
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEEF7F2),
-                        borderRadius: BorderRadius.circular(10),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFE2F0E8)),
                       ),
                       child: const Icon(
-                        Icons.account_balance_wallet_outlined,
-                        color: Color(0xFF00A859),
-                        size: 22,
+                        Icons.grid_view_rounded,
+                        color: AppTheme.figmaCharcoal,
+                        size: 20,
                       ),
                     ),
                     title: 'More UPI Apps',
-                    subtitle: null,
+                    subtitle: '',
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 28),
                   _buildTotalRow(),
                 ],
               ),
@@ -98,23 +111,23 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  // ─── Green Header ────────────────────────────────────────────────────────
+  // ─── Header ────────────────────────────────────────────────────────
   Widget _buildHeader(BuildContext context) {
     final statusBarHeight = MediaQuery.of(context).padding.top;
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
-        color: Color(0xFF00A859),
+        color: AppTheme.figmaGreen,
         borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(28),
-          bottomRight: Radius.circular(28),
+          bottomLeft: Radius.circular(36),
+          bottomRight: Radius.circular(36),
         ),
       ),
       padding: EdgeInsets.only(
-        top: statusBarHeight + 12,
-        left: 16,
-        right: 16,
-        bottom: 24,
+        top: statusBarHeight + 16,
+        left: 20,
+        right: 20,
+        bottom: 28,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -124,58 +137,58 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             children: [
               GestureDetector(
                 onTap: () {
-                  if (context.canPop()) context.pop();
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/home');
+                  }
                 },
                 child: Container(
-                  width: 38,
-                  height: 38,
+                  width: 40,
+                  height: 40,
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
                     color: Colors.white,
                   ),
                   child: const Icon(
                     Icons.chevron_left_rounded,
-                    color: Color(0xFF00A859),
-                    size: 26,
+                    color: AppTheme.figmaGreen,
+                    size: 28,
                   ),
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Text(
-                  '1 Item',
-                  style: TextStyle(
-                    color: Color(0xFF00A859),
+                child: Text(
+                  '$_quantity Item',
+                  style: GoogleFonts.inter(
+                    color: AppTheme.primaryGreen,
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
-                    fontFamily: 'Inter',
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 18),
-          const Text(
+          const SizedBox(height: 20),
+          Text(
             'Your Cart',
-            style: TextStyle(
+            style: GoogleFonts.inter(
               color: Colors.white,
-              fontSize: 26,
+              fontSize: 28,
               fontWeight: FontWeight.bold,
-              fontFamily: 'Inter',
             ),
           ),
-          const SizedBox(height: 4),
-          const Text(
+          const SizedBox(height: 6),
+          Text(
             'Premium fitness programs, ready to unlock.\nPay instantly with UPI and start today.',
-            style: TextStyle(
-              color: Colors.white70,
+            style: GoogleFonts.inter(
+              color: Colors.white.withAlpha(204),
               fontSize: 13,
-              fontFamily: 'Inter',
               height: 1.4,
             ),
           ),
@@ -183,6 +196,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       ),
     );
   }
+
 
   // ─── Section Header ──────────────────────────────────────────────────────
   Widget _buildSectionHeader() {
@@ -193,29 +207,30 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         children: [
           Text(
             'Programs in Cart',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[600],
-              fontFamily: 'Inter',
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.figmaGreen,
             ),
           ),
           GestureDetector(
-            onTap: () => context.push('/explore'),
+            onTap: () => context.go('/programs?tab=explore'),
             child: Row(
-              children: const [
+              children: [
                 Text(
                   'Add More',
-                  style: TextStyle(
-                    fontSize: 13,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF00A859),
-                    fontFamily: 'Inter',
+                    color: AppTheme.figmaGreen,
                   ),
                 ),
-                SizedBox(width: 2),
-                Icon(Icons.add_circle_outline_rounded,
-                    size: 15, color: Color(0xFF00A859)),
+                const SizedBox(width: 4),
+                const Icon(
+                  Icons.add_circle_rounded,
+                  size: 16,
+                  color: AppTheme.figmaGreen,
+                ),
               ],
             ),
           ),
@@ -229,77 +244,74 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(color: const Color(0xFFE2F0E8)),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
+              color: Color(0x04000000),
+              blurRadius: 10,
+              offset: Offset(0, 4),
             ),
           ],
         ),
         child: Row(
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(16),
               child: Image.asset(
                 'assets/course_30_days.png',
-                width: 70,
-                height: 70,
+                width: 80,
+                height: 80,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  width: 70,
-                  height: 70,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  width: 80,
+                  height: 80,
                   color: const Color(0xFFE8F5E9),
                   child: const Icon(Icons.self_improvement,
-                      color: Color(0xFF00A859), size: 32),
+                      color: AppTheme.figmaGreen, size: 36),
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     '30 Days Yoga Course',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF00A859),
-                      fontFamily: 'Inter',
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF00A859),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Text(
-                      '30 Days',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Inter',
-                      ),
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: AppFontWeights.semiBold,
+                      color: AppTheme.figmaGreen,
                     ),
                   ),
                   const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.figmaGreen,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '30 Days',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   Text(
-                    '₹${_couponApplied ? (_originalPrice - _discount).toInt() : _originalPrice.toInt()}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
-                      fontFamily: 'Inter',
+                    '₹${_unitPrice.toInt()}',
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: AppFontWeights.semiBold,
+                      color: AppTheme.figmaCharcoal,
                     ),
                   ),
                 ],
@@ -318,53 +330,50 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE2F0E8)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 6,
-              offset: const Offset(0, 3),
-            ),
-          ],
+          color: const Color(0xFFF7FBF8),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
-            Container(
+            Image.asset(
+              'assets/icon_coupon.png',
               width: 44,
               height: 44,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEEF7F2),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.local_offer_outlined,
-                color: Color(0xFF00A859),
-                size: 22,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) => Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE5F0E4),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.local_offer_outlined,
+                  color: AppTheme.figmaGreen,
+                  size: 22,
+                ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Apply Code ${_couponController.text}',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
-                      fontFamily: 'Inter',
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: AppFontWeights.semiBold,
+                      color: AppTheme.figmaCharcoal,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Extra₹ ${_discount.toInt()} off on this order',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey[600],
-                      fontFamily: 'Inter',
+                    'Extra ₹${_discount.toInt()} off on this order',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: AppFontWeights.regular,
+                      color: AppTheme.coolGray,
                     ),
                   ),
                 ],
@@ -383,17 +392,16 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           : 'Coupon removed',
                     ),
                     duration: const Duration(seconds: 2),
-                    backgroundColor: const Color(0xFF00A859),
+                    backgroundColor: AppTheme.figmaGreen,
                   ),
                 );
               },
               child: Text(
                 _couponApplied ? 'Remove' : 'Apply',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF00A859),
-                  fontFamily: 'Inter',
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: AppFontWeights.semiBold,
+                  color: AppTheme.figmaGreen,
                 ),
               ),
             ),
@@ -405,63 +413,75 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
   // ─── UPI Option Row ──────────────────────────────────────────────────────
   Widget _buildUpiOption({
+    required int index,
     required Widget icon,
     required String title,
-    required String? subtitle,
+    required String subtitle,
   }) {
+    final isSelected = _selectedUpiIndex == index;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE2F0E8)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 6,
-              offset: const Offset(0, 3),
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedUpiIndex = index;
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? AppTheme.figmaGreen : const Color(0xFFE2F0E8),
+              width: isSelected ? 1.5 : 1.0,
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            icon,
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF0F172A),
-                      fontFamily: 'Inter',
-                    ),
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x02000000),
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              icon,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                     Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey[500],
-                        fontFamily: 'Inter',
+                      title,
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: AppFontWeights.semiBold,
+                        color: AppTheme.figmaCharcoal,
                       ),
                     ),
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: AppFontWeights.regular,
+                          color: AppTheme.coolGray,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: Color(0xFF00A859),
-              size: 22,
-            ),
-          ],
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppTheme.figmaGreen,
+                size: 24,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -470,45 +490,51 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   // ─── Google Pay / PhonePe logo ────────────────────────────────────────────
   Widget _buildUpiLogo() {
     return Container(
-      width: 40,
-      height: 40,
+      width: 44,
+      height: 44,
       decoration: BoxDecoration(
         color: const Color(0xFFEEF7F2),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Center(
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 14,
-              height: 14,
+              width: 16,
+              height: 16,
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
                 color: Color(0xFF4285F4),
               ),
-              child: const Center(
-                child: Text('G',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 8,
-                        fontWeight: FontWeight.bold)),
+              child: Center(
+                child: Text(
+                  'G',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
-            const SizedBox(width: 2),
+            const SizedBox(width: 4),
             Container(
-              width: 14,
-              height: 14,
+              width: 16,
+              height: 16,
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
                 color: Color(0xFF5F259F),
               ),
-              child: const Center(
-                child: Text('P',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 8,
-                        fontWeight: FontWeight.bold)),
+              child: Center(
+                child: Text(
+                  'P',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
           ],
@@ -520,26 +546,24 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   // ─── Total Payable ────────────────────────────────────────────────────────
   Widget _buildTotalRow() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
+          Text(
             'Total Payable',
-            style: TextStyle(
+            style: GoogleFonts.inter(
               fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF0F172A),
-              fontFamily: 'Inter',
+              fontWeight: AppFontWeights.semiBold,
+              color: AppTheme.figmaCharcoal,
             ),
           ),
           Text(
             '₹${_totalPayable.toInt()}',
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF0F172A),
-              fontFamily: 'Inter',
+            style: GoogleFonts.inter(
+              fontSize: 15,
+              fontWeight: AppFontWeights.semiBold,
+              color: AppTheme.figmaCharcoal,
             ),
           ),
         ],
@@ -549,88 +573,89 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
   // ─── Sticky Checkout Footer ───────────────────────────────────────────────
   Widget _buildCheckoutBar(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 12,
-        bottom: MediaQuery.of(context).padding.bottom + 12,
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        8,
+        20,
+        MediaQuery.of(context).padding.bottom + 12,
       ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: const Border(top: BorderSide(color: Color(0xFFE2E8F0))),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 12,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Pay Using UPI',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey[500],
-                  fontFamily: 'Inter',
-                ),
-              ),
-              Text(
-                '₹${_totalPayable.toInt()}',
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A),
-                  fontFamily: 'Inter',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: SizedBox(
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _handleCheckout,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF00A859),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE5EFE6),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x06000000),
+              blurRadius: 10,
+              offset: Offset(0, -4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Pay Using UPI',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: AppFontWeights.semiBold,
+                    color: AppTheme.figmaCharcoal,
                   ),
                 ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Checkout',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Inter',
-                      ),
+                const SizedBox(height: 2),
+                Text(
+                  '₹${_totalPayable.toInt()}',
+                  style: GoogleFonts.inter(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.figmaCharcoal,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 24),
+            Expanded(
+              child: SizedBox(
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _handleCheckout,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.figmaGreen,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
                     ),
-                    SizedBox(width: 6),
-                    Icon(Icons.arrow_forward_rounded, size: 18),
-                  ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Checkout',
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: AppFontWeights.semiBold,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   // ─── Checkout Logic ───────────────────────────────────────────────────────
-
   void _handleCheckout() {
     final isLoggedIn = ref.read(authProvider).user != null;
     if (!isLoggedIn) {
@@ -646,14 +671,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
       ),
       builder: (ctx) {
         return Padding(
           padding: EdgeInsets.only(
-            left: 28,
-            right: 28,
-            top: 24,
+            left: 24,
+            right: 24,
+            top: 16,
             bottom: MediaQuery.of(ctx).viewInsets.bottom + 32,
           ),
           child: Column(
@@ -664,44 +689,42 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE2E8F0),
+                  color: AppTheme.lightGray,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               // Lock icon
               Container(
-                width: 60,
-                height: 60,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFE8F5E9),
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryGreen.withAlpha(25),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.lock_outline_rounded,
-                  color: Color(0xFF00A859),
-                  size: 30,
+                  color: AppTheme.primaryGreen,
+                  size: 32,
                 ),
               ),
-              const SizedBox(height: 16),
-              const Text(
+              const SizedBox(height: 20),
+              Text(
                 'Sign in to Complete Purchase',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 20,
+                style: GoogleFonts.inter(
+                  fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A),
-                  fontFamily: 'Inter',
+                  color: AppTheme.darkTeal,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Create an account or log in to securely\ncomplete your purchase.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: GoogleFonts.inter(
                   fontSize: 13,
-                  color: Color(0xFF6B7280),
-                  fontFamily: 'Inter',
+                  color: AppTheme.coolGray,
                   height: 1.5,
                 ),
               ),
@@ -709,26 +732,25 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               // Create Account button
               SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 52,
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(ctx);
                     context.push('/signup?redirect=cart');
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00A859),
+                    backgroundColor: AppTheme.primaryGreen,
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Create Account',
-                    style: TextStyle(
+                    style: GoogleFonts.inter(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
-                      fontFamily: 'Inter',
                     ),
                   ),
                 ),
@@ -737,7 +759,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               // Log In button
               SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 52,
                 child: OutlinedButton(
                   onPressed: () {
                     Navigator.pop(ctx);
@@ -745,18 +767,17 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   },
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(
-                        color: Color(0xFF00A859), width: 1.5),
+                        color: AppTheme.primaryGreen, width: 2),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Log In',
-                    style: TextStyle(
+                    style: GoogleFonts.inter(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF00A859),
-                      fontFamily: 'Inter',
+                      color: AppTheme.primaryGreen,
                     ),
                   ),
                 ),
@@ -772,40 +793,45 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const AlertDialog(
+      builder: (_) => AlertDialog(
         backgroundColor: Colors.white,
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(height: 8),
-            CircularProgressIndicator(color: Color(0xFF00A859)),
-            SizedBox(height: 20),
-            Text(
-              'Processing Payment...',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF0F172A),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        content: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              const CircularProgressIndicator(color: AppTheme.primaryGreen),
+              const SizedBox(height: 24),
+              Text(
+                'Processing Payment...',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: AppTheme.darkTeal,
+                ),
               ),
-            ),
-            SizedBox(height: 4),
-            Text(
-              'Please wait',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 12,
-                color: Color(0xFF6B7280),
+              const SizedBox(height: 6),
+              Text(
+                'Please wait, locking in details',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: AppTheme.coolGray,
+                ),
               ),
-            ),
-            SizedBox(height: 8),
-          ],
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
 
     await Future.delayed(const Duration(seconds: 2));
 
-    ref.read(progressProvider.notifier).enrollCourse('30-days-yoga');
+    ref.read(coursesProvider.notifier).enroll(widget.courseId);
 
     if (mounted) {
       Navigator.pop(context); // close dialog

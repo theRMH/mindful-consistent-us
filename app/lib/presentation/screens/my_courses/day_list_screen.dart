@@ -1,226 +1,497 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../providers/progress_provider.dart';
+import '../../providers/courses_provider.dart';
 import '../../../core/config/theme.dart';
+import '../../../core/services/api_service.dart';
+import '../../../data/models/course_model.dart';
 
-class DayListScreen extends ConsumerWidget {
+import '../../providers/course_detail_provider.dart';
+
+class DayListScreen extends ConsumerStatefulWidget {
   final String courseId;
 
   const DayListScreen({super.key, required this.courseId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DayListScreen> createState() => _DayListScreenState();
+}
+
+class _DayListScreenState extends ConsumerState<DayListScreen> {
+  int? _expandedDay;
+
+  @override
+  Widget build(BuildContext context) {
+    final courseAsync = ref.watch(courseDetailProvider(widget.courseId));
     final progressState = ref.watch(progressProvider);
-    
-    // Figma displays a 30-day course program overview
-    const int totalDays = 30;
-    
-    // We treat current unlocked day as day 4 (Day 1, 2, 4 are completed as per Figma)
-    // Days 1 to 4 are unlocked. Days 5+ are locked.
-    final int currentDay = 4; 
+    final coursesState = ref.watch(coursesProvider);
+
+    final enrollment = coursesState.enrollmentForCourse(widget.courseId);
+    final enrolledAt = enrollment?.enrolledAt ?? DateTime.now();
 
     return Scaffold(
+      backgroundColor: AppTheme.backgroundCream,
       appBar: AppBar(
-        title: const Text('30-Day Yoga Journey'),
+        backgroundColor: AppTheme.backgroundCream,
+        elevation: 0,
+        title: courseAsync.when(
+          data: (d) => Text(
+            d.title,
+            style: GoogleFonts.inter(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.darkTeal,
+              fontSize: 20,
+            ),
+          ),
+          loading: () => Text(
+            'Loading...',
+            style: GoogleFonts.inter(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.darkTeal,
+              fontSize: 20,
+            ),
+          ),
+          error: (_, _) => Text(
+            'Course',
+            style: GoogleFonts.inter(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.darkTeal,
+              fontSize: 20,
+            ),
+          ),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/home'),
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => context.go('/programs?tab=active'),
         ),
       ),
-      body: Column(
-        children: [
-          // Course Header Details
-          Container(
+      body: courseAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) => Center(
+          child: Padding(
             padding: const EdgeInsets.all(24),
-            color: Colors.white,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Active Program',
-                        style: TextStyle(
-                          color: AppTheme.coolGray,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '30-Day Yoga Course',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 20),
-                      ),
-                      const SizedBox(height: 8),
-                      // Progress label
-                      Text(
-                        '${progressState.completedDays.length} of $totalDays Days Completed',
-                        style: const TextStyle(
-                          color: AppTheme.primaryGreen,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Percent completion indicator circular progress
-                SizedBox(
-                  width: 50,
-                  height: 50,
-                  child: CircularProgressIndicator(
-                    value: progressState.completedDays.length / totalDays,
-                    strokeWidth: 6,
-                    backgroundColor: AppTheme.lightGray,
-                    valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryGreen),
-                  ),
-                )
-              ],
+            child: Text(
+              'Failed to load course: $err',
+              style: GoogleFonts.inter(color: AppTheme.coolGray),
+              textAlign: TextAlign.center,
             ),
           ),
-          const Divider(height: 1),
-          
-          // List of Course Days
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(20),
-              itemCount: totalDays,
-              itemBuilder: (context, index) {
-                final dayNum = index + 1;
-                final isCompleted = progressState.completedDays.contains(dayNum);
-                final isUnlocked = dayNum <= currentDay;
-                final isActive = dayNum == currentDay;
-
-                return _buildDayCard(
-                  context,
-                  ref,
-                  dayNum: dayNum,
-                  isCompleted: isCompleted,
-                  isUnlocked: isUnlocked,
-                  isActive: isActive,
-                  totalDays: totalDays,
-                );
-              },
-            ),
-          ),
-        ],
+        ),
+        data: (courseDetail) => _buildContent(
+          context,
+          courseDetail,
+          progressState,
+          enrolledAt,
+        ),
       ),
     );
   }
 
-  Widget _buildDayCard(
+  Widget _buildContent(
     BuildContext context,
-    WidgetRef ref, {
-    required int dayNum,
-    required bool isCompleted,
+    CourseDetail courseDetail,
+    ProgressState progress,
+    DateTime enrolledAt,
+  ) {
+    final completedCount = progress.completedDays.length;
+    final totalDays = courseDetail.totalDays;
+
+    return Column(
+      children: [
+        // Course progress header
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(30),
+              bottomRight: Radius.circular(30),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x06000000),
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Active Program',
+                      style: GoogleFonts.inter(
+                        color: AppTheme.coolGray,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      courseDetail.title,
+                      style: GoogleFonts.inter(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.darkTeal,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '$completedCount of $totalDays Days Completed',
+                      style: GoogleFonts.inter(
+                        color: AppTheme.primaryGreen,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                width: 50,
+                height: 50,
+                child: CircularProgressIndicator(
+                  value: totalDays > 0 ? completedCount / totalDays : 0,
+                  strokeWidth: 6,
+                  backgroundColor: AppTheme.lightGray,
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                      AppTheme.primaryGreen),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // Day list
+        Expanded(
+          child: courseDetail.days.isEmpty
+              ? Center(
+                  child: Text(
+                    'No days found for this course.',
+                    style:
+                        GoogleFonts.inter(color: AppTheme.coolGray, fontSize: 14),
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(20),
+                  itemCount: courseDetail.days.length,
+                  physics: const BouncingScrollPhysics(),
+                  itemBuilder: (context, index) {
+                    final day = courseDetail.days[index];
+                    final enrolledDate = DateTime(
+                        enrolledAt.year, enrolledAt.month, enrolledAt.day);
+                    final today = DateTime.now();
+                    final todayDate =
+                        DateTime(today.year, today.month, today.day);
+                    final unlockDate = enrolledDate
+                        .add(Duration(days: day.dayNumber - 1));
+                    final isUnlocked = !todayDate.isBefore(unlockDate);
+                    final isCompleted =
+                        progress.completedDays.contains(day.dayNumber);
+                    final isToday = unlockDate == todayDate;
+                    final isExpanded = _expandedDay == day.dayNumber;
+
+                    return _buildDayCard(
+                      context,
+                      day: day,
+                      isUnlocked: isUnlocked,
+                      isCompleted: isCompleted,
+                      isToday: isToday,
+                      isExpanded: isExpanded,
+                      unlockDate: unlockDate,
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDayCard(
+    BuildContext context, {
+    required CourseDayModel day,
     required bool isUnlocked,
-    required bool isActive,
-    required int totalDays,
+    required bool isCompleted,
+    required bool isToday,
+    required bool isExpanded,
+    required DateTime unlockDate,
   }) {
     Color cardBg = Colors.white;
-    Color borderCol = AppTheme.lightGray;
-    
-    if (isActive) {
-      cardBg = AppTheme.primaryGreen.withOpacity(0.02);
-      borderCol = AppTheme.primaryGreen.withOpacity(0.3);
+    Color borderCol = const Color(0xFFF1F3F5);
+
+    if (isToday && isUnlocked && !isCompleted) {
+      cardBg = AppTheme.primaryGreen.withAlpha(8);
+      borderCol = AppTheme.primaryGreen.withAlpha(76);
     }
+
+    final totalDuration =
+        day.videos.fold<int>(0, (sum, v) => sum + v.durationSeconds);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: cardBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderCol, width: isActive ? 1.5 : 1.0),
-        boxShadow: [
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: borderCol,
+          width: (isToday && isUnlocked && !isCompleted) ? 1.5 : 1.0,
+        ),
+        boxShadow: const [
           BoxShadow(
-            color: AppTheme.darkSlate.withOpacity(0.02),
+            color: Color(0x02000000),
             blurRadius: 8,
-            offset: const Offset(0, 2),
+            offset: Offset(0, 2),
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Row(
-          children: [
-            // Left icon state indicators
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: isCompleted
-                    ? AppTheme.primaryGreen
-                    : (!isUnlocked ? AppTheme.lightGray : AppTheme.primaryGreen.withOpacity(0.1)),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                isCompleted
-                    ? Icons.check
-                    : (!isUnlocked ? Icons.lock : Icons.play_arrow),
-                color: isCompleted 
-                    ? Colors.white 
-                    : (!isUnlocked ? AppTheme.coolGray : AppTheme.primaryGreen),
-                size: 20,
+      child: Column(
+        children: [
+          // Day header row
+          InkWell(
+            onTap: isUnlocked
+                ? () => setState(() {
+                      _expandedDay =
+                          isExpanded ? null : day.dayNumber;
+                    })
+                : null,
+            borderRadius: BorderRadius.circular(20),
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Row(
+                children: [
+                  // State circle
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: isCompleted
+                          ? AppTheme.primaryGreen
+                          : (!isUnlocked
+                              ? AppTheme.lightGray
+                              : AppTheme.primaryGreen.withAlpha(25)),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isCompleted
+                          ? Icons.check
+                          : (!isUnlocked
+                              ? Icons.lock_outline_rounded
+                              : Icons.play_arrow_rounded),
+                      color: isCompleted
+                          ? Colors.white
+                          : (!isUnlocked
+                              ? AppTheme.coolGray
+                              : AppTheme.primaryGreen),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+
+                  // Title + subtitle
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          day.title != null && day.title!.isNotEmpty
+                              ? 'Day ${day.dayNumber}: ${day.title}'
+                              : 'Day ${day.dayNumber}',
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: !isUnlocked
+                                ? AppTheme.coolGray
+                                : AppTheme.darkSlate,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _daySubtitle(
+                              isCompleted, isToday, isUnlocked, unlockDate,
+                              videoCount: day.videos.length,
+                              totalSeconds: totalDuration),
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: isCompleted
+                                ? AppTheme.primaryGreen
+                                : (isToday && isUnlocked
+                                    ? AppTheme.accentGold
+                                    : AppTheme.coolGray),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Chevron or lock
+                  if (isUnlocked)
+                    Icon(
+                      isExpanded
+                          ? Icons.keyboard_arrow_up_rounded
+                          : Icons.keyboard_arrow_down_rounded,
+                      color: AppTheme.coolGray,
+                      size: 22,
+                    ),
+                ],
               ),
             ),
-            const SizedBox(width: 16),
-            
-            // Middle descriptions
+          ),
+
+          // Expanded video list
+          if (isExpanded && day.videos.isNotEmpty)
+            _buildVideoList(context, day),
+        ],
+      ),
+    );
+  }
+
+  String _daySubtitle(
+    bool isCompleted,
+    bool isToday,
+    bool isUnlocked,
+    DateTime unlockDate, {
+    required int videoCount,
+    required int totalSeconds,
+  }) {
+    if (isCompleted) return 'Completed';
+    if (!isUnlocked) {
+      final months = [
+        '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ];
+      return 'Unlocks ${unlockDate.day} ${months[unlockDate.month]}';
+    }
+    if (isToday) return 'Today\'s practice';
+    final parts = <String>[];
+    if (videoCount > 0) parts.add('$videoCount video${videoCount > 1 ? 's' : ''}');
+    if (totalSeconds > 0) parts.add('${(totalSeconds / 60).round()}m');
+    return parts.isNotEmpty ? parts.join(' · ') : 'Available';
+  }
+
+  Widget _buildVideoList(BuildContext context, CourseDayModel day) {
+    return Column(
+      children: [
+        const Divider(height: 1, thickness: 1, color: Color(0xFFF1F3F5)),
+        ...day.videos.asMap().entries.map((entry) {
+          final index = entry.key;
+          final video = entry.value;
+          final isLast = index == day.videos.length - 1;
+          return _buildVideoTile(context, video, day, isLast: isLast);
+        }),
+      ],
+    );
+  }
+
+  Widget _buildVideoTile(
+    BuildContext context,
+    VideoModel video,
+    CourseDayModel day, {
+    required bool isLast,
+  }) {
+    final isYoga = video.category == 'yoga';
+    final durationText = video.durationSeconds > 0
+        ? '${(video.durationSeconds / 60).round()}m'
+        : '';
+
+    return InkWell(
+      onTap: () => _playVideo(context, video, day),
+      borderRadius: isLast
+          ? const BorderRadius.only(
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
+            )
+          : BorderRadius.zero,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        child: Row(
+          children: [
+            // Category icon
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: isYoga
+                    ? const Color(0xFFE8F5E9)
+                    : const Color(0xFFFFF3E0),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Image.asset(
+                isYoga
+                    ? 'assets/icon_asana.png'
+                    : 'assets/icon_kriya.png',
+                width: 20,
+                height: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Title + duration
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Day $dayNum',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: !isUnlocked ? AppTheme.coolGray : AppTheme.darkSlate,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    isCompleted 
-                        ? 'Completed' 
-                        : (isActive ? 'Active session' : (!isUnlocked ? 'Locked' : 'Available')),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isCompleted 
-                          ? AppTheme.primaryGreen 
-                          : (isActive ? AppTheme.accentGold : AppTheme.coolGray),
+                    video.title,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
+                      color: AppTheme.darkSlate,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
+                  if (durationText.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      durationText,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: AppTheme.coolGray,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
-            
-            // Right play buttons/indicators
-            if (isUnlocked)
-              TextButton(
-                onPressed: () {
-                  context.push('/play', extra: {
-                    'courseId': courseId,
-                    'dayNumber': dayNum,
-                    'youtubeVideoId': 's7WpC1sL0h8',
-                    'videoTitle': 'Day $dayNum Practice Session',
-                  });
-                },
 
-                style: TextButton.styleFrom(
-                  backgroundColor: AppTheme.primaryGreen.withOpacity(0.1),
-                  foregroundColor: AppTheme.primaryGreen,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: Text(isCompleted ? 'Review' : 'Play'),
+            // Play button
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryGreen.withAlpha(25),
+                shape: BoxShape.circle,
               ),
+              child: const Icon(
+                Icons.play_arrow_rounded,
+                color: AppTheme.primaryGreen,
+                size: 18,
+              ),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  void _playVideo(BuildContext context, VideoModel video, CourseDayModel day) {
+    context.push('/play', extra: {
+      'courseId': widget.courseId,
+      'dayNumber': day.dayNumber,
+      'videoSource': video.videoSource,
+      'youtubeVideoId': video.youtubeVideoId ?? '',
+      'bunnyVideoId': video.bunnyVideoId,
+      'bunnyLibraryId': video.bunnyLibraryId,
+      'videoTitle': video.title,
+    });
   }
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../../core/config/theme.dart';
 
 class ThankYouScreen extends StatefulWidget {
   const ThankYouScreen({super.key});
@@ -19,7 +21,7 @@ class _ThankYouScreenState extends State<ThankYouScreen>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 700),
+      duration: const Duration(milliseconds: 800),
     );
     _scaleAnim = CurvedAnimation(parent: _controller, curve: Curves.elasticOut);
     _fadeAnim = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
@@ -37,10 +39,12 @@ class _ThankYouScreenState extends State<ThankYouScreen>
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) context.go('/home');
+        if (!didPop) {
+          context.go('/home');
+        }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFFFFDF8),
+        backgroundColor: AppTheme.backgroundCream,
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -58,12 +62,13 @@ class _ThankYouScreenState extends State<ThankYouScreen>
                       height: 120,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: const Color(0xFF00A859),
+                        color: AppTheme.primaryGreen,
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF00A859).withOpacity(0.3),
-                            blurRadius: 30,
+                            color: AppTheme.primaryGreen.withAlpha(76),
+                            blurRadius: 32,
                             spreadRadius: 6,
+                            offset: const Offset(0, 8),
                           ),
                         ],
                       ),
@@ -76,19 +81,18 @@ class _ThankYouScreenState extends State<ThankYouScreen>
                   ),
                 ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: 36),
 
                 // ── Title ──────────────────────────────────────────────────
                 FadeTransition(
                   opacity: _fadeAnim,
-                  child: const Text(
+                  child: Text(
                     'Payment Successful!',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 26,
+                    style: GoogleFonts.inter(
+                      fontSize: 28,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
-                      fontFamily: 'Inter',
+                      color: AppTheme.darkTeal,
                     ),
                   ),
                 ),
@@ -97,71 +101,69 @@ class _ThankYouScreenState extends State<ThankYouScreen>
 
                 FadeTransition(
                   opacity: _fadeAnim,
-                  child: const Text(
+                  child: Text(
                     'You\'re all set! Your 30 Days Yoga Course\nhas been added to your active programs.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: GoogleFonts.inter(
                       fontSize: 14,
-                      color: Color(0xFF6B7280),
-                      fontFamily: 'Inter',
+                      color: AppTheme.coolGray,
                       height: 1.6,
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: 36),
 
                 // ── Order summary card ─────────────────────────────────────
                 FadeTransition(
                   opacity: _fadeAnim,
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(24),
                       border: Border.all(color: const Color(0xFFE2F0E8)),
-                      boxShadow: [
+                      boxShadow: const [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
+                          color: Color(0x04000000),
                           blurRadius: 10,
-                          offset: const Offset(0, 4),
+                          offset: Offset(0, 4),
                         ),
                       ],
                     ),
                     child: Column(
                       children: [
                         _orderRow('Course', '30 Days Yoga Course'),
-                        const Divider(height: 20, color: Color(0xFFF1F5F9)),
+                        const Divider(height: 24, color: AppTheme.lightGray),
                         _orderRow('Amount Paid', '₹999'),
-                        const Divider(height: 20, color: Color(0xFFF1F5F9)),
+                        const Divider(height: 24, color: AppTheme.lightGray),
                         _orderRow('Payment Method', 'UPI'),
-                        const Divider(height: 20, color: Color(0xFFF1F5F9)),
+                        const Divider(height: 24, color: AppTheme.lightGray),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
                               'Status',
-                              style: TextStyle(
+                              style: GoogleFonts.inter(
                                 fontSize: 13,
-                                color: Colors.grey[600],
-                                fontFamily: 'Inter',
+                                color: AppTheme.coolGray,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
+                                  horizontal: 12, vertical: 6),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFE8F5E9),
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(10),
                               ),
-                              child: const Text(
+                              child: Text(
                                 '✓ Confirmed',
-                                style: TextStyle(
+                                style: GoogleFonts.inter(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFF00A859),
-                                  fontFamily: 'Inter',
+                                  color: AppTheme.emeraldGreen,
                                 ),
                               ),
                             ),
@@ -177,24 +179,30 @@ class _ThankYouScreenState extends State<ThankYouScreen>
                 // ── Go to Programs button ──────────────────────────────────
                 SizedBox(
                   width: double.infinity,
-                  height: 54,
+                  height: 56,
                   child: ElevatedButton(
                     onPressed: () => context.go('/home'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00A859),
+                      backgroundColor: AppTheme.primaryGreen,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(18),
                       ),
                     ),
-                    child: const Text(
-                      'Start Your Journey →',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Inter',
-                      ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Start Your Journey',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.arrow_forward_rounded, size: 18),
+                      ],
                     ),
                   ),
                 ),
@@ -202,19 +210,18 @@ class _ThankYouScreenState extends State<ThankYouScreen>
                 const SizedBox(height: 16),
 
                 TextButton(
-                  onPressed: () => context.go('/explore'),
-                  child: const Text(
+                  onPressed: () => context.go('/programs?tab=active'),
+                  child: Text(
                     'View My Programs',
-                    style: TextStyle(
-                      color: Color(0xFF00A859),
-                      fontFamily: 'Inter',
+                    style: GoogleFonts.inter(
+                      color: AppTheme.primaryGreen,
                       fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
               ],
             ),
           ),
@@ -229,19 +236,18 @@ class _ThankYouScreenState extends State<ThankYouScreen>
       children: [
         Text(
           label,
-          style: TextStyle(
+          style: GoogleFonts.inter(
             fontSize: 13,
-            color: Colors.grey[600],
-            fontFamily: 'Inter',
+            color: AppTheme.coolGray,
+            fontWeight: FontWeight.w500,
           ),
         ),
         Text(
           value,
-          style: const TextStyle(
+          style: GoogleFonts.inter(
             fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF0F172A),
-            fontFamily: 'Inter',
+            fontWeight: FontWeight.bold,
+            color: AppTheme.darkSlate,
           ),
         ),
       ],

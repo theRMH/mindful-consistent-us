@@ -6,6 +6,7 @@ import '../../../core/config/theme.dart';
 import '../../providers/courses_provider.dart';
 import '../../providers/free_videos_provider.dart';
 import '../../providers/community_moments_provider.dart';
+import '../../widgets/login_prompt.dart';
 
 class UnregisteredHomeScreen extends ConsumerStatefulWidget {
   const UnregisteredHomeScreen({super.key});
@@ -138,6 +139,7 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
                     padding: const EdgeInsets.only(bottom: AppSpacing.lg),
                     child: _buildCourseCard(
                       context,
+                      courseId: course.id,
                       title: course.title,
                       price: price,
                       days: days,
@@ -328,44 +330,6 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
                   ),
                 ),
 
-                const SizedBox(width: AppSpacing.sm),
-
-                // Profile icon with green online dot
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        border:
-                            Border.all(color: const Color(0xFFE8EDE9)),
-                      ),
-                      child: const Icon(
-                        Icons.person_outline_rounded,
-                        color: Colors.black,
-                        size: 20,
-                      ),
-                    ),
-                    // Green online dot
-                    Positioned(
-                      right: 0,
-                      top: 0,
-                      child: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: AppTheme.figmaGreen,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                              color: Colors.white, width: 1.5),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
               ],
             ),
 
@@ -405,7 +369,7 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
             ),
           ),
           GestureDetector(
-            onTap: () => context.go('/login'),
+            onTap: () => showLoginPrompt(context),
             child: Text(
               'See All',
               style: GoogleFonts.inter(
@@ -424,6 +388,7 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
 
   Widget _buildCourseCard(
     BuildContext context, {
+    required String courseId,
     required String title,
     required String price,
     required String days,
@@ -433,6 +398,7 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
   }) {
     return GestureDetector(
       onTap: () => context.push('/program_details', extra: {
+        'courseId': courseId,
         'title': title,
         'imagePath': imagePath,
       }),

@@ -1,21 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 import '../../providers/progress_provider.dart';
 import '../../../core/config/theme.dart';
 
 class VideoPlayerScreen extends ConsumerStatefulWidget {
   final String courseId;
   final int dayNumber;
+  final String videoSource; // 'youtube' | 'bunny'
   final String youtubeVideoId;
+  final String? bunnyVideoId;
+  final String? bunnyLibraryId;
   final String videoTitle;
 
   const VideoPlayerScreen({
     super.key,
     required this.courseId,
     required this.dayNumber,
+    this.videoSource = 'youtube',
     required this.youtubeVideoId,
+    this.bunnyVideoId,
+    this.bunnyLibraryId,
     required this.videoTitle,
   });
 
@@ -24,48 +33,83 @@ class VideoPlayerScreen extends ConsumerStatefulWidget {
 }
 
 class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
-  late YoutubePlayerController _controller;
+  // YouTube
+  YoutubePlayerController? _ytController;
   bool _isPlayerReady = false;
+
+  // BunnyNet
+  WebViewController? _webController;
+
   bool _isCompletedLogged = false;
+
+  bool get _isYoutube => widget.videoSource == 'youtube';
 
   @override
   void initState() {
     super.initState();
-    _controller = YoutubePlayerController(
-      initialVideoId: widget.youtubeVideoId,
-      flags: const YoutubePlayerFlags(
-        mute: false,
-        autoPlay: true,
-        disableDragSeek: false,
-        loop: false,
-        isLive: false,
-        forceHD: false,
-        enableCaption: true,
-      ),
-    )..addListener(_listener);
+    _lockLandscape();
+
+    if (_isYoutube) {
+      _ytController = YoutubePlayerController(
+        initialVideoId: widget.youtubeVideoId,
+        flags: const YoutubePlayerFlags(
+          mute: false,
+          autoPlay: true,
+          disableDragSeek: false,
+          loop: false,
+          isLive: false,
+          forceHD: false,
+          enableCaption: true,
+        ),
+      )..addListener(_ytListener);
+    } else {
+      final bunnyUrl = 'https://iframe.mediadelivery.net/embed/'
+          '${widget.bunnyLibraryId}/${widget.bunnyVideoId}'
+          '?autoplay=true&loop=false&muted=false&preload=true&responsive=true';
+      _webController = WebViewController()
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setBackgroundColor(Colors.black)
+        ..loadRequest(Uri.parse(bunnyUrl));
+    }
   }
 
-  void _listener() {
-    if (_isPlayerReady && mounted && !_controller.value.isFullScreen) {
+  void _lockLandscape() {
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
+
+  void _restorePortrait() {
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.manual,
+      overlays: SystemUiOverlay.values,
+    );
+  }
+
+  void _ytListener() {
+    if (_isPlayerReady && mounted && !_ytController!.value.isFullScreen) {
       setState(() {});
     }
-
-    // Auto-complete if they watched 80%+ of the video
     if (_isPlayerReady && mounted && !_isCompletedLogged) {
-      final duration = _controller.metadata.duration;
-      final currentPosition = _controller.value.position;
-      if (duration.inSeconds > 0) {
-        final double ratio = currentPosition.inSeconds / duration.inSeconds;
-        if (ratio >= 0.8) {
-          _completeSessionAutomatically();
-        }
+      final duration = _ytController!.metadata.duration;
+      final position = _ytController!.value.position;
+      if (duration.inSeconds > 0 &&
+          position.inSeconds / duration.inSeconds >= 0.8) {
+        _completeSession();
       }
     }
   }
 
-  void _completeSessionAutomatically() {
+  void _completeSession() {
+    if (_isCompletedLogged) return;
     _isCompletedLogged = true;
-    ref.read(progressProvider.notifier).markDayComplete(widget.dayNumber);
+    ref.read(progressProvider.notifier).markDayComplete(
+          widget.dayNumber,
+          courseId: widget.courseId,
+        );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Progress saved! Day ${widget.dayNumber} completed.'),
@@ -74,13 +118,9 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     );
   }
 
-  void _markCompleteManually() {
-    if (!_isCompletedLogged) {
-      _isCompletedLogged = true;
-      ref.read(progressProvider.notifier).markDayComplete(widget.dayNumber);
-    }
-    
-    // Redirect if course is completed
+  void _markCompleteAndBack() {
+    _completeSession();
+    _restorePortrait();
     if (widget.dayNumber == 30) {
       context.go('/course_completed');
     } else {
@@ -90,103 +130,188 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
 
   @override
   void deactivate() {
-    // Pauses video while navigating to next page
-    _controller.pause();
+    _ytController?.pause();
     super.deactivate();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _restorePortrait();
+    _ytController?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    return _isYoutube ? _buildYoutubePlayer() : _buildBunnyPlayer();
+  }
+
+  Widget _buildYoutubePlayer() {
     return YoutubePlayerBuilder(
-      onExitFullScreen: () {
-        // SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-      },
+      onExitFullScreen: () {},
       player: YoutubePlayer(
-        controller: _controller,
+        controller: _ytController!,
         showVideoProgressIndicator: true,
         progressIndicatorColor: AppTheme.primaryGreen,
         progressColors: const ProgressBarColors(
           playedColor: AppTheme.primaryGreen,
           handleColor: AppTheme.accentGold,
         ),
-        onReady: () {
-          setState(() {
-            _isPlayerReady = true;
-          });
-        },
+        onReady: () => setState(() => _isPlayerReady = true),
       ),
       builder: (context, player) => Scaffold(
         backgroundColor: AppTheme.backgroundCream,
         appBar: AppBar(
-          title: Text(widget.videoTitle),
+          title: Text(
+            widget.videoTitle,
+            style: GoogleFonts.inter(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.darkTeal,
+              fontSize: 18,
+            ),
+          ),
           backgroundColor: AppTheme.backgroundCream,
           elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () {
+              _restorePortrait();
+              context.pop();
+            },
+          ),
         ),
         body: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Player container
               player,
-              
-              Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Day ${widget.dayNumber} Practice Session',
-                      style: const TextStyle(
-                        color: AppTheme.coolGray,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      widget.videoTitle,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 22),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Maintain focus, sync your breath with movement, and hold postures gracefully. Keep practicing daily to build consistency.',
-                      style: TextStyle(
-                        color: AppTheme.coolGray,
-                        fontSize: 14,
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-                    
-                    // Mark Complete Button
-                    ElevatedButton.icon(
-                      onPressed: _markCompleteManually,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryGreen,
-                        minimumSize: const Size.fromHeight(54),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      icon: const Icon(Icons.check_circle_outline, color: Colors.white),
-                      label: const Text(
-                        'Complete Session & Back',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: _buildVideoInfo(),
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildBunnyPlayer() {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          WebViewWidget(controller: _webController!),
+
+          // Back button overlay
+          Positioned(
+            top: 40,
+            left: 16,
+            child: SafeArea(
+              child: GestureDetector(
+                onTap: () {
+                  _restorePortrait();
+                  context.pop();
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withAlpha(128),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.arrow_back_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Complete button overlay at bottom
+          Positioned(
+            bottom: 24,
+            left: 24,
+            right: 24,
+            child: SafeArea(
+              child: ElevatedButton.icon(
+                onPressed: _markCompleteAndBack,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryGreen,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 0,
+                ),
+                icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+                label: Text(
+                  'Complete Session & Back',
+                  style: GoogleFonts.inter(
+                      fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVideoInfo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Day ${widget.dayNumber} Practice Session',
+          style: GoogleFonts.inter(
+            color: AppTheme.coolGray,
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          widget.videoTitle,
+          style: GoogleFonts.inter(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.darkTeal,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Maintain focus, sync your breath with movement, and hold postures gracefully. Keep practicing daily to build consistency.',
+          style: GoogleFonts.inter(
+            color: AppTheme.coolGray,
+            fontSize: 14,
+            height: 1.45,
+          ),
+        ),
+        const SizedBox(height: 32),
+        ElevatedButton.icon(
+          onPressed: _markCompleteAndBack,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.primaryGreen,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(54),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            elevation: 0,
+          ),
+          icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+          label: Text(
+            'Complete Session & Back',
+            style: GoogleFonts.inter(
+                fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
     );
   }
 }

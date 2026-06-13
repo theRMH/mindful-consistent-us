@@ -3,16 +3,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../../core/config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/brand_logo.dart';
 import '../../widgets/background_leaves.dart';
 
 class OTPScreen extends ConsumerStatefulWidget {
   final String phone;
+  final String mode; // 'login' or 'register'
+  final String? redirect;
 
   const OTPScreen({
     super.key,
     required this.phone,
+    this.mode = 'register',
+    this.redirect,
   });
 
   @override
@@ -57,7 +63,6 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
   }
 
   void _handleVerify() async {
-    // Combine 6 digits
     String otp = _controllers.map((c) => c.text).join();
     if (otp.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -66,14 +71,32 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
       return;
     }
 
-    final success = await ref.read(authProvider.notifier).verifyOtpAndLogin(widget.phone, otp);
+    final success = await ref.read(authProvider.notifier).verifyOtpAndLogin(
+      widget.phone,
+      otp,
+      isLoginAttempt: widget.mode == 'login',
+    );
     if (success && mounted) {
-      context.go('/home');
+      if (widget.redirect != null && widget.redirect!.isNotEmpty) {
+        context.go(widget.redirect!);
+      } else if (widget.mode == 'register') {
+        context.go('/home');
+      } else {
+        context.go('/home');
+      }
     } else if (mounted) {
       final errorMsg = ref.read(authProvider).errorMessage ?? 'Verification failed';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMsg)),
-      );
+      if (errorMsg == AuthNotifier.notRegisteredError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No account found. Please register first.')),
+        );
+        final redirectParam = widget.redirect != null ? '&redirect=${Uri.encodeComponent(widget.redirect!)}' : '';
+        context.go('/signup?phone=${Uri.encodeComponent(widget.phone)}$redirectParam');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMsg)),
+        );
+      }
     }
   }
 
@@ -85,10 +108,16 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        context.go('/signup?phone=${widget.phone}');
+        final redirectParam = widget.redirect != null ? '?redirect=${Uri.encodeComponent(widget.redirect!)}' : '';
+        if (widget.mode == 'login') {
+          context.go('/login$redirectParam');
+        } else {
+          final signRedirect = widget.redirect != null ? '&redirect=${Uri.encodeComponent(widget.redirect!)}' : '';
+          context.go('/signup?phone=${widget.phone}$signRedirect');
+        }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFFFFDF8),
+        backgroundColor: AppTheme.backgroundCream,
         body: Stack(
           children: [
             const BackgroundLeaves(),
@@ -99,63 +128,63 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
                     // Header Curved White Card
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.only(top: 20, bottom: 28),
-                      decoration: BoxDecoration(
+                      padding: const EdgeInsets.only(top: 30, bottom: 40),
+                      decoration: const BoxDecoration(
                         color: Colors.white,
-                        borderRadius: const BorderRadius.vertical(
-                          bottom: Radius.circular(36),
+                        borderRadius: BorderRadius.vertical(
+                          bottom: Radius.circular(40),
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
+                            color: Color(0x0A000000),
+                            blurRadius: 15,
+                            offset: Offset(0, 8),
                           ),
                         ],
                       ),
                       child: const Center(
-                        child: BrandLogo(size: 110),
+                        child: BrandLogo(size: 120),
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 40),
 
                     // Card container for verification fields
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24.0),
                       child: Container(
-                        padding: const EdgeInsets.all(24.0),
+                        padding: const EdgeInsets.all(28.0),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
+                          borderRadius: BorderRadius.circular(32),
                           border: Border.all(color: const Color(0xFFF1F3F5)),
-                          boxShadow: [
+                          boxShadow: const [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.03),
-                              blurRadius: 12,
-                              offset: const Offset(0, 6),
+                              color: Color(0x08000000),
+                              blurRadius: 20,
+                              offset: Offset(0, 10),
                             ),
                           ],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Verify Mobile',
-                              style: TextStyle(
-                                color: Color(0xFF00A859),
-                                fontSize: 26,
+                              style: GoogleFonts.inter(
+                                color: AppTheme.darkTeal,
+                                fontSize: 28,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             const SizedBox(height: 6),
                             Text(
                               'Enter verification code sent to +91 ${widget.phone}',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 12.5,
+                              style: GoogleFonts.inter(
+                                color: AppTheme.coolGray,
+                                fontSize: 13,
                               ),
                             ),
-                            const SizedBox(height: 32),
+                            const SizedBox(height: 36),
 
                             // OTP 6 fields row
                             Row(
@@ -163,7 +192,7 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
                               children: List.generate(6, (index) {
                                 return SizedBox(
                                   width: 42,
-                                  height: 48,
+                                  height: 50,
                                   child: CallbackShortcuts(
                                     bindings: {
                                       const SingleActivator(LogicalKeyboardKey.backspace): () {
@@ -179,10 +208,10 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
                                       textAlign: TextAlign.center,
                                       keyboardType: TextInputType.number,
                                       maxLength: 1,
-                                      style: const TextStyle(
-                                        fontSize: 18,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 20,
                                         fontWeight: FontWeight.bold,
-                                        color: Color(0xFF0E3C31),
+                                        color: AppTheme.darkTeal,
                                       ),
                                       inputFormatters: [
                                         FilteringTextInputFormatter.digitsOnly,
@@ -191,18 +220,18 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
                                         counterText: "",
                                         contentPadding: EdgeInsets.zero,
                                         filled: true,
-                                        fillColor: const Color(0xFFF9FAFB),
+                                        fillColor: AppTheme.lightGray,
                                         border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(8),
-                                          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                                          borderRadius: BorderRadius.circular(10),
+                                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                                         ),
                                         enabledBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(8),
-                                          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                                          borderRadius: BorderRadius.circular(10),
+                                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                                         ),
                                         focusedBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(8),
-                                          borderSide: const BorderSide(color: Color(0xFF00A859), width: 2),
+                                          borderRadius: BorderRadius.circular(10),
+                                          borderSide: const BorderSide(color: AppTheme.emeraldGreen, width: 2),
                                         ),
                                       ),
                                       onChanged: (value) {
@@ -219,43 +248,43 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
                                 );
                               }),
                             ),
-                            const SizedBox(height: 32),
+                            const SizedBox(height: 36),
 
                             // Verify button
                             SizedBox(
                               width: double.infinity,
-                              height: 52,
+                              height: 54,
                               child: ElevatedButton(
                                 onPressed: authState.isLoading ? null : _handleVerify,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF00A859),
+                                  backgroundColor: AppTheme.primaryGreen,
                                   foregroundColor: Colors.white,
                                   elevation: 0,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(26),
+                                    borderRadius: BorderRadius.circular(27),
                                   ),
                                 ),
                                 child: authState.isLoading
                                     ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
+                                        width: 22,
+                                        height: 22,
                                         child: CircularProgressIndicator(
                                           color: Colors.white,
-                                          strokeWidth: 2,
+                                          strokeWidth: 2.5,
                                         ),
                                       )
                                     : Row(
                                         mainAxisAlignment: MainAxisAlignment.center,
-                                        children: const [
+                                        children: [
                                           Text(
                                             'Verify & Proceed',
-                                            style: TextStyle(
+                                            style: GoogleFonts.inter(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
-                                          SizedBox(width: 8),
-                                          Icon(Icons.arrow_forward, size: 18),
+                                          const SizedBox(width: 8),
+                                          const Icon(Icons.arrow_forward, size: 18),
                                         ],
                                       ),
                               ),
@@ -267,24 +296,32 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
                               child: _secondsRemaining > 0
                                   ? Text(
                                       'Resend code in ${_secondsRemaining}s',
-                                      style: TextStyle(
-                                        color: Colors.grey[500],
+                                      style: GoogleFonts.inter(
+                                        color: AppTheme.coolGray,
                                         fontSize: 13,
                                       ),
                                     )
                                   : GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          _startTimer();
-                                        });
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('OTP resent to mobile number!')),
-                                        );
+                                      onTap: () async {
+                                        final messenger = ScaffoldMessenger.of(context);
+                                        final success = await ref.read(authProvider.notifier).login(widget.phone);
+                                        if (!mounted) return;
+                                        if (success) {
+                                          setState(() => _startTimer());
+                                          messenger.showSnackBar(
+                                            const SnackBar(content: Text('OTP resent to your mobile number')),
+                                          );
+                                        } else {
+                                          final err = ref.read(authProvider).errorMessage ?? 'Failed to resend OTP';
+                                          messenger.showSnackBar(
+                                            SnackBar(content: Text(err)),
+                                          );
+                                        }
                                       },
-                                      child: const Text(
+                                      child: Text(
                                         'Resend Code',
-                                        style: TextStyle(
-                                          color: Color(0xFF00A859),
+                                        style: GoogleFonts.inter(
+                                          color: AppTheme.primaryGreen,
                                           fontWeight: FontWeight.bold,
                                           fontSize: 13,
                                           decoration: TextDecoration.underline,

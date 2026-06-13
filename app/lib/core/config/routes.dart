@@ -1,41 +1,68 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'theme.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../presentation/providers/auth_provider.dart';
+import '../../presentation/providers/courses_provider.dart';
 import '../../presentation/screens/auth/login_screen.dart';
+import '../../presentation/screens/auth/otp_screen.dart';
 import '../../presentation/screens/auth/signup_screen.dart';
 import '../../presentation/screens/home/home_screen.dart';
 import '../../presentation/screens/explore/unregistered_home_screen.dart';
-import '../../presentation/screens/explore/explore_screen.dart';
 import '../../presentation/screens/explore/program_details_screen.dart';
 import '../../presentation/screens/explore/video_player_screen.dart';
+import '../../presentation/screens/explore/videos_screen.dart';
+import '../../presentation/screens/explore/free_videos_screen.dart';
+import '../../presentation/screens/explore/steps_screen.dart';
 import '../../presentation/screens/my_courses/day_list_screen.dart';
 import '../../presentation/screens/my_courses/programs_completed_screen.dart';
-import '../../presentation/screens/my_courses/active_programs_screen.dart';
-import '../../presentation/screens/my_courses/completed_programs_screen.dart';
+import '../../presentation/screens/my_courses/programs_screen.dart';
+import '../../presentation/screens/profile/profile_screen.dart';
+import '../../presentation/screens/cart/cart_screen.dart';
+import '../../presentation/screens/cart/thank_you_screen.dart';
 
 // Root navigation key
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 
 class AppRouter {
-  static GoRouter get router {
-    return GoRouter(
+  static String _initialLocation() {
+    try {
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session != null) return '/home';
+    } catch (_) {}
+    return '/unregistered';
+  }
+
+  static final GoRouter router = GoRouter(
       navigatorKey: _rootNavigatorKey,
-      initialLocation: '/unregistered', // Default entry point (Figma Unregistered User Dashboard)
+      initialLocation: _initialLocation(),
       routes: [
-        // 1. Guest/Unregistered landing page
-        GoRoute(
-          path: '/unregistered',
-          builder: (context, state) => const UnregisteredHomeScreen(),
-        ),
-        
-        // 2. Authentication Flow
+        // 1. Authentication Flow
         GoRoute(
           path: '/login',
-          builder: (context, state) => const LoginScreen(),
+          builder: (context, state) {
+            final redirect = state.uri.queryParameters['redirect'];
+            return LoginScreen(redirect: redirect);
+          },
         ),
         GoRoute(
           path: '/signup',
-          builder: (context, state) => const SignupScreen(),
+          builder: (context, state) {
+            final phone = state.uri.queryParameters['phone'] ?? '';
+            final redirect = state.uri.queryParameters['redirect'];
+            return SignupScreen(initialPhone: phone, redirect: redirect);
+          },
+        ),
+        GoRoute(
+          path: '/otp',
+          builder: (context, state) {
+            final phone = state.uri.queryParameters['phone'] ?? '';
+            final mode = state.uri.queryParameters['mode'] ?? 'register';
+            final redirect = state.uri.queryParameters['redirect'];
+            return OTPScreen(phone: phone, mode: mode, redirect: redirect);
+          },
         ),
 
         // 3. Main Registered User Navigation Shell (Persistent Bottom Navigation Bar)
@@ -46,20 +73,31 @@ class AppRouter {
           },
           routes: [
             GoRoute(
+              path: '/unregistered',
+              builder: (context, state) => const UnregisteredHomeScreen(),
+            ),
+            GoRoute(
               path: '/home',
               builder: (context, state) => const HomeScreen(),
             ),
             GoRoute(
-              path: '/active_programs',
-              builder: (context, state) => const ActiveProgramsScreen(),
+              path: '/programs',
+              builder: (context, state) {
+                final tab = state.uri.queryParameters['tab'] ?? 'active';
+                return ProgramsScreen(initialTab: tab);
+              },
             ),
             GoRoute(
-              path: '/completed_programs',
-              builder: (context, state) => const CompletedProgramsScreen(),
+              path: '/videos',
+              builder: (context, state) => const VideosScreen(),
             ),
             GoRoute(
-              path: '/explore',
-              builder: (context, state) => const ExploreScreen(),
+              path: '/steps',
+              builder: (context, state) => const StepsScreen(),
+            ),
+            GoRoute(
+              path: '/profile',
+              builder: (context, state) => const ProfileScreen(),
             ),
           ],
         ),
@@ -78,14 +116,15 @@ class AppRouter {
           builder: (context, state) => const ProgramsCompletedScreen(),
         ),
 
-        // 6. Program Details Screen
         GoRoute(
           path: '/program_details',
           builder: (context, state) {
             final extra = state.extra as Map<String, dynamic>?;
             final title = extra?['title'] as String?;
             final imagePath = extra?['imagePath'] as String?;
+            final courseId = extra?['courseId'] as String?;
             return ProgramDetailsScreen(
+              courseId: courseId,
               courseTitle: title,
               courseImagePath: imagePath,
               showBackButton: true,
@@ -98,42 +137,72 @@ class AppRouter {
           path: '/play',
           builder: (context, state) {
             final extra = state.extra as Map<String, dynamic>?;
-            final courseId = extra?['courseId'] as String? ?? '30-days-yoga';
+            final courseId = extra?['courseId'] as String? ?? '';
             final dayNumber = extra?['dayNumber'] as int? ?? 1;
-            final youtubeVideoId = extra?['youtubeVideoId'] as String? ?? 'dQw4w9WgXcQ';
+            final videoSource = extra?['videoSource'] as String? ?? 'youtube';
+            final youtubeVideoId = extra?['youtubeVideoId'] as String? ?? '';
+            final bunnyVideoId = extra?['bunnyVideoId'] as String?;
+            final bunnyLibraryId = extra?['bunnyLibraryId'] as String?;
             final videoTitle = extra?['videoTitle'] as String? ?? 'Yoga Session';
             return VideoPlayerScreen(
               courseId: courseId,
               dayNumber: dayNumber,
+              videoSource: videoSource,
               youtubeVideoId: youtubeVideoId,
+              bunnyVideoId: bunnyVideoId,
+              bunnyLibraryId: bunnyLibraryId,
               videoTitle: videoTitle,
             );
           },
         ),
+        
+        // 8. Cart Screen
+        GoRoute(
+          path: '/cart',
+          builder: (context, state) {
+            final courseId = state.uri.queryParameters['courseId'] ?? '30-days-yoga';
+            return CartScreen(courseId: courseId);
+          },
+        ),
+
+        // 9. Thank You Screen
+        GoRoute(
+          path: '/thank-you',
+          builder: (context, state) => const ThankYouScreen(),
+        ),
+
+        // 10. Free Videos (accessible by registered users, no bottom nav)
+        GoRoute(
+          path: '/free-videos',
+          builder: (context, state) => const FreeVideosScreen(),
+        ),
       ],
-    );
-  }
+  );
 }
 
 // Reusable Navigation Shell containing the BottomNavigationBar
-class AppNavigationShell extends StatelessWidget {
+class AppNavigationShell extends ConsumerWidget {
   final Widget child;
 
   const AppNavigationShell({super.key, required this.child});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     // Determine active index based on route path
     final String location = GoRouterState.of(context).uri.toString();
     int currentIndex = 0;
     if (location == '/home') {
       currentIndex = 0;
-    } else if (location == '/active_programs') {
+    } else if (location == '/unregistered') {
+      currentIndex = 0;
+    } else if (location.startsWith('/programs')) {
       currentIndex = 1;
-    } else if (location == '/completed_programs') {
+    } else if (location == '/videos') {
       currentIndex = 2;
-    } else if (location == '/explore') {
+    } else if (location == '/steps') {
       currentIndex = 3;
+    } else if (location == '/profile') {
+      currentIndex = 4;
     }
 
     return Scaffold(
@@ -141,45 +210,80 @@ class AppNavigationShell extends StatelessWidget {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: currentIndex,
         type: BottomNavigationBarType.fixed,
+        selectedItemColor: AppTheme.primaryGreen,
+        unselectedItemColor: AppTheme.coolGray,
         onTap: (index) {
+          final authState = ref.read(authProvider);
           switch (index) {
             case 0:
-              context.go('/home');
+              context.go(authState.isAuthenticated ? '/home' : '/unregistered');
               break;
             case 1:
-              context.go('/active_programs');
+              if (!authState.isAuthenticated) {
+                context.go('/programs?tab=explore');
+              } else {
+                final coursesState = ref.read(coursesProvider);
+                final tab = coursesState.activeCourses.isNotEmpty ? 'active' : 'explore';
+                context.go('/programs?tab=$tab');
+              }
               break;
             case 2:
-              context.go('/completed_programs');
+              context.go('/videos');
               break;
             case 3:
-              context.go('/explore');
+              context.go('/steps');
+              break;
+            case 4:
+              context.go('/profile');
               break;
           }
         },
-        items: const [
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
+            icon: const Icon(Icons.home_outlined),
+            activeIcon: _buildActiveIcon(Icons.home),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.play_circle_outline),
-            activeIcon: Icon(Icons.play_circle),
-            label: 'Active',
+            icon: const Icon(Icons.grid_view_rounded),
+            activeIcon: _buildActiveIcon(Icons.grid_view_rounded),
+            label: 'Program',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.check_circle_outline),
-            activeIcon: Icon(Icons.check_circle),
-            label: 'Completed',
+            icon: const Icon(Icons.play_circle_outline_rounded),
+            activeIcon: _buildActiveIcon(Icons.play_circle_filled_rounded),
+            label: 'Videos',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.explore_outlined),
-            activeIcon: Icon(Icons.explore),
-            label: 'Explore',
+            icon: const Icon(Icons.directions_walk_rounded),
+            activeIcon: _buildActiveIcon(Icons.directions_walk_rounded),
+            label: 'Steps',
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.person_outline_rounded),
+            activeIcon: _buildActiveIcon(Icons.person_rounded),
+            label: 'Profile',
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildActiveIcon(IconData icon) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: AppTheme.primaryGreen),
+        const SizedBox(height: 2),
+        Container(
+          width: 4,
+          height: 4,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppTheme.primaryGreen,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -40,18 +40,22 @@ class ProgressState {
   final int totalSessionsToday;
   final List<int> completedDays; // e.g. [1, 2, 4]
   final List<LeaderboardUser> leaderboard;
+  final String? activeCourseId;
+  final int? userRank;
   final bool isLoading;
   final String? error;
 
   ProgressState({
-    this.steps = 1250,
-    this.calories = 50.0,
-    this.mindfulMins = 25,
-    this.currentStreak = 3,
-    this.completedSessionsToday = 2,
-    this.totalSessionsToday = 14,
-    this.completedDays = const [1, 2, 4],
+    this.steps = 0,
+    this.calories = 0.0,
+    this.mindfulMins = 0,
+    this.currentStreak = 0,
+    this.completedSessionsToday = 0,
+    this.totalSessionsToday = 0,
+    this.completedDays = const [],
     this.leaderboard = const [],
+    this.activeCourseId,
+    this.userRank,
     this.isLoading = false,
     this.error,
   });
@@ -65,6 +69,8 @@ class ProgressState {
     int? totalSessionsToday,
     List<int>? completedDays,
     List<LeaderboardUser>? leaderboard,
+    String? activeCourseId,
+    int? userRank,
     bool? isLoading,
     String? error,
   }) {
@@ -77,6 +83,8 @@ class ProgressState {
       totalSessionsToday: totalSessionsToday ?? this.totalSessionsToday,
       completedDays: completedDays ?? this.completedDays,
       leaderboard: leaderboard ?? this.leaderboard,
+      activeCourseId: activeCourseId ?? this.activeCourseId,
+      userRank: userRank ?? this.userRank,
       isLoading: isLoading ?? this.isLoading,
       error: error ?? this.error,
     );
@@ -91,25 +99,7 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
   }
 
   Future<void> loadInitialData() async {
-    if (AppConfig.useMockData) {
-      // Load premium mocks matching Figma V2 design
-      state = state.copyWith(
-        steps: 1250,
-        calories: 50.0,
-        mindfulMins: 25,
-        currentStreak: 3,
-        completedSessionsToday: 2,
-        totalSessionsToday: 14,
-        completedDays: [1, 2, 4],
-        leaderboard: [
-          LeaderboardUser(rank: 1, name: 'Priya S', avatarUrl: 'assets/avatar_priya.png', streak: 12, score: 1420, isCurrentUser: false),
-          LeaderboardUser(rank: 2, name: 'Rohit K', avatarUrl: 'assets/avatar_rohit.png', streak: 8, score: 980, isCurrentUser: false),
-          LeaderboardUser(rank: 3, name: 'You', avatarUrl: '', streak: 3, score: 120, isCurrentUser: true),
-        ],
-      );
-    } else {
-      await refreshFromApi();
-    }
+    await refreshFromApi();
   }
 
   Future<void> refreshFromApi() async {
@@ -121,8 +111,9 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
       final stats = progressData['stats'] ?? {};
       final compDays = List<int>.from(progressData['completedDays'] ?? []);
 
-      final leaderboardList = (leaderboardData as List)
-          .map((item) => LeaderboardUser.fromJson(item))
+      final leaderboardEntries = leaderboardData['entries'] as List<dynamic>? ?? [];
+      final leaderboardList = leaderboardEntries
+          .map((item) => LeaderboardUser.fromJson(item as Map<String, dynamic>))
           .toList();
 
       state = state.copyWith(
@@ -133,6 +124,8 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
         completedSessionsToday: stats['totalSessions'] ?? 0,
         completedDays: compDays,
         leaderboard: leaderboardList,
+        activeCourseId: progressData['activeCourseId'] as String?,
+        userRank: leaderboardData['userRank'] as int?,
         isLoading: false,
       );
     } catch (e) {
@@ -151,7 +144,7 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
     } else {
       state = state.copyWith(isLoading: true);
       try {
-        final res = await _apiService.simulateProgress({'steps': increment});
+        await _apiService.simulateProgress({'steps': increment});
         await refreshFromApi();
       } catch (e) {
         state = state.copyWith(isLoading: false, error: e.toString());
@@ -187,7 +180,7 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
     }
   }
 
-  Future<void> markDayComplete(int dayNumber) async {
+  Future<void> markDayComplete(int dayNumber, {String courseId = ''}) async {
     if (AppConfig.useMockData) {
       if (!state.completedDays.contains(dayNumber)) {
         final updatedDays = List<int>.from(state.completedDays)..add(dayNumber);
@@ -202,8 +195,21 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
     } else {
       state = state.copyWith(isLoading: true);
       try {
-        // Assume default course is the 30-day course slug/ID
-        await _apiService.completeDay('30-days-yoga', dayNumber);
+        await _apiService.completeDay(courseId, dayNumber);
+        await refreshFromApi();
+      } catch (e) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
+    }
+  }
+
+  Future<void> enrollCourse(String courseId) async {
+    if (AppConfig.useMockData) {
+      await Future.delayed(const Duration(milliseconds: 500));
+    } else {
+      state = state.copyWith(isLoading: true);
+      try {
+        await _apiService.enrollInCourse(courseId);
         await refreshFromApi();
       } catch (e) {
         state = state.copyWith(isLoading: false, error: e.toString());

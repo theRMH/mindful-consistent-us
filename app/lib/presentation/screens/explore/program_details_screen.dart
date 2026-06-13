@@ -1,18 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/courses_provider.dart';
+import '../../providers/progress_provider.dart';
+import '../../widgets/login_prompt.dart';
+import '../../../core/config/theme.dart';
 
 class ProgramDetailsScreen extends ConsumerStatefulWidget {
   final bool showBackButton;
   final String? courseTitle;
   final String? courseImagePath;
+  final String? courseId;
 
   const ProgramDetailsScreen({
     super.key,
     this.showBackButton = true,
     this.courseTitle,
     this.courseImagePath,
+    this.courseId,
   });
 
   @override
@@ -29,36 +36,57 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
     final double statusBarHeight = MediaQuery.of(context).padding.top;
     final int sessionCount = _isExpanded ? 30 : 5;
 
-    // Use params passed in, or fall back to defaults
     final String title = widget.courseTitle ?? '30 Days Yoga Course';
     final String imagePath = widget.courseImagePath ?? 'assets/course_30_days.png';
+    final courseId = widget.courseId ?? '30-days-yoga';
+
+    final coursesState = ref.watch(coursesProvider);
+    final progressState = ref.watch(progressProvider);
+    final bool isEnrolled = coursesState.enrolledCourseIds.contains(courseId);
+    final bool isEnrollLoading = coursesState.isLoading;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFDF8), // Figma cream background
+      backgroundColor: AppTheme.backgroundCream,
 
-      // ── Floating Enroll Now button (guests only) ──────────────────────────
-      floatingActionButton: isGuest
-          ? Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: () => context.push('/cart'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00A859),
-                    foregroundColor: Colors.white,
-                    elevation: 6,
-                    shadowColor: const Color(0xFF00A859).withOpacity(0.4),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(32),
+      // Floating Action Button for guests (Login) and logged-in users (Enroll only)
+      floatingActionButton: (!isGuest && isEnrolled)
+          ? null
+          : Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: ElevatedButton(
+            onPressed: isEnrollLoading
+                ? null
+                : () {
+                    if (isGuest) {
+                      showLoginPrompt(context);
+                    } else {
+                      context.push('/cart?courseId=$courseId');
+                    }
+                  },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryGreen,
+              foregroundColor: Colors.white,
+              elevation: 8,
+              shadowColor: AppTheme.primaryGreen.withAlpha(102),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(32),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+            ),
+            child: isEnrollLoading
+                ? const Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                  ),
-                  child: Row(
-                    children: const [
-                      // Left play icon inside a subtle circle
-                      CircleAvatar(
+                  )
+                : Row(
+                    children: [
+                      const CircleAvatar(
                         radius: 16,
                         backgroundColor: Colors.white24,
                         child: Icon(
@@ -67,28 +95,26 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                           size: 20,
                         ),
                       ),
-                      Spacer(),
+                      const Spacer(),
                       Text(
                         'Enroll Now',
-                        style: TextStyle(
+                        style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          fontFamily: 'Inter',
                           color: Colors.white,
                         ),
                       ),
-                      Spacer(),
-                      Icon(
+                      const Spacer(),
+                      const Icon(
                         Icons.chevron_right_rounded,
                         color: Colors.white,
                         size: 24,
                       ),
                     ],
                   ),
-                ),
-              ),
-            )
-          : null,
+          ),
+        ),
+      ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
 
       body: Stack(
@@ -96,26 +122,25 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
           // 1. Scrollable Page Content
           SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            // Extra bottom padding so content isn't hidden behind the FAB
-            padding: EdgeInsets.only(bottom: isGuest ? 80 : 0),
+            padding: EdgeInsets.only(bottom: isGuest ? 90 : 20),
             child: Stack(
               children: [
-                // Top Course Image
+                // Top Image
                 Image.asset(
                   imagePath,
                   height: 360,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
+                  errorBuilder: (context, error, stackTrace) => Container(
                     height: 360,
                     width: double.infinity,
                     color: const Color(0xFFE8F5E9),
                     child: const Icon(Icons.self_improvement,
-                        color: Color(0xFF00A859), size: 80),
+                        color: AppTheme.primaryGreen, size: 80),
                   ),
                 ),
                 
-                // Overlapping details sheet starting at Y = 280 (overlaps bottom 80px of image)
+                // Overlapping details card
                 Column(
                   children: [
                     const SizedBox(height: 280),
@@ -124,49 +149,47 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                       decoration: const BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(60.0), // Rounded top details section to start!
-                          topRight: Radius.circular(60.0),
+                          topLeft: Radius.circular(50.0),
+                          topRight: Radius.circular(50.0),
                         ),
                       ),
                       padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 28.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // 2. Centered Title - dynamic
+                          // Centered Title
                           Center(
                             child: Text(
                               title,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 28,
+                              style: GoogleFonts.inter(
+                                fontSize: 26,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF00A859),
+                                color: AppTheme.primaryGreen,
                               ),
                             ),
                           ),
                           const SizedBox(height: 16),
 
-                          // 3. Green Course Tags Pill Container (Height 39)
+                          // Green Tags Pill
                           Container(
-                            height: 39,
+                            height: 42,
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF00A859),
-                              borderRadius: BorderRadius.circular(12),
+                              color: AppTheme.primaryGreen,
+                              borderRadius: BorderRadius.circular(16),
                             ),
                             child: Row(
                               children: [
-                                // Tag 1: 30 days
                                 Expanded(
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
-                                    children: const [
-                                      Icon(Icons.calendar_today_outlined, size: 12, color: Colors.white),
-                                      SizedBox(width: 4),
+                                    children: [
+                                      const Icon(Icons.calendar_today_outlined, size: 12, color: Colors.white),
+                                      const SizedBox(width: 4),
                                       Text(
                                         '30 days',
-                                        style: TextStyle(
+                                        style: GoogleFonts.inter(
                                           color: Colors.white,
                                           fontSize: 12,
                                           fontWeight: FontWeight.w500,
@@ -175,22 +198,20 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                                     ],
                                   ),
                                 ),
-                                // Divider
                                 Container(
                                   width: 1,
-                                  height: 16,
-                                  color: Colors.white.withOpacity(0.3),
+                                  height: 18,
+                                  color: Colors.white.withAlpha(76),
                                 ),
-                                // Tag 2: Beginner
                                 Expanded(
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
-                                    children: const [
-                                      Icon(Icons.bar_chart_rounded, size: 14, color: Colors.white),
-                                      SizedBox(width: 4),
+                                    children: [
+                                      const Icon(Icons.bar_chart_rounded, size: 14, color: Colors.white),
+                                      const SizedBox(width: 4),
                                       Text(
                                         'Beginner',
-                                        style: TextStyle(
+                                        style: GoogleFonts.inter(
                                           color: Colors.white,
                                           fontSize: 12,
                                           fontWeight: FontWeight.w500,
@@ -199,22 +220,20 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                                     ],
                                   ),
                                 ),
-                                // Divider
                                 Container(
                                   width: 1,
-                                  height: 16,
-                                  color: Colors.white.withOpacity(0.3),
+                                  height: 18,
+                                  color: Colors.white.withAlpha(76),
                                 ),
-                                // Tag 3: 15m /day
                                 Expanded(
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
-                                    children: const [
-                                      Icon(Icons.access_time_rounded, size: 13, color: Colors.white),
-                                      SizedBox(width: 4),
+                                    children: [
+                                      const Icon(Icons.access_time_rounded, size: 13, color: Colors.white),
+                                      const SizedBox(width: 4),
                                       Text(
                                         '15m /day',
-                                        style: TextStyle(
+                                        style: GoogleFonts.inter(
                                           color: Colors.white,
                                           fontSize: 12,
                                           fontWeight: FontWeight.w500,
@@ -228,49 +247,46 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                           ),
                           const SizedBox(height: 24),
 
-                          // 4. Description Section
-                          const Text(
+                          // Description Section
+                          Text(
                             'About this program',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 16, // Matches Figma 16px!
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black, // Matches Figma Black!
+                            style: GoogleFonts.inter(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.figmaCharcoal,
                             ),
                           ),
                           const SizedBox(height: 8),
-                          const Text(
+                          Text(
                             'Wake up your body and mind with this 21-day mobility routine. Designed to improve your flexibility, reduce morning stiffness, and start your day with renewed energy and focus.',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 12, // Matches Figma 12px!
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
                               height: 1.45,
-                              color: Color(0xFF5B5B5B), // Matches Figma Grey!
+                              color: const Color(0xFF5B5B5B),
                             ),
                           ),
                           const SizedBox(height: 24),
 
-                          // 5. Instructor Card
+                          // Instructor Card
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: const Color(0xFFC8D6CE)),
-                              boxShadow: [
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              boxShadow: const [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.06),
-                                  blurRadius: 4,
-                                  offset: const Offset(2, 2),
+                                  color: Color(0x02000000),
+                                  blurRadius: 8,
+                                  offset: Offset(0, 4),
                                 ),
                               ],
                             ),
                             child: Row(
                               children: [
-                                // Avatar Image
                                 Container(
-                                  width: 32,
-                                  height: 32,
+                                  width: 40,
+                                  height: 40,
                                   decoration: const BoxDecoration(
                                     shape: BoxShape.circle,
                                     image: DecorationImage(
@@ -280,58 +296,50 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 12),
-                                // Text details
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     mainAxisSize: MainAxisSize.min,
-                                    children: const [
+                                    children: [
                                       Text(
                                         'Deepa',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF0F172A),
+                                        style: GoogleFonts.inter(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.darkSlate,
                                         ),
                                       ),
                                       Text(
                                         'Certified Yoga Instructor',
-                                        style: TextStyle(
+                                        style: GoogleFonts.inter(
                                           fontSize: 10,
-                                          color: Color(0xFF6B7280),
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.figmaGreen,
                                         ),
                                       ),
                                       Text(
                                         '8+ Years of Experience',
-                                        style: TextStyle(
+                                        style: GoogleFonts.inter(
                                           fontSize: 10,
                                           fontWeight: FontWeight.w600,
-                                          color: Color(0xFF00A859),
+                                          color: AppTheme.coolGray,
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
-                                // Circular chevron right action button
                                 Container(
                                   width: 32,
                                   height: 32,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     color: Colors.white,
-                                    border: Border.all(color: const Color(0xFFC8D6CE)),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.06),
-                                        blurRadius: 4,
-                                        offset: const Offset(2, 2),
-                                      ),
-                                    ],
+                                    border: Border.all(color: AppTheme.figmaGreen.withAlpha(76)),
                                   ),
                                   child: const Center(
                                     child: Icon(
-                                      Icons.chevron_right_rounded,
-                                      color: Color(0xFF00A859),
+                                      Icons.person_outline_rounded,
+                                      color: AppTheme.figmaGreen,
                                       size: 18,
                                     ),
                                   ),
@@ -341,24 +349,40 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                           ),
                           const SizedBox(height: 28),
 
-                          // 6. Sessions header
+                          // Sessions Header & View All Row
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: const [
+                            children: [
                               Text(
                                 'Sessions',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 15, // Matches Figma 15px!
+                                style: GoogleFonts.inter(
+                                  fontSize: 15,
                                   fontWeight: FontWeight.w600,
-                                  color: Color(0xFF231F20), // Charcoal color!
+                                  color: AppTheme.figmaCharcoal,
                                 ),
                               ),
+                              if (!_isExpanded)
+                                GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      _isExpanded = true;
+                                    });
+                                  },
+                                  child: Text(
+                                    'View All',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppTheme.figmaCharcoal,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
                           const SizedBox(height: 12),
 
-                          // 7. Sessions Outline List (Days 1 - 30 dynamically depending on isExpanded)
+                          // Sessions Outline List
                           Column(
                             children: List.generate(sessionCount, (index) {
                               final int dayNumber = index + 1;
@@ -369,40 +393,19 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                                 subtitle: '5 Deep Sessions',
                                 duration: '20Mins',
                                 isGuest: isGuest,
+                                isEnrolled: isEnrolled,
+                                courseId: courseId,
+                                isCompleted: progressState.completedDays.contains(dayNumber),
                                 onTap: () {
                                   if (isGuest) {
-                                    context.go('/login');
+                                    showLoginPrompt(context);
                                   } else {
-                                    context.push('/course/30-days-yoga');
+                                    context.push('/course/$courseId');
                                   }
                                 },
                               );
                             }),
                           ),
-
-                          // 8. View All button at the bottom of Day 5
-                          if (!_isExpanded)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Center(
-                                child: TextButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _isExpanded = true;
-                                    });
-                                  },
-                                  child: const Text(
-                                    'View All',
-                                    style: TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF00A859), // Figma Green
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
                         ],
                       ),
                     ),
@@ -412,7 +415,7 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
             ),
           ),
 
-          // 9. Fixed Back Button floating at the top left
+          // Fixed Back Button
           if (widget.showBackButton)
             Positioned(
               top: statusBarHeight + 12,
@@ -434,7 +437,7 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                   height: 36,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.black.withOpacity(0.4),
+                    color: Colors.black.withAlpha(102),
                   ),
                   child: const Center(
                     child: Icon(
@@ -450,7 +453,6 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
       ),
     );
   }
-
 }
 
 class SessionDayTile extends StatefulWidget {
@@ -459,6 +461,9 @@ class SessionDayTile extends StatefulWidget {
   final String subtitle;
   final String duration;
   final bool isGuest;
+  final bool isEnrolled;
+  final String courseId;
+  final bool isCompleted;
   final VoidCallback onTap;
 
   const SessionDayTile({
@@ -468,6 +473,9 @@ class SessionDayTile extends StatefulWidget {
     required this.subtitle,
     required this.duration,
     required this.isGuest,
+    required this.isEnrolled,
+    required this.courseId,
+    required this.isCompleted,
     required this.onTap,
   });
 
@@ -480,7 +488,6 @@ class _SessionDayTileState extends State<SessionDayTile> {
 
   @override
   Widget build(BuildContext context) {
-    // Dynamic sub-sessions listing matching the screenshot exactly
     final List<Map<String, String>> subSessions = [
       {'title': 'Asanas', 'duration': '10 mins'},
       {'title': 'Pranayama', 'duration': '20 mins'},
@@ -498,32 +505,25 @@ class _SessionDayTileState extends State<SessionDayTile> {
           color: _isExpanded ? const Color(0xFFE2E8F0) : const Color(0xFFC8D6CE),
           width: 1.5,
         ),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Color(0x03000000),
             blurRadius: 8,
-            offset: const Offset(0, 4),
+            offset: Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Row (Becomes a green card when expanded)
+          // Header Row
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             decoration: BoxDecoration(
-              color: _isExpanded ? const Color(0xFF00A859) : Colors.white,
-              borderRadius: _isExpanded 
-                  ? BorderRadius.circular(16) 
+              color: _isExpanded ? AppTheme.figmaGreen : Colors.white,
+              borderRadius: _isExpanded
+                  ? BorderRadius.circular(16)
                   : BorderRadius.circular(20),
-              boxShadow: _isExpanded ? [
-                BoxShadow(
-                  color: const Color(0xFF00A859).withOpacity(0.3),
-                  blurRadius: 6,
-                  offset: const Offset(0, 3),
-                ),
-              ] : null,
             ),
             child: Material(
               color: Colors.transparent,
@@ -533,8 +533,8 @@ class _SessionDayTileState extends State<SessionDayTile> {
                     _isExpanded = !_isExpanded;
                   });
                 },
-                borderRadius: _isExpanded 
-                    ? BorderRadius.circular(16) 
+                borderRadius: _isExpanded
+                    ? BorderRadius.circular(16)
                     : BorderRadius.circular(20),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -548,15 +548,14 @@ class _SessionDayTileState extends State<SessionDayTile> {
                           shape: BoxShape.circle,
                           border: Border.all(
                             width: 1.5,
-                            color: _isExpanded ? Colors.white.withOpacity(0.6) : const Color(0xFF00A859),
+                            color: _isExpanded ? Colors.white.withAlpha(153) : AppTheme.figmaGreen,
                           ),
                         ),
                         child: Center(
                           child: Text(
                             widget.index,
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              color: _isExpanded ? Colors.white : const Color(0xFF00A859),
+                            style: GoogleFonts.inter(
+                              color: _isExpanded ? Colors.white : AppTheme.figmaGreen,
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
                             ),
@@ -572,11 +571,10 @@ class _SessionDayTileState extends State<SessionDayTile> {
                           children: [
                             Text(
                               widget.title,
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.bold,
-                                color: _isExpanded ? Colors.white : const Color(0xFF0F172A),
-                                fontSize: 16,
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.w600,
+                                color: _isExpanded ? Colors.white : AppTheme.darkSlate,
+                                fontSize: 15,
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -584,35 +582,25 @@ class _SessionDayTileState extends State<SessionDayTile> {
                               children: [
                                 Text(
                                   widget.subtitle,
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    color: _isExpanded ? Colors.white.withOpacity(0.8) : const Color(0xFF00A859),
+                                  style: GoogleFonts.inter(
+                                    color: _isExpanded ? Colors.white.withAlpha(204) : AppTheme.figmaGreen,
                                     fontWeight: FontWeight.w600,
-                                    fontSize: 11,
+                                    fontSize: 10,
                                   ),
                                 ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '•',
-                                  style: TextStyle(
-                                    color: _isExpanded ? Colors.white.withOpacity(0.6) : Colors.grey,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
+                                const SizedBox(width: 8),
                                 Icon(
-                                  Icons.access_time_rounded,
+                                  Icons.access_time_outlined,
                                   size: 11,
-                                  color: _isExpanded ? Colors.white.withOpacity(0.8) : const Color(0xFF6B7280),
+                                  color: _isExpanded ? Colors.white.withAlpha(204) : AppTheme.coolGray,
                                 ),
-                                const SizedBox(width: 2),
+                                const SizedBox(width: 4),
                                 Text(
                                   widget.duration,
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    color: _isExpanded ? Colors.white.withOpacity(0.8) : const Color(0xFF757B79),
+                                  style: GoogleFonts.inter(
+                                    color: _isExpanded ? Colors.white.withAlpha(204) : AppTheme.coolGray,
                                     fontWeight: FontWeight.w600,
-                                    fontSize: 11,
+                                    fontSize: 10,
                                   ),
                                 ),
                               ],
@@ -620,21 +608,21 @@ class _SessionDayTileState extends State<SessionDayTile> {
                           ],
                         ),
                       ),
-                      // Dropdown chevron button (Styled with circle outline matching reference)
+                      // Dropdown chevron
                       Container(
                         width: 28,
                         height: 28,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: _isExpanded ? Colors.white : const Color(0xFF00A859),
+                            color: _isExpanded ? Colors.white : AppTheme.figmaGreen,
                             width: 1.5,
                           ),
                         ),
                         child: Center(
                           child: Icon(
                             _isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-                            color: _isExpanded ? Colors.white : const Color(0xFF00A859),
+                            color: _isExpanded ? Colors.white : AppTheme.figmaGreen,
                             size: 16,
                           ),
                         ),
@@ -646,7 +634,7 @@ class _SessionDayTileState extends State<SessionDayTile> {
             ),
           ),
 
-          // Sub-sessions (only shown if expanded)
+          // Sub-sessions
           if (_isExpanded) ...[
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
@@ -654,97 +642,120 @@ class _SessionDayTileState extends State<SessionDayTile> {
                 children: List.generate(subSessions.length, (subIndex) {
                   final session = subSessions[subIndex];
                   
-                  // Choose icon painter based on session index/type
-                  CustomPainter iconPainter;
+                  String iconPath = '';
                   String description = '';
                   if (subIndex == 0) {
-                    iconPainter = const AsanaIconPainter(color: Color(0xFF00A859));
+                    iconPath = 'assets/icon_asana.png';
                     description = 'Build Strength & Flexibility';
                   } else if (subIndex == 1 || subIndex == 3) {
-                    iconPainter = const LungsIconPainter(color: Color(0xFF00A859));
+                    iconPath = 'assets/icon_lungs.png';
                     description = 'Breath. Calm. Energize.';
                   } else {
-                    iconPainter = const KriyaIconPainter(color: Color(0xFF00A859));
+                    iconPath = 'assets/icon_kriya.png';
                     description = 'Activate & Strengthen';
                   }
 
                   return InkWell(
-                    onTap: widget.onTap,
+                    onTap: () {
+                      if (widget.isGuest) {
+                        widget.onTap();
+                      } else if (!widget.isEnrolled) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Please enroll to view sessions')),
+                        );
+                      } else {
+                        // Mark as complete and go to video
+                        final container = ProviderScope.containerOf(context);
+                        container.read(progressProvider.notifier).markDayComplete(int.tryParse(widget.index) ?? 1, courseId: widget.courseId);
+                        
+                        context.push('/play', extra: {
+                          'courseId': widget.courseId,
+                          'dayNumber': int.tryParse(widget.index) ?? 1,
+                          'videoTitle': session['title'],
+                        });
+                      }
+                    },
                     child: Padding(
                       padding: const EdgeInsets.only(bottom: 20.0),
                       child: Row(
                         children: [
-                          // Left: Light Green Circle with Custom Icon
                           Container(
                             width: 48,
                             height: 48,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFE8F5E9),
+                            decoration: BoxDecoration(
+                              color: widget.isCompleted ? AppTheme.figmaGreen : const Color(0xFFE8F5E9),
                               shape: BoxShape.circle,
                             ),
                             child: Center(
-                              child: SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CustomPaint(
-                                  painter: iconPainter,
-                                ),
-                              ),
+                              child: widget.isCompleted
+                                ? const Icon(Icons.check_rounded, color: Colors.white, size: 28)
+                                : Image.asset(
+                                    iconPath,
+                                    width: 28,
+                                    height: 28,
+                                    fit: BoxFit.contain,
+                                  ),
                             ),
                           ),
                           const SizedBox(width: 16),
-                          // Middle: Text Info
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   session['title']!,
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF0F172A),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.normal,
+                                    color: AppTheme.darkSlate,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   session['duration']!,
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF00A859),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.figmaGreen,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   description,
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 12,
-                                    color: Color(0xFF64748B),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.coolGray,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          // Right: Green Circular Play Button
                           Container(
-                            width: 28,
-                            height: 28,
+                            width: 30,
+                            height: 30,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: const Color(0xFF00A859),
-                                width: 1.5,
+                                color: AppTheme.figmaGreen,
+                                width: 1.0,
                               ),
                             ),
-                            child: const Center(
-                              child: Icon(
-                                Icons.play_arrow_rounded,
-                                color: Color(0xFF00A859),
-                                size: 16,
+                            padding: const EdgeInsets.all(2.0),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: AppTheme.figmaGreen,
+                                  width: 1.0,
+                                ),
+                              ),
+                              child: const Center(
+                                child: Icon(
+                                  Icons.play_arrow_rounded,
+                                  color: AppTheme.figmaGreen,
+                                  size: 14,
+                                ),
                               ),
                             ),
                           ),
@@ -762,8 +773,7 @@ class _SessionDayTileState extends State<SessionDayTile> {
   }
 }
 
-// Custom sub-sessions outline painters
-
+// Custom Icon Painters
 class AsanaIconPainter extends CustomPainter {
   final Color color;
   const AsanaIconPainter({required this.color});
@@ -781,19 +791,15 @@ class AsanaIconPainter extends CustomPainter {
     final double w = size.width;
     final double h = size.height;
 
-    // Head
     canvas.drawCircle(Offset(w * 0.65, h * 0.25), w * 0.08, paint);
     
-    // Spine
     final spine = Path();
     spine.moveTo(w * 0.65, h * 0.33);
     spine.quadraticBezierTo(w * 0.50, h * 0.35, w * 0.40, h * 0.50);
     canvas.drawPath(spine, paint);
 
-    // Arm
     canvas.drawLine(Offset(w * 0.58, h * 0.35), Offset(w * 0.35, h * 0.60), paint);
 
-    // Legs
     final leg = Path();
     leg.moveTo(w * 0.40, h * 0.50);
     leg.lineTo(w * 0.75, h * 0.75);

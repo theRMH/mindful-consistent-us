@@ -94,20 +94,20 @@ class FreeVideosScreen extends ConsumerWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(AppRadii.xxl),
-            child: Stack(
-              children: [
-                Image.asset(
-                  imagePath,
-                  height: 200,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    height: 200,
-                    color: AppTheme.lightGray,
-                    child: const Icon(Icons.play_circle_outline,
-                        size: 48, color: AppTheme.coolGray),
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.asset(
+                    imagePath,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: AppTheme.lightGray,
+                      child: const Icon(Icons.play_circle_outline,
+                          size: 48, color: AppTheme.coolGray),
+                    ),
                   ),
-                ),
                 Positioned.fill(
                   child: Center(
                     child: Container(
@@ -142,7 +142,8 @@ class FreeVideosScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-              ],
+                ],
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.sm),

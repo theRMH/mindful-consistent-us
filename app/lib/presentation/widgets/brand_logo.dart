@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/config/theme.dart';
 
 class BrandLogo extends StatelessWidget {
   final double size;
@@ -16,13 +17,13 @@ class BrandLogo extends StatelessWidget {
           height: size,
           fit: BoxFit.contain,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         Text(
           'ConsistentUs',
           style: GoogleFonts.merriweather(
             fontSize: size * 0.18,
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFF12623F), // Dark green branding color
+            fontWeight: AppFontWeights.bold,
+            color: AppTheme.figmaGreen, // Vibrant figmaGreen branding color
             letterSpacing: 0.5,
           ),
         ),
