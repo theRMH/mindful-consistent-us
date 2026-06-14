@@ -8,12 +8,13 @@ export async function PATCH(
   try {
     const { videoId } = await params;
     const body = await req.json();
-    const { title, category, durationSeconds, videoSource, bunnyVideoId, bunnyLibraryId, youtubeVideoId, isFree } = body;
+    const { title, description, category, durationSeconds, videoSource, bunnyVideoId, bunnyLibraryId, youtubeVideoId, isFree } = body;
 
     const updated = await prisma.video.update({
       where: { id: videoId },
       data: {
         title,
+        description: description !== undefined ? description : undefined,
         category,
         durationSeconds: durationSeconds !== undefined ? parseInt(durationSeconds, 10) : undefined,
         videoSource,

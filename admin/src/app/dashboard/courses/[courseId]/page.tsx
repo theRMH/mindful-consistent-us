@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 interface Video {
   id: string;
   title: string;
+  description: string | null;
   category: string;
   durationSeconds: number;
   videoSource: string;
@@ -73,9 +74,16 @@ export default function CourseBuilder({
   const [dayDesc, setDayDesc] = useState("");
   const [daySubmitting, setDaySubmitting] = useState(false);
 
+  // Edit Day States
+  const [editingDay, setEditingDay] = useState<CourseDay | null>(null);
+  const [editDayTitle, setEditDayTitle] = useState("");
+  const [editDayDesc, setEditDayDesc] = useState("");
+  const [editDaySubmitting, setEditDaySubmitting] = useState(false);
+
   // Add Video Form States
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
   const [videoTitle, setVideoTitle] = useState("");
+  const [videoDescription, setVideoDescription] = useState("");
   const [videoCategory, setVideoCategory] = useState("yoga");
   const [videoDuration, setVideoDuration] = useState("1200");
   const [videoSource, setVideoSource] = useState<"bunny" | "youtube">("bunny");
@@ -89,6 +97,7 @@ export default function CourseBuilder({
   // Edit Video Form States
   const [editingVideo, setEditingVideo] = useState<Video | null>(null);
   const [editVideoTitle, setEditVideoTitle] = useState("");
+  const [editVideoDescription, setEditVideoDescription] = useState("");
   const [editVideoCategory, setEditVideoCategory] = useState("yoga");
   const [editVideoDuration, setEditVideoDuration] = useState("1200");
   const [editVideoSource, setEditVideoSource] = useState<"bunny" | "youtube">(
@@ -173,6 +182,7 @@ export default function CourseBuilder({
           action: "add_video",
           courseDayId: activeDayId,
           title: videoTitle,
+          description: videoDescription || undefined,
           category: videoCategory,
           durationSeconds: videoDuration,
           videoSource,
@@ -190,6 +200,7 @@ export default function CourseBuilder({
       // Reset & Reload
       setActiveDayId(null);
       setVideoTitle("");
+      setVideoDescription("");
       setVideoSource("bunny");
       setBunnyVideoId("");
       setYoutubeVideoId("");
@@ -205,6 +216,7 @@ export default function CourseBuilder({
   const openEditVideo = (vid: Video) => {
     setEditingVideo(vid);
     setEditVideoTitle(vid.title);
+    setEditVideoDescription(vid.description ?? "");
     setEditVideoCategory(vid.category);
     setEditVideoDuration(vid.durationSeconds.toString());
     setEditVideoSource(vid.videoSource as "bunny" | "youtube");
@@ -227,6 +239,7 @@ export default function CourseBuilder({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: editVideoTitle,
+          description: editVideoDescription || undefined,
           category: editVideoCategory,
           durationSeconds: editVideoDuration,
           videoSource: editVideoSource,
@@ -292,6 +305,48 @@ export default function CourseBuilder({
       setError(err.message);
     } finally {
       setCourseSubmitting(false);
+    }
+  };
+
+  const openEditDay = (day: CourseDay) => {
+    setEditingDay(day);
+    setEditDayTitle(day.title);
+    setEditDayDesc(day.description);
+    setShowDayForm(false);
+    setActiveDayId(null);
+  };
+
+  const handleUpdateDay = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingDay || editDaySubmitting) return;
+    setError("");
+    setEditDaySubmitting(true);
+    try {
+      const res = await fetch(`/api/days/${editingDay.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: editDayTitle, description: editDayDesc }),
+      });
+      if (!res.ok) throw new Error("Failed to update day");
+      setEditingDay(null);
+      fetchCourseData();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setEditDaySubmitting(false);
+    }
+  };
+
+  const handleDeleteDay = async (dayId: string) => {
+    if (!confirm("Delete this day and all its videos? This cannot be undone."))
+      return;
+    setError("");
+    try {
+      const res = await fetch(`/api/days/${dayId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete day");
+      fetchCourseData();
+    } catch (err: any) {
+      setError(err.message);
     }
   };
 
@@ -392,12 +447,26 @@ export default function CourseBuilder({
                         {day.description || "No focus description set."}
                       </p>
                     </div>
-                    <button
-                      onClick={() => setActiveDayId(day.id)}
-                      className="text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:underline"
-                    >
-                      Link Video
-                    </button>
+                    <div className="flex items-center space-x-3">
+                      <button
+                        onClick={() => openEditDay(day)}
+                        className="text-xs font-bold text-blue-600 hover:underline"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteDay(day.id)}
+                        className="text-xs font-bold text-red-500 hover:underline"
+                      >
+                        Delete
+                      </button>
+                      <button
+                        onClick={() => setActiveDayId(day.id)}
+                        className="text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:underline"
+                      >
+                        Link Video
+                      </button>
+                    </div>
                   </div>
 
                   {/* Day Videos */}
@@ -453,6 +522,56 @@ export default function CourseBuilder({
 
         {/* Side Panels (Modals/Inline Forms) */}
         <div className="space-y-6">
+          {/* Edit Day Box */}
+          {editingDay && (
+            <div className="bg-white shadow rounded-lg border border-gray-100 p-6 space-y-4">
+              <h3 className="font-bold text-gray-900 border-b border-gray-50 pb-2">
+                Edit Day {editingDay.dayNumber}
+              </h3>
+              <form onSubmit={handleUpdateDay} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500">
+                    Day Title
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editDayTitle}
+                    onChange={(e) => setEditDayTitle(e.target.value)}
+                    className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500">
+                    Description / Focus
+                  </label>
+                  <textarea
+                    value={editDayDesc}
+                    onChange={(e) => setEditDayDesc(e.target.value)}
+                    className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+                    rows={3}
+                  />
+                </div>
+                <div className="flex justify-end space-x-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingDay(null)}
+                    className="px-3 py-1.5 text-xs font-bold border rounded-lg text-gray-600"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={editDaySubmitting}
+                    className="px-3 py-1.5 text-xs font-bold rounded-lg text-white bg-emerald-600 disabled:opacity-50"
+                  >
+                    {editDaySubmitting ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
           {/* Add Day Box */}
           {showDayForm && (
             <div className="bg-white shadow rounded-lg border border-gray-100 p-6 space-y-4">
@@ -535,6 +654,19 @@ export default function CourseBuilder({
                     onChange={(e) => setVideoTitle(e.target.value)}
                     className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
                     placeholder="e.g. Breath Flow alignment"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500">
+                    Subtitle{" "}
+                    <span className="font-normal text-gray-400">(shown under title in app)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={videoDescription}
+                    onChange={(e) => setVideoDescription(e.target.value)}
+                    className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+                    placeholder="e.g. Build Strength & Flexibility"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -700,6 +832,19 @@ export default function CourseBuilder({
                     value={editVideoTitle}
                     onChange={(e) => setEditVideoTitle(e.target.value)}
                     className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500">
+                    Subtitle{" "}
+                    <span className="font-normal text-gray-400">(shown under title in app)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={editVideoDescription}
+                    onChange={(e) => setEditVideoDescription(e.target.value)}
+                    className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+                    placeholder="e.g. Build Strength & Flexibility"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">

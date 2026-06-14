@@ -59,6 +59,7 @@ class EnrollmentModel {
 class VideoModel {
   final String id;
   final String title;
+  final String? description;
   final String videoSource; // 'youtube' | 'bunny'
   final String? youtubeVideoId;
   final String? bunnyVideoId;
@@ -70,6 +71,7 @@ class VideoModel {
   const VideoModel({
     required this.id,
     required this.title,
+    this.description,
     required this.videoSource,
     this.youtubeVideoId,
     this.bunnyVideoId,
@@ -83,6 +85,7 @@ class VideoModel {
     return VideoModel(
       id: json['id'] as String,
       title: json['title'] as String,
+      description: json['description'] as String?,
       videoSource: json['videoSource'] as String? ?? 'bunny',
       youtubeVideoId: json['youtubeVideoId'] as String?,
       bunnyVideoId: json['bunnyVideoId'] as String?,

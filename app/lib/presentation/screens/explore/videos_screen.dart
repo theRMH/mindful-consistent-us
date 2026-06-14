@@ -474,19 +474,26 @@ class VideosScreen extends ConsumerWidget {
                         .asMap()
                         .entries
                         .map(
-                          (entry) => _buildTodaySessionTile(
-                            context,
-                            todayDay,
-                            entry.value,
-                            viewingCourseId,
-                            imagePath,
-                            entry.key,
-                            todayVideos.length,
-                            progressState.completedVideoIds.contains(
-                              entry.value.id,
-                            ),
-                            fallbackVideoId,
-                          ),
+                          (entry) {
+                            final isCompleted = progressState.completedVideoIds
+                                .contains(entry.value.id);
+                            final firstIncompleteIndex = todayVideos.indexWhere(
+                              (v) => !progressState.completedVideoIds
+                                  .contains(v.id),
+                            );
+                            return _buildTodaySessionTile(
+                              context,
+                              todayDay,
+                              entry.value,
+                              viewingCourseId,
+                              imagePath,
+                              entry.key,
+                              todayVideos.length,
+                              isCompleted,
+                              entry.key == firstIncompleteIndex,
+                              fallbackVideoId,
+                            );
+                          },
                         )
                         .toList(),
                   ),
@@ -544,11 +551,11 @@ class VideosScreen extends ConsumerWidget {
                         ),
                       ),
                       Image.asset(
-                        'assets/bg_leaf.png',
-                        width: 60,
-                        height: 60,
+                        'assets/keep_going.png',
+                        width: 90,
+                        height: 70,
                         fit: BoxFit.contain,
-                        errorBuilder: (_, _, _) => const SizedBox(width: 60),
+                        errorBuilder: (_, _, _) => const SizedBox(width: 90),
                       ),
                     ],
                   ),
@@ -589,10 +596,19 @@ class VideosScreen extends ConsumerWidget {
                             children: [
                               Text(
                                 'Just starting? Watch the guidelines',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.inter(
-                                  fontSize: 14,
+                                  fontSize: 13,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
+                                ),
+                              ),
+                              Text(
+                                'Explore now',
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  color: Colors.white.withAlpha(178),
                                 ),
                               ),
                             ],
@@ -791,109 +807,185 @@ class VideosScreen extends ConsumerWidget {
     int index,
     int total,
     bool isCompleted,
+    bool isUpNext,
     String fallbackVideoId,
   ) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: index < total - 1 ? 18.0 : 0.0),
-      child: GestureDetector(
-        onTap: () {
-          context.push(
-            '/play',
-            extra: {
-              'courseId': courseId,
-              'dayNumber': day.dayNumber,
-              'videoId': video.id,
-              'videoSource': video.videoSource,
-              'youtubeVideoId': video.youtubeVideoId ?? fallbackVideoId,
-              'bunnyVideoId': video.bunnyVideoId,
-              'bunnyLibraryId': video.bunnyLibraryId,
-              'videoTitle': video.title,
-            },
-          );
-        },
-        child: Row(
-          children: [
-            if (isCompleted)
-              Container(
-                width: 48,
-                height: 48,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppTheme.figmaGreen,
+    final statusLabel = isCompleted
+        ? 'Completed'
+        : (isUpNext ? 'Up Next' : '');
+    final statusColor = isCompleted
+        ? AppTheme.figmaGreen
+        : (isUpNext ? const Color(0xFFE67E22) : AppTheme.coolGray);
+    final timeText = '${video.durationSeconds ~/ 60} mins';
+    final statusLine =
+        statusLabel.isNotEmpty ? '$timeText • $statusLabel' : timeText;
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Timeline column
+          SizedBox(
+            width: 20,
+            child: Column(
+              children: [
+                Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isCompleted ? AppTheme.figmaGreen : Colors.white,
+                    border: Border.all(
+                      color: AppTheme.figmaGreen,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: isCompleted
+                      ? const Icon(
+                          Icons.check_rounded,
+                          color: Colors.white,
+                          size: 13,
+                        )
+                      : null,
                 ),
-                child: const Icon(
-                  Icons.check_rounded,
-                  color: Colors.white,
-                  size: 24,
-                ),
-              )
-            else
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFE0E0E0)),
-                ),
-                child: ClipOval(
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Image.asset(
-                      imagePath,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, _, _) => const Icon(
-                        Icons.self_improvement_rounded,
-                        color: AppTheme.figmaGreen,
-                        size: 24,
+                if (index < total - 1)
+                  Expanded(
+                    child: Container(
+                      width: 1.5,
+                      color: isCompleted
+                          ? AppTheme.figmaGreen
+                          : const Color(0xFFE0E0E0),
+                    ),
+                  ),
+                if (index == total - 1) const Spacer(),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Content
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: index < total - 1 ? 16.0 : 0.0,
+              ),
+              child: GestureDetector(
+                onTap: () {
+                  context.push(
+                    '/play',
+                    extra: {
+                      'courseId': courseId,
+                      'dayNumber': day.dayNumber,
+                      'videoId': video.id,
+                      'videoSource': video.videoSource,
+                      'youtubeVideoId':
+                          video.youtubeVideoId ?? fallbackVideoId,
+                      'bunnyVideoId': video.bunnyVideoId,
+                      'bunnyLibraryId': video.bunnyLibraryId,
+                      'videoTitle': video.title,
+                    },
+                  );
+                },
+                child: Row(
+                  children: [
+                    // Icon circle
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFFEBF7EF),
+                        border: Border.all(
+                          color: const Color(0xFFC8E6D4),
+                          width: 1,
+                        ),
+                      ),
+                      child: isCompleted
+                          ? const Icon(
+                              Icons.check_rounded,
+                              color: AppTheme.figmaGreen,
+                              size: 20,
+                            )
+                          : Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Image.asset(
+                                imagePath,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, _, _) => const Icon(
+                                  Icons.self_improvement_rounded,
+                                  color: AppTheme.figmaGreen,
+                                  size: 22,
+                                ),
+                              ),
+                            ),
+                    ),
+                    const SizedBox(width: 10),
+                    // Text
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            video.title,
+                            style: GoogleFonts.inter(
+                              fontWeight: AppFontWeights.bold,
+                              color: AppTheme.figmaCharcoal,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            statusLine,
+                            style: GoogleFonts.inter(
+                              color: statusColor,
+                              fontWeight: AppFontWeights.semiBold,
+                              fontSize: 11,
+                            ),
+                          ),
+                          if (video.description != null &&
+                              video.description!.isNotEmpty) ...[
+                            const SizedBox(height: 1),
+                            Text(
+                              video.description!,
+                              style: GoogleFonts.inter(
+                                color: AppTheme.figmaMutedGray,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                  ),
+                    // Play button
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isCompleted
+                            ? AppTheme.figmaGreen
+                            : Colors.transparent,
+                        border: isCompleted
+                            ? null
+                            : Border.all(
+                                color: AppTheme.figmaGreen,
+                                width: 1.5,
+                              ),
+                      ),
+                      child: Icon(
+                        isCompleted
+                            ? Icons.check_rounded
+                            : Icons.play_arrow_rounded,
+                        color:
+                            isCompleted ? Colors.white : AppTheme.figmaGreen,
+                        size: 16,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    video.title,
-                    style: GoogleFonts.inter(
-                      fontWeight: AppFontWeights.bold,
-                      color: AppTheme.figmaCharcoal,
-                      fontSize: AppFontSizes.bodyLarge,
-                    ),
-                  ),
-                  Text(
-                    '${video.durationSeconds ~/ 60} mins • ${isCompleted ? 'Completed' : 'Today'}',
-                    style: GoogleFonts.inter(
-                      color: isCompleted
-                          ? AppTheme.primaryGreen
-                          : AppTheme.coolGray,
-                      fontWeight: AppFontWeights.semiBold,
-                      fontSize: AppFontSizes.bodySmall,
-                    ),
-                  ),
-                ],
-              ),
             ),
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isCompleted ? AppTheme.figmaGreen : Colors.transparent,
-                border: isCompleted
-                    ? null
-                    : Border.all(color: AppTheme.figmaGreen, width: 1.5),
-              ),
-              child: Icon(
-                isCompleted ? Icons.check_rounded : Icons.play_arrow_rounded,
-                color: isCompleted ? Colors.white : AppTheme.figmaGreen,
-                size: 18,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

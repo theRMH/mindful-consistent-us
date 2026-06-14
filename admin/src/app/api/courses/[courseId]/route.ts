@@ -61,7 +61,7 @@ export async function POST(
     }
 
     if (action === 'add_video') {
-      const { courseDayId, title, category, durationSeconds, bunnyVideoId, bunnyLibraryId, youtubeVideoId, videoSource, isFree, thumbnailUrl } = body;
+      const { courseDayId, title, description, category, durationSeconds, bunnyVideoId, bunnyLibraryId, youtubeVideoId, videoSource, isFree, thumbnailUrl } = body;
       const source = videoSource || 'bunny';
 
       if (!courseDayId || !title) {
@@ -80,6 +80,7 @@ export async function POST(
         data: {
           courseDayId,
           title,
+          description: description ?? null,
           category: category ?? 'yoga',
           durationSeconds: parseInt(durationSeconds || 0, 10),
           videoSource: source,
