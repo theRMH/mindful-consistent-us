@@ -45,6 +45,7 @@ class ProgressState {
   final List<LeaderboardUser> leaderboard;
   final String? activeCourseId;
   final int? userRank;
+  final List<Map<String, dynamic>> weeklyActivity;
   final bool isLoading;
   final String? error;
 
@@ -60,6 +61,15 @@ class ProgressState {
     this.leaderboard = const [],
     this.activeCourseId,
     this.userRank,
+    this.weeklyActivity = const [
+      {'label': 'M', 'val': 0},
+      {'label': 'T', 'val': 0},
+      {'label': 'W', 'val': 0},
+      {'label': 'T', 'val': 0},
+      {'label': 'F', 'val': 0},
+      {'label': 'S', 'val': 0},
+      {'label': 'S', 'val': 0},
+    ],
     this.isLoading = false,
     this.error,
   });
@@ -76,6 +86,7 @@ class ProgressState {
     List<LeaderboardUser>? leaderboard,
     String? activeCourseId,
     int? userRank,
+    List<Map<String, dynamic>>? weeklyActivity,
     bool? isLoading,
     String? error,
   }) {
@@ -92,6 +103,7 @@ class ProgressState {
       leaderboard: leaderboard ?? this.leaderboard,
       activeCourseId: activeCourseId ?? this.activeCourseId,
       userRank: userRank ?? this.userRank,
+      weeklyActivity: weeklyActivity ?? this.weeklyActivity,
       isLoading: isLoading ?? this.isLoading,
       error: error ?? this.error,
     );
@@ -156,6 +168,14 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
       final compVideoIds = List<String>.from(
         progressData['completedVideoIds'] ?? [],
       );
+      final weeklyRaw =
+          progressData['weeklyActivity'] as List<dynamic>? ?? [];
+      final weeklyActivity = weeklyRaw
+          .map((e) => {
+                'label': (e as Map<String, dynamic>)['label'] as String,
+                'val': (e['val'] as num).toInt(),
+              })
+          .toList();
 
       final leaderboardEntries =
           leaderboardData['entries'] as List<dynamic>? ?? [];
@@ -174,6 +194,7 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
         leaderboard: leaderboardList,
         activeCourseId: progressData['activeCourseId'] as String?,
         userRank: leaderboardData['userRank'] as int?,
+        weeklyActivity: weeklyActivity,
         isLoading: false,
       );
     } catch (e) {

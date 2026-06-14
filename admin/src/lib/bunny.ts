@@ -6,7 +6,7 @@ import { createHash } from 'crypto';
  * Standard format: token = sha256(tokenKey + videoId + expires)
  */
 export function generateBunnyToken(videoId: string, expirationSeconds: number = 7200): { token: string; expires: number } {
-  const tokenKey = process.env.BUNNY_TOKEN_KEY || 'mock_token_key';
+  const tokenKey = process.env.BUNNY_TOKEN_KEY ?? '';
   const expires = Math.floor(Date.now() / 1000) + expirationSeconds;
   
   // Create cryptographic hash

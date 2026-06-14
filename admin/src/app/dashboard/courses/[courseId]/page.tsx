@@ -88,7 +88,7 @@ export default function CourseBuilder({
   const [videoDuration, setVideoDuration] = useState("1200");
   const [videoSource, setVideoSource] = useState<"bunny" | "youtube">("bunny");
   const [bunnyVideoId, setBunnyVideoId] = useState("");
-  const [bunnyLibraryId, setBunnyLibraryId] = useState("mock_lib_123");
+  const [bunnyLibraryId, setBunnyLibraryId] = useState("");
   const [youtubeVideoId, setYoutubeVideoId] = useState("");
   const [isFree, setIsFree] = useState(false);
   const [videoThumbnail, setVideoThumbnail] = useState("");

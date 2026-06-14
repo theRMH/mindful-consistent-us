@@ -37,6 +37,26 @@ class ApiService {
     }
   }
 
+  Future<dynamic> _put(String path, Map<String, dynamic> body) async {
+    final url = Uri.parse('${AppConfig.apiBaseUrl}$path');
+    try {
+      final response = await http.put(
+        url,
+        headers: _getHeaders(),
+        body: jsonEncode(body),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body);
+      } else {
+        throw HttpException(
+          'API Error: ${response.statusCode} - ${response.body}',
+        );
+      }
+    } catch (e) {
+      throw Exception('Failed to connect to backend: $e');
+    }
+  }
+
   Future<dynamic> _post(String path, Map<String, dynamic> body) async {
     final url = Uri.parse('${AppConfig.apiBaseUrl}$path');
     try {
@@ -130,8 +150,11 @@ class ApiService {
     return res as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> getLeaderboard() async {
-    final res = await _get('/api/mobile/leaderboard');
+  Future<Map<String, dynamic>> getLeaderboard({String? courseId}) async {
+    final path = courseId != null
+        ? '/api/mobile/leaderboard?courseId=$courseId'
+        : '/api/mobile/leaderboard';
+    final res = await _get(path);
     return res as Map<String, dynamic>;
   }
 
@@ -149,6 +172,79 @@ class ApiService {
     if (fullName != null) body['fullName'] = fullName;
     if (avatarUrl != null) body['avatarUrl'] = avatarUrl;
     await _post('/api/auth/sync', body);
+  }
+
+  Future<List<dynamic>> getBodyMetrics() async {
+    final res = await _get('/api/mobile/profile/body-metrics');
+    return (res as Map<String, dynamic>)['records'] as List<dynamic>;
+  }
+
+  Future<void> saveBodyMetrics({
+    String? courseId,
+    String? name,
+    int? age,
+    double? heightCm,
+    double? weightKg,
+    double? waistIn,
+    double? hipIn,
+  }) async {
+    final body = <String, dynamic>{};
+    if (courseId != null) body['courseId'] = courseId;
+    if (name != null) body['name'] = name;
+    if (age != null) body['age'] = age;
+    if (heightCm != null) body['heightCm'] = heightCm;
+    if (weightKg != null) body['weightKg'] = weightKg;
+    if (waistIn != null) body['waistIn'] = waistIn;
+    if (hipIn != null) body['hipIn'] = hipIn;
+    await _post('/api/mobile/profile/body-metrics', body);
+  }
+
+  Future<void> updateProfile({
+    String? fullName,
+    String? avatarUrl,
+    bool? notificationsEnabled,
+    String? notificationTime,
+  }) async {
+    final body = <String, dynamic>{};
+    if (fullName != null) body['fullName'] = fullName;
+    if (avatarUrl != null) body['avatarUrl'] = avatarUrl;
+    if (notificationsEnabled != null) body['notificationsEnabled'] = notificationsEnabled;
+    if (notificationTime != null) body['notificationTime'] = notificationTime;
+    await _put('/api/mobile/profile', body);
+  }
+
+  Future<void> updateFcmToken(String token) async {
+    await _post('/api/mobile/fcm-token', {'token': token});
+  }
+
+  Future<List<dynamic>> getNotifications() async {
+    final res = await _get('/api/mobile/notifications');
+    return res as List<dynamic>;
+  }
+
+  Future<void> markNotificationRead(String id) async {
+    await _post('/api/mobile/notifications/$id', {});
+  }
+
+  Future<String> getHelpContent() async {
+    final res = await _get('/api/help-content');
+    return (res as Map<String, dynamic>)['content'] as String? ?? '';
+  }
+
+  Future<bool> submitFeedback({
+    required int rating,
+    required String comment,
+  }) async {
+    try {
+      await _post('/api/feedback', {
+        'targetType': 'course',
+        'rating': rating,
+        'comment': comment,
+      });
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 }
 

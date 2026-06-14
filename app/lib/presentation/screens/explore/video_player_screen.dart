@@ -75,9 +75,6 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
         ..loadRequest(Uri.parse(bunnyUrl));
     }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _completeSession();
-    });
   }
 
   void _lockLandscape() {
@@ -97,6 +94,9 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
   }
 
   void _ytListener() {
+    if (_ytController!.value.playerState == PlayerState.ended) {
+      _completeSession();
+    }
     if (_isPlayerReady && mounted && !_ytController!.value.isFullScreen) {
       setState(() {});
     }
@@ -128,7 +128,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     _completeSession();
     _restorePortrait();
     if (widget.dayNumber == 30) {
-      context.go('/course_completed');
+      context.go('/course_completed?courseId=${widget.courseId}');
     } else {
       context.pop();
     }

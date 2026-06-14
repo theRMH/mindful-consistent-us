@@ -197,39 +197,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<bool> verifyOtpAndLogin(String phone, String otp, {bool isLoginAttempt = false}) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      // Mock OTP bypass for development — accepts 123456 without real SMS
-      if (otp == '123456') {
-        ApiService().setToken('mock-user-123');
-        try { await ApiService().syncProfile(); } catch (_) {}
-        if (isLoginAttempt) {
-          try {
-            await ApiService().getProfile();
-          } catch (_) {
-            ApiService().setToken(null);
-            state = state.copyWith(isLoading: false, errorMessage: notRegisteredError);
-            return false;
-          }
-        }
-        String fullName = '';
-        String avatarUrl = '';
-        try {
-          final profile = await ApiService().getProfile();
-          fullName = profile['fullName'] ?? '';
-          avatarUrl = profile['avatarUrl'] ?? '';
-        } catch (_) {}
-        state = AuthState(
-          isAuthenticated: true,
-          user: UserProfile(
-            id: 'mock-user-123',
-            email: '',
-            phone: phone,
-            fullName: fullName,
-            avatarUrl: avatarUrl,
-          ),
-        );
-        return true;
-      }
-
       final response = await Supabase.instance.client.auth.verifyOTP(
         phone: '+91$phone',
         token: otp,

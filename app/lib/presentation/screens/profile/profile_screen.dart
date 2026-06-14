@@ -1,7 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/progress_provider.dart';
 import '../../../core/config/theme.dart';
@@ -64,32 +67,58 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   child: Column(
                     children: [
-                      // Avatar
-                      Container(
-                        width: 96,
-                        height: 96,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                              color: const Color(0xFFFFD700), width: 3),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withAlpha(40),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
+                      // Avatar with edit overlay
+                      GestureDetector(
+                        onTap: () => _showEditSheet(context, ref, fullName, avatarUrl),
+                        child: Stack(
+                          children: [
+                            Container(
+                              width: 96,
+                              height: 96,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: const Color(0xFFFFD700), width: 3),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withAlpha(40),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(48),
+                                child: avatarUrl != null
+                                    ? Image.network(
+                                        avatarUrl,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, _, _) =>
+                                            _buildInitialsCircle(fullName),
+                                      )
+                                    : _buildInitialsCircle(fullName),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 2,
+                              right: 2,
+                              child: Container(
+                                width: 26,
+                                height: 26,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white,
+                                  border: Border.all(
+                                      color: AppTheme.figmaGreen, width: 1.5),
+                                ),
+                                child: const Icon(
+                                  Icons.edit_rounded,
+                                  size: 14,
+                                  color: AppTheme.figmaGreen,
+                                ),
+                              ),
                             ),
                           ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(48),
-                          child: avatarUrl != null
-                              ? Image.network(
-                                  avatarUrl,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, _, _) =>
-                                      _buildInitialsCircle(fullName),
-                                )
-                              : _buildInitialsCircle(fullName),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -251,13 +280,25 @@ class ProfileScreen extends ConsumerWidget {
     return Column(
       children: [
         _buildMenuTile(
+          icon: Icons.notifications_rounded,
+          iconBg: const Color(0xFFEDE7F6),
+          iconColor: const Color(0xFF7B1FA2),
+          title: 'My Notifications',
+          onTap: () => context.push('/notification-center'),
+        ),
+        _buildMenuTile(
           icon: Icons.person_outline_rounded,
           iconBg: const Color(0xFFE8F4FB),
           iconColor: const Color(0xFF2196F3),
           title: 'Personal Details',
-          onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Personal Details coming soon')),
-          ),
+          onTap: () => context.push('/body-metrics-history'),
+        ),
+        _buildMenuTile(
+          icon: Icons.leaderboard_rounded,
+          iconBg: const Color(0xFFE8F5EE),
+          iconColor: AppTheme.figmaGreen,
+          title: 'Community Leaderboard',
+          onTap: () => context.push('/community-leaderboard'),
         ),
         _buildMenuTile(
           icon: Icons.play_arrow_rounded,
@@ -271,29 +312,21 @@ class ProfileScreen extends ConsumerWidget {
           iconBg: const Color(0xFFFFF3E0),
           iconColor: const Color(0xFFFF9800),
           title: 'Notifications & Reminders',
-          onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Notifications & Reminders coming soon')),
-          ),
+          onTap: () => context.push('/notifications'),
         ),
         _buildMenuTile(
           icon: Icons.credit_card_rounded,
           iconBg: const Color(0xFFE8F5EE),
           iconColor: AppTheme.figmaGreen,
           title: 'Subscription & Plans',
-          onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Subscription & Plans coming soon')),
-          ),
+          onTap: () => context.push('/subscriptions'),
         ),
         _buildMenuTile(
           icon: Icons.help_outline_rounded,
           iconBg: const Color(0xFFFCEEE8),
           iconColor: const Color(0xFFFF5722),
           title: 'Help & Support',
-          onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Help & Support coming soon')),
-          ),
+          onTap: () => context.push('/help'),
         ),
         if (isAuthenticated)
           _buildMenuTile(
@@ -366,6 +399,201 @@ class ProfileScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _showEditSheet(
+    BuildContext context,
+    WidgetRef ref,
+    String currentName,
+    String? currentAvatarUrl,
+  ) async {
+    final nameController = TextEditingController(text: currentName);
+    try {
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        builder: (ctx) {
+          XFile? pickedFile;
+          bool uploading = false;
+
+          return StatefulBuilder(
+            builder: (ctx, setSheetState) {
+              return Padding(
+                padding: EdgeInsets.fromLTRB(
+                    24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Edit Profile',
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.figmaCharcoal,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    GestureDetector(
+                      onTap: () async {
+                        final file = await ImagePicker().pickImage(
+                          source: ImageSource.gallery,
+                          imageQuality: 70,
+                        );
+                        if (file != null) {
+                          setSheetState(() => pickedFile = file);
+                        }
+                      },
+                      child: Stack(
+                        children: [
+                          CircleAvatar(
+                            radius: 48,
+                            backgroundColor: AppTheme.figmaGreen.withAlpha(30),
+                            backgroundImage: pickedFile != null
+                                ? FileImage(File(pickedFile!.path))
+                                    as ImageProvider
+                                : (currentAvatarUrl != null
+                                    ? NetworkImage(currentAvatarUrl)
+                                    : null),
+                            child: (pickedFile == null && currentAvatarUrl == null)
+                                ? Text(
+                                    currentName.isNotEmpty
+                                        ? currentName[0].toUpperCase()
+                                        : '?',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.figmaGreen,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppTheme.figmaGreen,
+                              ),
+                              child: const Icon(
+                                Icons.camera_alt_rounded,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    TextField(
+                      controller: nameController,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: InputDecoration(
+                        labelText: 'Full Name',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                              color: AppTheme.figmaGreen, width: 2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: uploading
+                            ? null
+                            : () async {
+                                setSheetState(() => uploading = true);
+                                try {
+                                  String? newAvatarUrl;
+                                  if (pickedFile != null) {
+                                    final bytes =
+                                        await pickedFile!.readAsBytes();
+                                    final userId = Supabase
+                                            .instance.client.auth.currentUser
+                                            ?.id ??
+                                        'unknown';
+                                    final path =
+                                        'user_${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+                                    await Supabase.instance.client.storage
+                                        .from('avatars')
+                                        .uploadBinary(
+                                          path,
+                                          bytes,
+                                          fileOptions: const FileOptions(
+                                              upsert: true,
+                                              contentType: 'image/jpeg'),
+                                        );
+                                    newAvatarUrl = Supabase
+                                        .instance.client.storage
+                                        .from('avatars')
+                                        .getPublicUrl(path);
+                                  }
+                                  await ApiService().updateProfile(
+                                    fullName: nameController.text.trim(),
+                                    avatarUrl: newAvatarUrl,
+                                  );
+                                  ref.invalidate(_profileDataProvider);
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                } catch (_) {
+                                  if (ctx.mounted) {
+                                    ScaffoldMessenger.of(ctx).showSnackBar(
+                                      const SnackBar(
+                                          content:
+                                              Text('Failed to save. Try again.')),
+                                    );
+                                  }
+                                } finally {
+                                  if (ctx.mounted) {
+                                    setSheetState(() => uploading = false);
+                                  }
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.figmaGreen,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: uploading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2),
+                              )
+                            : Text(
+                                'Save Changes',
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      nameController.dispose();
+    }
   }
 
   void _showLogoutDialog(BuildContext context, WidgetRef ref) {

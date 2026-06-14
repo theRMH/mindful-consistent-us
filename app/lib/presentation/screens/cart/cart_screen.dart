@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/courses_provider.dart';
 import '../../../core/config/theme.dart';
+import '../../../core/services/api_service.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   final String courseId;
@@ -19,15 +20,35 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     text: 'FIT20',
   );
   bool _couponApplied = false;
-  int _selectedUpiIndex = 0; // 0 for GPay/PhonePe, 1 for More UPI Apps
+  bool _checkingMetrics = false;
+  int _selectedUpiIndex = 0;
   final int _quantity = 1;
 
-  static const double _originalPrice = 999;
+  Map<String, dynamic>? _courseData;
+  bool _loadingCourse = true;
+
+  double get _originalPrice =>
+      (_courseData?['priceInr'] as num?)?.toDouble() ?? 999.0;
   static const double _discount = 300;
 
   double get _unitPrice =>
       _couponApplied ? (_originalPrice - _discount) : _originalPrice;
   double get _totalPayable => _unitPrice * _quantity;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCourse();
+  }
+
+  Future<void> _loadCourse() async {
+    try {
+      final data = await ApiService().getCourseDetails(widget.courseId);
+      if (mounted) setState(() { _courseData = data; _loadingCourse = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loadingCourse = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -245,6 +266,17 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
   // ─── Course Card ─────────────────────────────────────────────────────────
   Widget _buildCourseCard() {
+    if (_loadingCourse) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Center(child: CircularProgressIndicator(color: AppTheme.figmaGreen, strokeWidth: 2)),
+      );
+    }
+
+    final title = (_courseData?['title'] as String?) ?? '30 Days Yoga Course';
+    final thumbnailUrl = _courseData?['thumbnailUrl'] as String?;
+    final totalDays = (_courseData?['totalDays'] as int?) ?? 30;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
@@ -265,22 +297,21 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: Image.asset(
-                'assets/course_30_days.png',
-                width: 80,
-                height: 80,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  width: 80,
-                  height: 80,
-                  color: const Color(0xFFE8F5E9),
-                  child: const Icon(
-                    Icons.self_improvement,
-                    color: AppTheme.figmaGreen,
-                    size: 36,
-                  ),
-                ),
-              ),
+              child: thumbnailUrl != null && thumbnailUrl.isNotEmpty
+                  ? Image.network(
+                      thumbnailUrl,
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                      errorBuilder: (ctx, e, st) => _buildCoursePlaceholder(),
+                    )
+                  : Image.asset(
+                      'assets/course_30_days.png',
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                      errorBuilder: (ctx, e, st) => _buildCoursePlaceholder(),
+                    ),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -288,7 +319,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '30 Days Yoga Course',
+                    title,
                     style: GoogleFonts.inter(
                       fontSize: 15,
                       fontWeight: AppFontWeights.semiBold,
@@ -297,16 +328,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   ),
                   const SizedBox(height: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: AppTheme.figmaGreen,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      '30 Days',
+                      '$totalDays Days',
                       style: GoogleFonts.inter(
                         color: Colors.white,
                         fontSize: 10,
@@ -329,6 +357,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCoursePlaceholder() {
+    return Container(
+      width: 80,
+      height: 80,
+      color: const Color(0xFFE8F5E9),
+      child: const Icon(Icons.self_improvement, color: AppTheme.figmaGreen, size: 36),
     );
   }
 
@@ -632,7 +669,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               child: SizedBox(
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: _handleCheckout,
+                  onPressed: _checkingMetrics ? null : _handleCheckout,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.figmaGreen,
                     foregroundColor: Colors.white,
@@ -641,24 +678,33 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                       borderRadius: BorderRadius.circular(24),
                     ),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Checkout',
-                        style: GoogleFonts.inter(
-                          fontSize: 15,
-                          fontWeight: AppFontWeights.semiBold,
+                  child: _checkingMetrics
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Checkout',
+                              style: GoogleFonts.inter(
+                                fontSize: 15,
+                                fontWeight: AppFontWeights.semiBold,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(
+                              Icons.arrow_forward_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(
-                        Icons.arrow_forward_rounded,
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                    ],
-                  ),
                 ),
               ),
             ),
@@ -674,8 +720,26 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     if (!isLoggedIn) {
       _showAuthSheet();
     } else {
-      _processPayment();
+      _checkMetricsThenPay();
     }
+  }
+
+  Future<void> _checkMetricsThenPay() async {
+    setState(() => _checkingMetrics = true);
+    try {
+      final records = await ApiService().getBodyMetrics();
+      if (!mounted) return;
+      if (records.isEmpty) {
+        final cartPath = Uri.encodeComponent('/cart?courseId=${widget.courseId}');
+        context.push('/body-metrics?skip=false&courseId=${widget.courseId}&redirect=$cartPath');
+        return;
+      }
+    } catch (_) {
+      // If the check fails, proceed anyway so payment is not blocked
+    } finally {
+      if (mounted) setState(() => _checkingMetrics = false);
+    }
+    _processPayment();
   }
 
   void _showAuthSheet() {
@@ -749,7 +813,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(ctx);
-                    context.push('/signup?redirect=cart');
+                    final cartPath = Uri.encodeComponent('/cart?courseId=${widget.courseId}');
+                    context.push('/signup?redirect=$cartPath');
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryGreen,
@@ -776,7 +841,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 child: OutlinedButton(
                   onPressed: () {
                     Navigator.pop(ctx);
-                    context.push('/login?redirect=cart');
+                    final cartPath = Uri.encodeComponent('/cart?courseId=${widget.courseId}');
+                    context.push('/login?redirect=$cartPath');
                   },
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(

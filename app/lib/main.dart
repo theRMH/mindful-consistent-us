@@ -1,27 +1,77 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 import 'core/config/app_config.dart';
 import 'core/config/routes.dart';
 import 'core/config/theme.dart';
 import 'core/services/api_service.dart';
 
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Handle background FCM messages
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Timezone init for local notification scheduling
+  tz.initializeTimeZones();
+  try {
+    final tzName = await FlutterTimezone.getLocalTimezone();
+    tz.setLocalLocation(tz.getLocation(tzName));
+  } catch (_) {}
+
+  // Local notifications plugin init
+  await FlutterLocalNotificationsPlugin().initialize(
+    const InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      iOS: DarwinInitializationSettings(),
+    ),
+  );
+
   await Supabase.initialize(
     url: AppConfig.supabaseUrl,
     anonKey: AppConfig.supabaseAnonKey, // ignore: deprecated_member_use
   );
+
+  // Firebase init — graceful if google-services.json not yet present
+  try {
+    await Firebase.initializeApp();
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  } catch (_) {}
+
   // Restore token for ApiService if a valid session already exists
   final session = Supabase.instance.client.auth.currentSession;
   if (session != null) {
     ApiService().setToken(session.accessToken);
+    _registerFcmToken();
   }
+
   runApp(
     const ProviderScope(
       child: MyApp(),
     ),
   );
+}
+
+Future<void> _registerFcmToken() async {
+  try {
+    final messaging = FirebaseMessaging.instance;
+    await messaging.requestPermission(alert: true, badge: true, sound: true);
+    final token = await messaging.getToken();
+    if (token != null) {
+      await ApiService().updateFcmToken(token);
+    }
+    messaging.onTokenRefresh.listen((newToken) {
+      ApiService().updateFcmToken(newToken).catchError((_) {});
+    });
+  } catch (_) {}
 }
 
 class MyApp extends StatelessWidget {

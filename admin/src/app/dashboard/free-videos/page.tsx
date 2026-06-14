@@ -33,7 +33,7 @@ export default function FreeVideosPage() {
   const [durationSeconds, setDurationSeconds] = useState('120');
   const [videoSource, setVideoSource] = useState<'bunny' | 'youtube'>('bunny');
   const [bunnyVideoId, setBunnyVideoId] = useState('');
-  const [bunnyLibraryId, setBunnyLibraryId] = useState('mock_lib_123');
+  const [bunnyLibraryId, setBunnyLibraryId] = useState('');
   const [youtubeVideoId, setYoutubeVideoId] = useState('');
   const [sortOrder, setSortOrder] = useState('0');
   const [isPublished, setIsPublished] = useState(true);
@@ -68,7 +68,7 @@ export default function FreeVideosPage() {
     setDurationSeconds('120');
     setVideoSource('bunny');
     setBunnyVideoId('');
-    setBunnyLibraryId('mock_lib_123');
+    setBunnyLibraryId('');
     setYoutubeVideoId('');
     setSortOrder('0');
     setIsPublished(true);
@@ -85,7 +85,7 @@ export default function FreeVideosPage() {
     setDurationSeconds(video.durationSeconds.toString());
     setVideoSource((video.videoSource as 'bunny' | 'youtube') || 'bunny');
     setBunnyVideoId(video.bunnyVideoId || '');
-    setBunnyLibraryId(video.bunnyLibraryId || 'mock_lib_123');
+    setBunnyLibraryId(video.bunnyLibraryId || '');
     setYoutubeVideoId(video.youtubeVideoId || '');
     setSortOrder(video.sortOrder.toString());
     setIsPublished(video.isPublished);

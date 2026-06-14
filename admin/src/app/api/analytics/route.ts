@@ -157,8 +157,8 @@ export async function GET() {
       },
       streaks: {
         average: Math.round((userStatsAgg._avg.currentStreak ?? 0) * 10) / 10,
-        max: userStatsAgg._max ? (maxStreak._max.longestStreak ?? 0) : 0,
-        usersWithActiveStreak,
+        max: maxStreak._max.longestStreak ?? 0,
+        usersWithActiveStreak: usersWithStreak,
         totalTracked: userStatsAgg._count.userId,
       },
       feedback: {

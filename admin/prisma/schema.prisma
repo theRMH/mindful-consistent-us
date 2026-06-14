@@ -17,8 +17,10 @@ model Profile {
   fullName           String?              @map("full_name")
   avatarUrl          String?              @map("avatar_url")
   phone              String?
-  fcmToken           String?              @map("fcm_token")
-  createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz
+  fcmToken                String?              @map("fcm_token")
+  notificationsEnabled    Boolean              @default(false) @map("notifications_enabled")
+  notificationTime        String?              @map("notification_time")
+  createdAt               DateTime             @default(now()) @map("created_at") @db.Timestamptz
   updatedAt          DateTime             @default(now()) @map("updated_at") @db.Timestamptz
   enrollments        Enrollment[]
   videoProgresses    VideoProgress[]
@@ -26,6 +28,8 @@ model Profile {
   userStats          UserStats?
   leaderboardEntries LeaderboardEntry[]
   feedbacks          Feedback[]
+  bodyMetrics        BodyMetrics[]
+  notificationReads  NotificationRead[]
 
   @@map("profiles")
 }
@@ -45,6 +49,7 @@ model Course {
   courseDays         CourseDay[]
   enrollments        Enrollment[]
   leaderboardEntries LeaderboardEntry[]
+  bodyMetrics        BodyMetrics[]
 
   @@map("courses")
 }
@@ -213,7 +218,25 @@ model CommunityMoment {
   @@map("community_moments")
 }
 
-// 12. Feedback
+// 12. Body Metrics (time-series fitness snapshots)
+model BodyMetrics {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  courseId   String?  @map("course_id") @db.Uuid
+  recordedAt DateTime @default(now()) @map("recorded_at") @db.Timestamptz
+  name       String?
+  age        Int?
+  heightCm   Decimal? @map("height_cm") @db.Decimal(5, 1)
+  weightKg   Decimal? @map("weight_kg") @db.Decimal(5, 1)
+  waistIn    Decimal? @map("waist_in") @db.Decimal(5, 1)
+  hipIn      Decimal? @map("hip_in") @db.Decimal(5, 1)
+  user       Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course     Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
+
+  @@map("body_metrics")
+}
+
+// 13. Feedback
 model Feedback {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId     String   @map("user_id") @db.Uuid
@@ -225,4 +248,42 @@ model Feedback {
   user       Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("feedback")
+}
+
+// 14. App Notifications (sent by admin via panel)
+model AppNotification {
+  id          String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String
+  body        String
+  type        String             @default("announcement") // announcement | daily_reminder | streak_reminder | custom
+  targetType  String             @default("all") @map("target_type") // all | segment
+  segmentRule Json?              @map("segment_rule") // { type: "missed_days", value: 2 }
+  redirectUrl String?            @map("redirect_url")
+  sentAt      DateTime           @default(now()) @map("sent_at") @db.Timestamptz
+  sentCount   Int                @default(0) @map("sent_count")
+  reads       NotificationRead[]
+
+  @@map("app_notifications")
+}
+
+// 15. Per-user notification read receipts
+model NotificationRead {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String          @map("user_id") @db.Uuid
+  notificationId String          @map("notification_id") @db.Uuid
+  readAt         DateTime?       @map("read_at") @db.Timestamptz
+  user           Profile         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notification   AppNotification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, notificationId])
+  @@map("notification_reads")
+}
+
+// 16. Help & Support content (singleton row managed via admin panel)
+model HelpContent {
+  id        String   @id @default("singleton")
+  content   String   @default("")
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  @@map("help_content")
 }

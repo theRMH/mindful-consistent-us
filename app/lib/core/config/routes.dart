@@ -19,6 +19,13 @@ import '../../presentation/screens/my_courses/day_list_screen.dart';
 import '../../presentation/screens/my_courses/programs_completed_screen.dart';
 import '../../presentation/screens/my_courses/programs_screen.dart';
 import '../../presentation/screens/profile/profile_screen.dart';
+import '../../presentation/screens/profile/body_metrics_form_screen.dart';
+import '../../presentation/screens/profile/body_metrics_history_screen.dart';
+import '../../presentation/screens/profile/community_leaderboard_screen.dart';
+import '../../presentation/screens/profile/notification_preferences_screen.dart';
+import '../../presentation/screens/profile/notification_center_screen.dart';
+import '../../presentation/screens/profile/help_support_screen.dart';
+import '../../presentation/screens/profile/subscription_screen.dart';
 import '../../presentation/screens/cart/cart_screen.dart';
 import '../../presentation/screens/cart/thank_you_screen.dart';
 
@@ -116,7 +123,10 @@ class AppRouter {
       // 5. Course Completion Success Celebration Screen
       GoRoute(
         path: '/course_completed',
-        builder: (context, state) => const ProgramsCompletedScreen(),
+        builder: (context, state) {
+          final courseId = state.uri.queryParameters['courseId'];
+          return ProgramsCompletedScreen(courseId: courseId);
+        },
       ),
 
       GoRoute(
@@ -181,6 +191,59 @@ class AppRouter {
       GoRoute(
         path: '/free-videos',
         builder: (context, state) => const FreeVideosScreen(),
+      ),
+
+      // 11. Body Metrics Form
+      GoRoute(
+        path: '/body-metrics',
+        builder: (context, state) {
+          final isSkippable =
+              state.uri.queryParameters['skip'] != 'false';
+          final courseId = state.uri.queryParameters['courseId'];
+          final redirect =
+              state.uri.queryParameters['redirect'] ?? '/home';
+          return BodyMetricsFormScreen(
+            isSkippable: isSkippable,
+            courseId: courseId,
+            redirectPath: redirect,
+          );
+        },
+      ),
+
+      // 12. Body Metrics History (Personal Details)
+      GoRoute(
+        path: '/body-metrics-history',
+        builder: (context, state) => const BodyMetricsHistoryScreen(),
+      ),
+
+      // 13. Community Leaderboard
+      GoRoute(
+        path: '/community-leaderboard',
+        builder: (context, state) => const CommunityLeaderboardScreen(),
+      ),
+
+      // 14. Notification Preferences
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationPreferencesScreen(),
+      ),
+
+      // 15. Subscription & Plans
+      GoRoute(
+        path: '/subscriptions',
+        builder: (context, state) => const SubscriptionScreen(),
+      ),
+
+      // 16. Notification Centre (inbox of all received notifications)
+      GoRoute(
+        path: '/notification-center',
+        builder: (context, state) => const NotificationCenterScreen(),
+      ),
+
+      // 17. Help & Support (content managed via admin panel)
+      GoRoute(
+        path: '/help',
+        builder: (context, state) => const HelpSupportScreen(),
       ),
     ],
   );

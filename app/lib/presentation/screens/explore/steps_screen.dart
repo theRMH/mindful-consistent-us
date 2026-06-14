@@ -1,11 +1,13 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:pedometer/pedometer.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/config/theme.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/progress_provider.dart';
 
 class StepsScreen extends ConsumerStatefulWidget {
   const StepsScreen({super.key});
@@ -15,6 +17,106 @@ class StepsScreen extends ConsumerStatefulWidget {
 }
 
 class _StepsScreenState extends ConsumerState<StepsScreen> {
+  StreamSubscription<StepCount>? _stepSub;
+  StreamSubscription<PedestrianStatus>? _statusSub;
+
+  int _todaySteps = 0;
+  String _status = 'stopped';
+  String? _error;
+
+  // Persisted per-day history: list of {dateStr, steps, minutes}
+  List<Map<String, dynamic>> _history = [];
+
+  static const _prefBaseline = 'step_baseline';
+  static const _prefBaselineDate = 'step_baseline_date';
+  static const _prefHistory = 'step_history';
+
+  @override
+  void initState() {
+    super.initState();
+    _initPedometer();
+  }
+
+  String _todayStr() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _initPedometer() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedHistory = prefs.getStringList(_prefHistory) ?? [];
+    _history = savedHistory.map((s) {
+      final parts = s.split('|');
+      return {
+        'dateStr': parts[0],
+        'steps': int.tryParse(parts.elementAtOrNull(1) ?? '0') ?? 0,
+        'minutes': int.tryParse(parts.elementAtOrNull(2) ?? '0') ?? 0,
+      };
+    }).toList();
+
+    _statusSub = Pedometer.pedestrianStatusStream.listen(
+      (PedestrianStatus event) {
+        if (mounted) setState(() => _status = event.status);
+      },
+      onError: (_) {},
+    );
+
+    _stepSub = Pedometer.stepCountStream.listen(
+      (StepCount event) async {
+        final prefs = await SharedPreferences.getInstance();
+        final today = _todayStr();
+        final savedDate = prefs.getString(_prefBaselineDate);
+
+        if (savedDate != today) {
+          // New day — save today's steps to history before resetting baseline
+          if (savedDate != null && _todaySteps > 0) {
+            _saveToHistory(savedDate, _todaySteps);
+          }
+          await prefs.setString(_prefBaselineDate, today);
+          await prefs.setInt(_prefBaseline, event.steps);
+        }
+
+        final baseline = prefs.getInt(_prefBaseline) ?? event.steps;
+        final newSteps = max(0, event.steps - baseline);
+        if (mounted) setState(() => _todaySteps = newSteps);
+      },
+      onError: (e) {
+        if (mounted) setState(() => _error = e.toString());
+      },
+    );
+  }
+
+  Future<void> _saveToHistory(String dateStr, int steps) async {
+    final prefs = await SharedPreferences.getInstance();
+    final minutes = (steps * 0.0084).toInt();
+    final entry = '$dateStr|$steps|$minutes';
+    final existing = prefs.getStringList(_prefHistory) ?? [];
+    // Keep last 6 days
+    final updated = [entry, ...existing.where((e) => !e.startsWith(dateStr))]
+        .take(6)
+        .toList();
+    await prefs.setStringList(_prefHistory, updated);
+    if (mounted) {
+      setState(() {
+        _history = updated.map((s) {
+          final parts = s.split('|');
+          return {
+            'dateStr': parts[0],
+            'steps': int.tryParse(parts.elementAtOrNull(1) ?? '0') ?? 0,
+            'minutes': int.tryParse(parts.elementAtOrNull(2) ?? '0') ?? 0,
+          };
+        }).toList();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _stepSub?.cancel();
+    _statusSub?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
@@ -22,16 +124,12 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
       return _buildLockedState(context);
     }
 
-    final progressState = ref.watch(progressProvider);
-    final currentSteps = progressState.steps;
     const goalSteps = 10000;
-    final stepsLeft = max(0, goalSteps - currentSteps);
-    final percentage = (currentSteps / goalSteps).clamp(0.0, 1.0);
-
-    final distanceKm = currentSteps * 0.000773;
-    final durationMin = (currentSteps * 0.0084).toInt();
-    final speedKmH = currentSteps > 0 ? 5.3 : 0.0;
-    final calories = (currentSteps * 0.0496).toInt();
+    final stepsLeft = max(0, goalSteps - _todaySteps);
+    final percentage = (_todaySteps / goalSteps).clamp(0.0, 1.0);
+    final distanceKm = _todaySteps * 0.000773;
+    final durationMin = (_todaySteps * 0.0084).toInt();
+    final calories = (_todaySteps * 0.0496).toInt();
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -51,28 +149,6 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
           ),
         ),
         centerTitle: false,
-        actions: [
-          GestureDetector(
-            onTap: () => ref.read(progressProvider.notifier).addSteps(500),
-            child: Container(
-              margin: const EdgeInsets.only(right: AppSpacing.lg),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md, vertical: AppSpacing.xs),
-              decoration: BoxDecoration(
-                color: AppTheme.figmaGreen.withAlpha(20),
-                borderRadius: BorderRadius.circular(AppRadii.pill),
-              ),
-              child: Text(
-                '+500',
-                style: GoogleFonts.inter(
-                  color: AppTheme.figmaGreen,
-                  fontSize: AppFontSizes.bodyMedium,
-                  fontWeight: AppFontWeights.bold,
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
@@ -81,9 +157,37 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(AppRadii.lg),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.orange.shade700, size: 16),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          'Step tracking unavailable on this device. Grant motion permissions in Settings.',
+                          style: GoogleFonts.inter(
+                              fontSize: AppFontSizes.bodySmall,
+                              color: Colors.orange.shade700),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
             // ── 1. Live Pedometer Card ──────────────────────────────
             _buildPedometerCard(
-              currentSteps: currentSteps,
+              currentSteps: _todaySteps,
               stepsLeft: stepsLeft,
               percentage: percentage,
               distanceKm: distanceKm,
@@ -94,12 +198,7 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
             // ── 2. Three Metric Tiles ───────────────────────────────
             Row(
               children: [
-                Expanded(
-                  child: _buildMetricTile(
-                    emoji: '🔥',
-                    value: '$calories',
-                  ),
-                ),
+                Expanded(child: _buildMetricTile(emoji: '🔥', value: '$calories')),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: _buildMetricTile(
@@ -109,12 +208,7 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: _buildMetricTile(
-                    emoji: '👣',
-                    value: '${speedKmH.toStringAsFixed(1)} km/h',
-                  ),
-                ),
+                Expanded(child: _buildMetricTile(emoji: '👣', value: _status == 'walking' ? 'Walking' : 'Stopped')),
               ],
             ),
 
@@ -133,7 +227,7 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
                   ),
                 ),
                 Text(
-                  'View history',
+                  'Last 7 days',
                   style: GoogleFonts.inter(
                     fontSize: AppFontSizes.bodyMedium,
                     fontWeight: AppFontWeights.bold,
@@ -145,36 +239,27 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
 
             const SizedBox(height: AppSpacing.lg),
 
-            // ── 4. History Rows ─────────────────────────────────────
+            // ── 4. Today row ────────────────────────────────────────
             _buildHistoryItem(
-              dayLabel: '12',
-              steps: currentSteps,
+              dayLabel: DateTime.now().day.toString(),
+              steps: _todaySteps,
               minutes: durationMin,
-              maxSteps: 10246,
+              maxSteps: max(10000, _todaySteps),
               isToday: true,
             ),
-            _buildHistoryItem(
-              dayLabel: '11',
-              steps: 10246,
-              minutes: 81,
-              maxSteps: 10246,
-            ),
-            _buildHistoryItem(
-              dayLabel: '10',
-              steps: 7612,
-              minutes: 61,
-              maxSteps: 10246,
-            ),
-            _buildHistoryItem(
-              dayLabel: '9',
-              steps: 9118,
-              minutes: 70,
-              maxSteps: 10246,
-            ),
+
+            // ── 5. Historical rows from SharedPreferences ───────────
+            for (final entry in _history)
+              _buildHistoryItem(
+                dayLabel: (entry['dateStr'] as String).split('-').last.replaceFirst(RegExp('^0'), ''),
+                steps: entry['steps'] as int,
+                minutes: entry['minutes'] as int,
+                maxSteps: max(10000, _todaySteps),
+              ),
 
             const SizedBox(height: AppSpacing.xl),
 
-            // ── 5. Trending Card ────────────────────────────────────
+            // ── 6. Trending Card ────────────────────────────────────
             Container(
               padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.lg, vertical: AppSpacing.md + 2),
@@ -183,11 +268,7 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
                 borderRadius: BorderRadius.circular(AppRadii.xxl),
                 border: Border.all(color: const Color(0xFFF0F0F0)),
                 boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x06000000),
-                    blurRadius: 10,
-                    offset: Offset(0, 4),
-                  ),
+                  BoxShadow(color: Color(0x06000000), blurRadius: 10, offset: Offset(0, 4)),
                 ],
               ),
               child: Row(
@@ -199,9 +280,7 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
                       color: const Color(0xFFFFF8E0),
                       borderRadius: BorderRadius.circular(AppRadii.xl),
                     ),
-                    child: const Center(
-                      child: Text('📈', style: TextStyle(fontSize: 20)),
-                    ),
+                    child: const Center(child: Text('📈', style: TextStyle(fontSize: 20))),
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Text(
@@ -233,8 +312,7 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
         elevation: 0,
         leading: GestureDetector(
           onTap: () => context.go('/unregistered'),
-          child: const Icon(Icons.arrow_back_rounded,
-              color: AppTheme.figmaGreen),
+          child: const Icon(Icons.arrow_back_rounded, color: AppTheme.figmaGreen),
         ),
         title: Text(
           'Steps',
@@ -259,8 +337,7 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
                   color: AppTheme.figmaGreen.withAlpha(18),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.lock_outline_rounded,
-                    color: AppTheme.figmaGreen, size: 40),
+                child: const Icon(Icons.lock_outline_rounded, color: AppTheme.figmaGreen, size: 40),
               ),
               const SizedBox(height: AppSpacing.xl),
               Text(
@@ -335,7 +412,6 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -383,7 +459,6 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
 
           const SizedBox(height: AppSpacing.sm),
 
-          // Big step count
           Text(
             _formatSteps(currentSteps),
             style: GoogleFonts.inter(
@@ -396,7 +471,6 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
 
           const SizedBox(height: AppSpacing.xs),
 
-          // Steps left subtitle
           Text(
             stepsLeft > 0
                 ? '$stepsLeft steps left to reach today\'s goal'
@@ -409,7 +483,6 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
 
           const SizedBox(height: AppSpacing.xl),
 
-          // Daily goal label
           Text(
             'Daily goal',
             style: GoogleFonts.inter(
@@ -420,21 +493,18 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
 
           const SizedBox(height: AppSpacing.sm),
 
-          // Progress bar with floating percentage badge above fill endpoint
           LayoutBuilder(
             builder: (context, constraints) {
               final totalWidth = constraints.maxWidth;
               final fillWidth = (totalWidth * percentage).clamp(0.0, totalWidth);
-              // Badge width ~30, clamp so it doesn't overflow
               const badgeWidth = 30.0;
               final badgeLeft = (fillWidth - badgeWidth / 2).clamp(0.0, totalWidth - badgeWidth);
 
               return SizedBox(
-                height: 36, // space for badge (20) + triangle (4) + bar (10) + gap (2)
+                height: 36,
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    // Progress track + fill
                     Positioned(
                       bottom: 0,
                       left: 0,
@@ -449,8 +519,6 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
                         ),
                       ),
                     ),
-
-                    // Floating badge (rounded rect + downward triangle pointer)
                     Positioned(
                       left: badgeLeft,
                       top: 0,
@@ -459,8 +527,7 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
                         children: [
                           Container(
                             width: badgeWidth,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 3, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(AppRadii.sm),
@@ -475,7 +542,6 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
                               ),
                             ),
                           ),
-                          // Downward triangle pointer
                           CustomPaint(
                             size: const Size(8, 5),
                             painter: _DownTrianglePainter(Colors.white),
@@ -491,7 +557,6 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
 
           const SizedBox(height: AppSpacing.md),
 
-          // Goal 10,000 | distance row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -516,7 +581,7 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
     );
   }
 
-  // ─── Metric Tile (icon + value, no label) ────────────────────────────────
+  // ─── Metric Tile ──────────────────────────────────────────────────────────
 
   Widget _buildMetricTile({
     String? emoji,
@@ -538,9 +603,7 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
             Text(emoji, style: const TextStyle(fontSize: 24))
           else if (icon != null)
             Icon(icon, color: iconColor ?? AppTheme.figmaGreen, size: 24),
-
           const SizedBox(height: AppSpacing.sm),
-
           Text(
             value,
             textAlign: TextAlign.center,
@@ -572,21 +635,32 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Day number
           SizedBox(
-            width: 24,
-            child: Text(
-              dayLabel,
-              style: GoogleFonts.inter(
-                fontSize: AppFontSizes.bodyLarge,
-                fontWeight: AppFontWeights.bold,
-                color: AppTheme.figmaCharcoal,
-              ),
+            width: 32,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  dayLabel,
+                  style: GoogleFonts.inter(
+                    fontSize: AppFontSizes.bodyLarge,
+                    fontWeight: AppFontWeights.bold,
+                    color: AppTheme.figmaCharcoal,
+                  ),
+                ),
+                if (isToday)
+                  Text(
+                    'Today',
+                    style: GoogleFonts.inter(
+                      fontSize: 9,
+                      color: AppTheme.figmaGreen,
+                      fontWeight: AppFontWeights.semiBold,
+                    ),
+                  ),
+              ],
             ),
           ),
           const SizedBox(width: AppSpacing.md),
-
-          // Steps + progress bar
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -613,12 +687,9 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.xs),
-
-                // Progress bar with location pin at end of fill
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    // Track
                     Container(
                       height: 10,
                       decoration: BoxDecoration(
@@ -626,7 +697,6 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
                         borderRadius: BorderRadius.circular(AppRadii.sm),
                       ),
                     ),
-                    // Fill
                     FractionallySizedBox(
                       widthFactor: progress,
                       child: Container(
@@ -637,7 +707,6 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
                         ),
                       ),
                     ),
-                    // Location pin at fill endpoint
                     FractionallySizedBox(
                       widthFactor: progress,
                       child: Align(
@@ -646,9 +715,7 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
                           offset: const Offset(0, -6),
                           child: Icon(
                             Icons.location_on_rounded,
-                            color: goalReached
-                                ? AppTheme.accentGold
-                                : AppTheme.figmaGreen,
+                            color: goalReached ? AppTheme.accentGold : AppTheme.figmaGreen,
                             size: 16,
                           ),
                         ),
@@ -676,7 +743,6 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
   }
 }
 
-// Downward-pointing triangle painter for the progress badge pointer
 class _DownTrianglePainter extends CustomPainter {
   final Color color;
   _DownTrianglePainter(this.color);
