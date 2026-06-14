@@ -17,6 +17,11 @@ final viewingCourseIdProvider = StateProvider<String?>((ref) => null);
 bool _isNetworkPath(String path) =>
     path.startsWith('http://') || path.startsWith('https://');
 
+String _courseCountLabel(List<dynamic> courses, String category) {
+  final n = courses.where((c) => c.category == category).length;
+  return '$n ${n == 1 ? 'Course' : 'Courses'}';
+}
+
 String _categoryLabel(String? category) =>
     category == 'general_exercise' ? 'General Workout' : 'Yoga';
 
@@ -73,7 +78,7 @@ class VideosScreen extends ConsumerWidget {
                       child: _buildCategoryChip(
                         ref,
                         'Yoga',
-                        '3 Courses',
+                        _courseCountLabel(coursesState.activeCourses, 'yoga'),
                         ref.watch(videoCategoryProvider) == 'Yoga',
                         coursesState.activeCourses,
                       ),
@@ -83,7 +88,7 @@ class VideosScreen extends ConsumerWidget {
                       child: _buildCategoryChip(
                         ref,
                         'General Workout',
-                        '2 Courses',
+                        _courseCountLabel(coursesState.activeCourses, 'general_exercise'),
                         ref.watch(videoCategoryProvider) == 'General Workout',
                         coursesState.activeCourses,
                       ),
@@ -1015,10 +1020,14 @@ class VideosScreen extends ConsumerWidget {
     bool isActive,
     List<CourseModel> activeCourses,
   ) {
+    final isYoga = label == 'Yoga';
+    final categorySubtitle = isYoga
+        ? 'Mind • Flexibility • Strength'
+        : 'Strength • Mobility • Cardio';
+
     return GestureDetector(
       onTap: () {
         ref.read(videoCategoryProvider.notifier).state = label;
-        // Find if there's an active course matching this category
         final matches = activeCourses.where(
           (c) => _categoryLabel(c.category) == label,
         );
@@ -1032,42 +1041,61 @@ class VideosScreen extends ConsumerWidget {
           horizontal: AppSpacing.md,
         ),
         decoration: BoxDecoration(
-          color: isActive ? AppTheme.figmaGreen : Colors.white,
-          borderRadius: BorderRadius.circular(AppRadii.xxl),
-          border: Border.all(
-            color: isActive ? AppTheme.figmaGreen : const Color(0xFFE0E0E0),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isActive
+                ? const [Color(0xFF019948), Color(0xFF0A5C2E)]
+                : const [Color(0xFFFFF8EE), Color(0xFFF5ECD8)],
           ),
+          borderRadius: BorderRadius.circular(AppRadii.xxl),
+          border: isActive
+              ? null
+              : Border.all(color: const Color(0xFFD4B88A), width: 1.5),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Row(
           children: [
-            Icon(
-              isActive
-                  ? Icons.self_improvement_rounded
-                  : Icons.fitness_center_rounded,
-              color: isActive ? Colors.white : AppTheme.brown,
-              size: 28,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                color: isActive ? Colors.white : AppTheme.figmaCharcoal,
-                fontWeight: AppFontWeights.bold,
-                fontSize: AppFontSizes.bodyLarge,
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isActive
+                    ? Colors.white.withAlpha(40)
+                    : const Color(0xFFEDD9C0),
+              ),
+              child: Icon(
+                isYoga
+                    ? Icons.self_improvement_rounded
+                    : Icons.directions_run_rounded,
+                color: isActive ? Colors.white : AppTheme.brown,
+                size: 24,
               ),
             ),
-            const SizedBox(height: AppSpacing.xxs),
-            Text(
-              subtext,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.inter(
-                color: isActive
-                    ? Colors.white.withAlpha(178)
-                    : AppTheme.coolGray,
-                fontSize: AppFontSizes.bodySmall,
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: GoogleFonts.inter(
+                      color: isActive ? Colors.white : AppTheme.figmaCharcoal,
+                      fontWeight: AppFontWeights.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    categorySubtitle,
+                    style: GoogleFonts.inter(
+                      color: isActive
+                          ? Colors.white.withAlpha(178)
+                          : AppTheme.brown,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

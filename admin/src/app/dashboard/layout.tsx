@@ -28,7 +28,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600"></div>
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#019948]"></div>
           <p className="text-gray-500 font-medium text-sm">Authenticating Admin Session...</p>
         </div>
       </div>
@@ -96,18 +96,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 text-white flex flex-col flex-shrink-0">
-        <div className="p-5 border-b border-slate-800 flex items-center space-x-3">
+      <aside className="w-64 bg-[#0E3C31] text-white flex flex-col flex-shrink-0">
+        <div className="p-5 border-b border-[#0a2e24] flex items-center space-x-3">
           <Image
             src="/logo.png"
-            alt="Consistent US"
+            alt="ConsistentUs"
             width={36}
             height={36}
             className="object-contain flex-shrink-0"
           />
-          <span className="font-extrabold text-lg tracking-tight">Consistent US</span>
+          <span className="font-extrabold text-lg tracking-tight">ConsistentUs Admin</span>
         </div>
-        
+
         <nav className="flex-1 px-4 py-6 space-y-1">
           {navItems.map((item) => {
             const isActive = pathname === item.path || (item.path !== '/dashboard' && pathname.startsWith(item.path));
@@ -116,9 +116,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 key={item.name}
                 href={item.path}
                 className={`flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-semibold transition-colors ${
-                  isActive 
-                    ? 'bg-emerald-600 text-white' 
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                  isActive
+                    ? 'bg-[#019948] text-white'
+                    : 'text-green-200 hover:bg-[#0a2e24] hover:text-white'
                 }`}
               >
                 {item.icon}
@@ -128,10 +128,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-800">
+        <div className="p-4 border-t border-[#0a2e24]">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-lg text-sm font-bold bg-slate-800 hover:bg-red-600 hover:text-white transition-colors text-slate-300"
+            className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-lg text-sm font-bold bg-[#0a2e24] hover:bg-red-600 hover:text-white transition-colors text-green-200"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -145,10 +145,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-8">
-          <h1 className="text-xl font-bold text-gray-800">Admin Control Center</h1>
+          <h1 className="text-xl font-bold text-gray-800">ConsistentUs Admin</h1>
           <div className="flex items-center space-x-4">
-            <span className="text-sm font-semibold text-gray-600 bg-gray-100 px-3 py-1 rounded-full">System Admin</span>
-            <div className="h-8 w-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-sm">
+            <span className="text-sm font-semibold text-[#0E3C31] bg-green-50 px-3 py-1 rounded-full">System Admin</span>
+            <div className="h-8 w-8 rounded-full bg-[#019948] text-white flex items-center justify-center font-bold text-sm">
               A
             </div>
           </div>
