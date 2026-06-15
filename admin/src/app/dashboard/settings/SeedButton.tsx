@@ -14,8 +14,8 @@ export function SeedButton() {
       if (!res.ok) throw new Error(data.error ?? 'Seed failed');
       setMsg(data.message ?? 'Done');
       setStatus('done');
-    } catch (e: any) {
-      setMsg(e.message);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Unknown error');
       setStatus('error');
     }
   };

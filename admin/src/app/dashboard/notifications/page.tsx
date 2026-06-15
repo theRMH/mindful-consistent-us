@@ -35,11 +35,6 @@ export default function NotificationsPage() {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [courses, setCourses] = useState<Course[]>([]);
 
-  useEffect(() => {
-    fetchHistory();
-    fetchCourses();
-  }, []);
-
   const fetchHistory = async () => {
     setLoadingHistory(true);
     try {
@@ -58,6 +53,9 @@ export default function NotificationsPage() {
       }
     } catch {}
   };
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { fetchHistory(); fetchCourses(); }, []);
 
   const buildSegmentRule = () => {
     if (segmentType === 'all') return null;
@@ -94,8 +92,8 @@ export default function NotificationsPage() {
       setBody('');
       setRedirectUrl('');
       fetchHistory();
-    } catch (err: any) {
-      setSendResult(`❌ Error: ${err.message}`);
+    } catch (err) {
+      setSendResult(`❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
     setSending(false);
   };

@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Prepare update payload for UserStats
-    const updateData: any = {};
+    const updateData: Record<string, number | { increment: number }> = {};
 
     if (streak !== undefined) {
       updateData.currentStreak = parseInt(streak, 10);
@@ -190,7 +190,7 @@ export async function POST(req: NextRequest) {
       completedDays,
       activeCourseId: activeEnrollment?.courseId || null,
     }, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error simulating progress:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

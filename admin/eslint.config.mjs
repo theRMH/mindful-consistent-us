@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Root-level utility scripts (not app code)
+    "seed.js",
+    "run_migrations.js",
   ]),
 ]);
 

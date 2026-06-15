@@ -1,6 +1,8 @@
 import prisma from "@/lib/prisma";
 import Link from "next/link";
 import ResetProgressButton from "./ResetProgressButton";
+import CreateUserButton from "./CreateUserButton";
+import AssignCourseButton from "./AssignCourseButton";
 
 export const dynamic = "force-dynamic";
 
@@ -18,10 +20,17 @@ function currentDemoDay(enrolledAt: Date) {
 export default async function UsersDirectoryPage({
   searchParams,
 }: {
-  searchParams: { q?: string; userId?: string };
+  searchParams: Promise<{ q?: string; userId?: string }>;
 }) {
-  const query = searchParams.q || "";
-  const selectedUserId = searchParams.userId || "";
+  const params = await searchParams;
+  const query = params.q || "";
+  const selectedUserId = params.userId || "";
+
+  const allCourses = await prisma.course.findMany({
+    where: { isPublished: true },
+    select: { id: true, title: true },
+    orderBy: { createdAt: 'asc' },
+  });
 
   // Fetch profiles matching search query (phone or email or name)
   const profiles = await prisma.profile.findMany({
@@ -46,7 +55,6 @@ export default async function UsersDirectoryPage({
   });
 
   let selectedUser = null;
-  let dailyProgresses: any[] = [];
 
   if (selectedUserId) {
     selectedUser = await prisma.profile.findUnique({
@@ -60,34 +68,43 @@ export default async function UsersDirectoryPage({
         },
       },
     });
-
-    if (selectedUser) {
-      dailyProgresses = await prisma.dailyProgress.findMany({
-        where: { userId: selectedUserId },
-        include: {
-          courseDay: {
-            include: {
-              course: true,
-            },
-          },
-        },
-        orderBy: { dayDate: "desc" },
-        take: 30, // Show last 30 entries
-      });
-    }
   }
+
+  const dailyProgresses = selectedUser ? await prisma.dailyProgress.findMany({
+    where: { userId: selectedUserId },
+    include: {
+      courseDay: {
+        include: {
+          course: true,
+        },
+      },
+    },
+    orderBy: { dayDate: "desc" },
+    take: 30,
+  }) : [];
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-extrabold text-gray-900 font-sans">
-          Users Directory
-        </h2>
-        <p className="text-sm text-gray-500 mt-1">
-          Search registered users, track progress stats, and review wellness
-          logs.
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-2xl font-extrabold text-gray-900 font-sans">
+            Users Directory
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Search registered users, track progress stats, and review wellness
+            logs.
+          </p>
+        </div>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <a
+            href="/api/admin/users/export"
+            className="px-4 py-2 border border-gray-200 text-gray-600 hover:bg-gray-50 text-sm font-bold rounded-lg transition-colors"
+          >
+            Export CSV
+          </a>
+          <CreateUserButton />
+        </div>
       </div>
 
       {/* Search Bar */}
@@ -344,6 +361,18 @@ export default async function UsersDirectoryPage({
                 </div>
               </div>
 
+              {/* Assign Program */}
+              <div className="bg-white shadow rounded-lg border border-gray-100 p-4 space-y-3">
+                <h4 className="font-extrabold text-gray-800 text-sm">
+                  Assign Program
+                </h4>
+                <AssignCourseButton
+                  userId={selectedUser.id}
+                  availableCourses={allCourses}
+                  enrolledCourseIds={selectedUser.enrollments.map((e) => e.courseId)}
+                />
+              </div>
+
               {/* Reset Progress */}
               <div className="bg-white shadow rounded-lg border border-gray-100 p-4">
                 <h4 className="font-extrabold text-gray-800 text-sm mb-3">
@@ -367,7 +396,7 @@ export default async function UsersDirectoryPage({
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {selectedUser.enrollments.map((enr: any) => (
+                    {selectedUser.enrollments.map((enr) => (
                       <div
                         key={enr.id}
                         className="p-3 bg-gray-50 rounded-lg border border-gray-100 text-sm"

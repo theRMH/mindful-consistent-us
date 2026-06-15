@@ -49,13 +49,14 @@ export default function FreeVideosPage() {
       const data = await res.json();
       setVideos(data);
       setLoading(false);
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchVideos();
   }, []);
 
@@ -134,8 +135,8 @@ export default function FreeVideosPage() {
 
       setIsModalOpen(false);
       fetchVideos();
-    } catch (err: any) {
-      setError(err.message || 'Error saving video');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error saving video');
     } finally {
       setSubmitLoading(false);
     }
@@ -151,8 +152,8 @@ export default function FreeVideosPage() {
       if (!res.ok) throw new Error('Failed to delete video');
       setVideoToDelete(null);
       fetchVideos();
-    } catch (err: any) {
-      setError(err.message || 'Error deleting video');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error deleting video');
     }
   };
 
@@ -445,7 +446,7 @@ export default function FreeVideosPage() {
               <div>
                 <h3 className="text-lg font-bold text-gray-900">Delete Free Video</h3>
                 <p className="text-sm text-gray-500 mt-2">
-                  Are you sure you want to delete <span className="font-semibold text-gray-800">"{videoToDelete.title}"</span>? This action cannot be undone and will immediately remove the video from guest screens on the mobile app.
+                  Are you sure you want to delete <span className="font-semibold text-gray-800">&quot;{videoToDelete.title}&quot;</span>? This action cannot be undone and will immediately remove the video from guest screens on the mobile app.
                 </p>
               </div>
               <div className="flex justify-center space-x-3 pt-2">

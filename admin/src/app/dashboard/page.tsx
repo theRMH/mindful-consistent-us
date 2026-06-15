@@ -140,7 +140,7 @@ export default async function DashboardOverview() {
                       <span className="text-xs font-bold text-amber-500">★ {feedback.rating}</span>
                     </div>
                   </div>
-                  <p className="text-sm text-gray-500 mt-1 italic">"{feedback.comment || 'No comment provided.'}"</p>
+                  <p className="text-sm text-gray-500 mt-1 italic">&quot;{feedback.comment || 'No comment provided.'}&quot;</p>
                 </div>
               ))}
             </div>

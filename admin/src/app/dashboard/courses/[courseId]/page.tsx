@@ -125,14 +125,16 @@ export default function CourseBuilder({
       setEditCategory(data.category || "yoga");
       setEditPublished(data.isPublished);
       setLoading(false);
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchCourseData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId]);
 
   const handleAddDay = async (e: React.FormEvent) => {
@@ -161,8 +163,8 @@ export default function CourseBuilder({
       setDayTitle("");
       setDayDesc("");
       fetchCourseData();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Request failed');
     } finally {
       setDaySubmitting(false);
     }
@@ -206,8 +208,8 @@ export default function CourseBuilder({
       setYoutubeVideoId("");
       setVideoThumbnail("");
       fetchCourseData();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Request failed');
     } finally {
       setVideoSubmitting(false);
     }
@@ -255,8 +257,8 @@ export default function CourseBuilder({
       if (!res.ok) throw new Error("Failed to update video");
       setEditingVideo(null);
       fetchCourseData();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Request failed');
     } finally {
       setEditVideoSubmitting(false);
     }
@@ -269,8 +271,8 @@ export default function CourseBuilder({
       const res = await fetch(`/api/videos/${videoId}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete video");
       fetchCourseData();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Request failed');
     }
   };
 
@@ -301,8 +303,8 @@ export default function CourseBuilder({
         throw new Error(errData.error || "Failed to update course details");
       }
       fetchCourseData();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Request failed');
     } finally {
       setCourseSubmitting(false);
     }
@@ -330,8 +332,8 @@ export default function CourseBuilder({
       if (!res.ok) throw new Error("Failed to update day");
       setEditingDay(null);
       fetchCourseData();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Request failed');
     } finally {
       setEditDaySubmitting(false);
     }
@@ -345,8 +347,8 @@ export default function CourseBuilder({
       const res = await fetch(`/api/days/${dayId}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete day");
       fetchCourseData();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Request failed');
     }
   };
 
@@ -357,8 +359,8 @@ export default function CourseBuilder({
       });
       if (!res.ok) throw new Error("Failed to delete course");
       router.push("/dashboard/courses");
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Request failed');
       setShowDeleteConfirm(false);
     }
   };
@@ -428,7 +430,7 @@ export default function CourseBuilder({
 
           {course.courseDays.length === 0 ? (
             <div className="p-12 border-2 border-dashed border-gray-200 rounded-lg text-center text-sm text-gray-400">
-              No Days configured yet. Click "Add Day" to structure your program
+              No Days configured yet. Click &quot;Add Day&quot; to structure your program
               curriculum.
             </div>
           ) : (
@@ -473,7 +475,7 @@ export default function CourseBuilder({
                   <div className="p-4 space-y-3">
                     {day.videos.length === 0 ? (
                       <div className="text-center py-6 text-xs text-gray-400 font-medium">
-                        No videos linked for this day. Click "Link Video" to add
+                        No videos linked for this day. Click &quot;Link Video&quot; to add
                         sessions.
                       </div>
                     ) : (
@@ -1139,7 +1141,7 @@ export default function CourseBuilder({
                 <p className="text-sm text-gray-500 mt-2">
                   Are you sure you want to delete{" "}
                   <span className="font-semibold text-gray-800">
-                    "{course.title}"
+                    &quot;{course.title}&quot;
                   </span>
                   ? This will permanently delete the course, all associated
                   days, and all linked videos. This action cannot be undone.
