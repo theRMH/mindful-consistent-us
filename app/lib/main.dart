@@ -23,8 +23,8 @@ void main() async {
   // Timezone init for local notification scheduling
   tz.initializeTimeZones();
   try {
-    final tzName = await FlutterTimezone.getLocalTimezone();
-    tz.setLocalLocation(tz.getLocation(tzName));
+    final tzInfo = await FlutterTimezone.getLocalTimezone();
+    tz.setLocalLocation(tz.getLocation(tzInfo.identifier));
   } catch (_) {}
 
   // Local notifications plugin init
