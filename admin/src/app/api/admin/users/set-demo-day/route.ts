@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
     ]);
 
     // Seed dailyProgress records for completed days
+    let seededDays = 0;
     if (resetProgress) {
       const daysToComplete: number[] =
         Array.isArray(completedDayNumbers) && completedDayNumbers.length > 0
@@ -110,7 +111,9 @@ export async function POST(req: NextRequest) {
         );
 
         if (courseDays.length > 0) {
+          seededDays = courseDays.length;
           await prisma.dailyProgress.createMany({
+            skipDuplicates: true,
             data: courseDays.map((cd) => {
               const dayDate = new Date(demoEnrolledAt);
               dayDate.setUTCDate(dayDate.getUTCDate() + (cd.dayNumber - 1));
@@ -159,6 +162,7 @@ export async function POST(req: NextRequest) {
         dayNumber: parsedDayNumber,
         enrolledAt: demoEnrolledAt.toISOString(),
         resetProgress,
+        seededDays,
       },
       { status: 200 },
     );
