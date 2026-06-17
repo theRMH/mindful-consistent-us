@@ -97,10 +97,17 @@ export async function POST(req: NextRequest) {
           : Array.from({ length: parsedDayNumber - 1 }, (_, i) => i + 1);
 
       if (daysToComplete.length > 0) {
-        const courseDays = await prisma.courseDay.findMany({
-          where: { courseId: enrollment.courseId, dayNumber: { in: daysToComplete } },
-          select: { id: true, dayNumber: true },
-        });
+        // Upsert course days so they exist even if the admin hasn't built them yet
+        const courseDays = await Promise.all(
+          daysToComplete.map((dayNum) =>
+            prisma.courseDay.upsert({
+              where: { courseId_dayNumber: { courseId: enrollment.courseId, dayNumber: dayNum } },
+              create: { courseId: enrollment.courseId, dayNumber: dayNum, title: `Day ${dayNum}` },
+              update: {},
+              select: { id: true, dayNumber: true },
+            }),
+          ),
+        );
 
         if (courseDays.length > 0) {
           await prisma.dailyProgress.createMany({
