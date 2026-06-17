@@ -57,14 +57,19 @@ export async function GET(req: NextRequest) {
     const stepsGoalSetting = await prisma.appSetting.findUnique({ where: { key: 'steps_goal' } });
     const stepsGoal = parseInt(stepsGoalSetting?.value ?? '10000', 10);
 
+    // Use device timezone from header so all date boundaries are in the user's local time
+    const tz = req.headers.get('x-timezone') ?? 'UTC';
+    const localDateStr = (date: Date) =>
+      new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(date);
+
     // Weekly activity: points per day (same formula as leaderboard) from enrollment date
     const now = new Date();
+    const nowDateStr = localDateStr(now);
     const sevenDaysAgo = new Date(now);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-    sevenDaysAgo.setHours(0, 0, 0, 0);
-    const sevenDaysAgoStr = sevenDaysAgo.toISOString().slice(0, 10);
+    const sevenDaysAgoStr = localDateStr(sevenDaysAgo);
     const enrolledAtStr = activeEnrollment
-      ? new Date(activeEnrollment.enrolledAt).toISOString().slice(0, 10)
+      ? localDateStr(new Date(activeEnrollment.enrolledAt))
       : sevenDaysAgoStr;
     const activityFromStr = enrolledAtStr > sevenDaysAgoStr ? enrolledAtStr : sevenDaysAgoStr;
     const activityFrom = new Date(activityFromStr);
@@ -84,23 +89,24 @@ export async function GET(req: NextRequest) {
     const weeklyActivity = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(now);
       d.setDate(d.getDate() - (6 - i));
-      const dayStr = d.toISOString().slice(0, 10);
+      const dayStr = localDateStr(d);
       const records = weeklyProgress.filter(
-        p => new Date(p.dayDate).toISOString().slice(0, 10) === dayStr,
+        p => localDateStr(new Date(p.dayDate)) === dayStr,
       );
       const hasActivity = records.some(p => (p.videosWatched ?? 0) > 0);
       const hasComplete = records.some(p => p.isComplete);
       const hasStepsGoal = records.some(p => (p.stepsCount ?? 0) >= stepsGoal);
       const points = (hasActivity ? 50 : 0) + (hasComplete ? 30 : 0) + (hasStepsGoal ? 25 : 0);
-      return { label: dayAbbr[d.getDay()], val: points };
+      // Day label uses local day-of-week
+      const localDow = new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'narrow' }).format(d);
+      return { label: localDow, val: points };
     });
 
-    // Current day based on enrollment date (not completedDays.length) so missed days don't shift the pointer
+    // Current day: calendar date difference in the user's local timezone
     let currentDayNumber = completedDays.length + 1;
     if (activeEnrollment) {
-      const enrolledAt = new Date(activeEnrollment.enrolledAt);
-      const now = new Date();
-      const daysSince = Math.floor((now.getTime() - enrolledAt.getTime()) / (1000 * 60 * 60 * 24));
+      const enrolledDateStr = localDateStr(new Date(activeEnrollment.enrolledAt));
+      const daysSince = (Date.parse(nowDateStr) - Date.parse(enrolledDateStr)) / (1000 * 60 * 60 * 24);
       const totalDays = activeEnrollment.course?.totalDays ?? 9999;
       currentDayNumber = Math.min(daysSince + 1, totalDays);
     }

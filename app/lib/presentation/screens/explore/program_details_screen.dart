@@ -64,7 +64,7 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
     final totalDays = courseDays.isNotEmpty ? courseDays.length : 30;
     final difficulty = courseDetail?.difficulty ?? 'Beginner';
     final avgDailyMins = courseDetail?.avgDailyMins ?? 30;
-    // Calendar day from enrollment date
+    // Compute using device local time so day boundaries feel natural in the user's timezone.
     final enrolledAt = (enrollment?.enrolledAt ?? DateTime.now()).toLocal();
     final enrolledDate = DateTime(enrolledAt.year, enrolledAt.month, enrolledAt.day);
     final now = DateTime.now();

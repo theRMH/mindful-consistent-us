@@ -8,15 +8,23 @@ class ApiService {
   ApiService._internal();
 
   String? _authToken;
+  String? _timezone;
 
   void setToken(String? token) {
     _authToken = token;
+  }
+
+  void setTimezone(String identifier) {
+    _timezone = identifier;
   }
 
   Map<String, String> _getHeaders() {
     final headers = {'Content-Type': 'application/json'};
     if (_authToken != null) {
       headers['Authorization'] = 'Bearer $_authToken';
+    }
+    if (_timezone != null) {
+      headers['X-Timezone'] = _timezone!;
     }
     return headers;
   }
@@ -111,7 +119,10 @@ class ApiService {
 
   Future<Map<String, dynamic>> getProgress() async {
     final res = await _get('/api/mobile/progress');
-    return res as Map<String, dynamic>;
+    final map = res as Map<String, dynamic>;
+    // ignore: avoid_print
+    print('[DEBUG progress] ${map['_debug']}');
+    return map;
   }
 
   Future<Map<String, dynamic>> completeSession(

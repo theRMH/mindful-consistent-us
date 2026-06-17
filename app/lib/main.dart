@@ -20,11 +20,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Timezone init for local notification scheduling
+  // Timezone init for local notification scheduling and API headers
   tz.initializeTimeZones();
   try {
     final tzInfo = await FlutterTimezone.getLocalTimezone();
     tz.setLocalLocation(tz.getLocation(tzInfo.identifier));
+    ApiService().setTimezone(tzInfo.identifier);
   } catch (_) {}
 
   // Local notifications plugin init

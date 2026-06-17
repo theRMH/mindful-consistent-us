@@ -363,13 +363,13 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
     final courses = isCompleted
         ? coursesState.activeCourses.where((c) {
             final comp = c.id == progressState.activeCourseId
-                ? progressState.completedDays.length
+                ? (progressState.currentDay ?? progressState.completedDays.length)
                 : 0;
             return comp >= c.totalDays || _isCalendarExpired(c, coursesState);
           }).toList()
         : coursesState.activeCourses.where((c) {
             final comp = c.id == progressState.activeCourseId
-                ? progressState.completedDays.length
+                ? (progressState.currentDay ?? progressState.completedDays.length)
                 : 0;
             return comp < c.totalDays && !_isCalendarExpired(c, coursesState);
           }).toList();
@@ -433,9 +433,12 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
       itemBuilder: (context, index) {
         final course = courses[index];
         final int comp = course.id == progressState.activeCourseId
+            ? (progressState.currentDay ?? progressState.completedDays.length)
+            : 0;
+        final int compDone = course.id == progressState.activeCourseId
             ? progressState.completedDays.length
             : 0;
-        final double prog = course.totalDays > 0 ? comp / course.totalDays : 0.0;
+        final double prog = course.totalDays > 0 ? compDone / course.totalDays : 0.0;
         final String imagePath = _thumbnailPath(course);
 
         return _buildActiveCourseCard(
