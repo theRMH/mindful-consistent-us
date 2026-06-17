@@ -64,14 +64,14 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
     final totalDays = courseDays.isNotEmpty ? courseDays.length : 30;
     final difficulty = courseDetail?.difficulty ?? 'Beginner';
     final avgDailyMins = courseDetail?.avgDailyMins ?? 30;
-    // Active day: which day to watch next (same as home screen)
-    final todayDayNumber = (progressState.completedDays.length + 1).clamp(1, totalDays);
-    // Expiry: 30-day calendar window from enrollment date
+    // Calendar day from enrollment date
     final enrolledAt = (enrollment?.enrolledAt ?? DateTime.now()).toLocal();
     final enrolledDate = DateTime(enrolledAt.year, enrolledAt.month, enrolledAt.day);
     final now = DateTime.now();
     final todayDate = DateTime(now.year, now.month, now.day);
     final calendarDayNumber = todayDate.difference(enrolledDate).inDays + 1;
+    // Active day: which day to watch next — use calendar day, not completedDays count
+    final todayDayNumber = calendarDayNumber.clamp(1, totalDays);
     final courseExpired = isEnrolled && calendarDayNumber > totalDays;
 
     return Scaffold(
