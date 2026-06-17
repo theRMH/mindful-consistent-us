@@ -53,15 +53,19 @@ export async function GET(req: NextRequest) {
     });
     const completedVideoIds = videoProgressRecords.map((vp) => vp.videoId);
 
-    // Weekly activity: steps per day for the last 7 days
+    // Weekly activity: steps per day for the last 7 days (from enrollment date at earliest)
     const now = new Date();
     const sevenDaysAgo = new Date(now);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
     sevenDaysAgo.setHours(0, 0, 0, 0);
     const sevenDaysAgoStr = sevenDaysAgo.toISOString().slice(0, 10);
+    const enrolledAtStr = activeEnrollment
+      ? new Date(activeEnrollment.enrolledAt).toISOString().slice(0, 10)
+      : sevenDaysAgoStr;
+    const activityFromStr = enrolledAtStr > sevenDaysAgoStr ? enrolledAtStr : sevenDaysAgoStr;
 
     const weeklySteps = await prisma.dailyStepHistory.findMany({
-      where: { userId: user.id, dateStr: { gte: sevenDaysAgoStr } },
+      where: { userId: user.id, dateStr: { gte: activityFromStr } },
       select: { dateStr: true, steps: true },
     });
 

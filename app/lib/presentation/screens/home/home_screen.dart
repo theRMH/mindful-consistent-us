@@ -943,7 +943,7 @@ class HomeScreen extends ConsumerWidget {
                     children: data.map((d) {
                       final val = d['val'] as int;
                       final label = d['label'] as String;
-                      final heightRatio = (val / maxVal).clamp(0.05, 1.0);
+                      final heightRatio = val > 0 ? (val / maxVal).clamp(0.05, 1.0) : 0.0;
                       final isHighlight = val == maxVal && val > 0;
                       return _buildBar(label, val, heightRatio, isHighlight);
                     }).toList(),
@@ -955,6 +955,15 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildBar(String label, int value, double heightRatio, bool isHighlight) {
+    if (value == 0) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          const SizedBox(height: 6),
+          Text(label, style: GoogleFonts.inter(fontSize: AppFontSizes.bodySmall, color: AppTheme.coolGray, fontWeight: FontWeight.w500)),
+        ],
+      );
+    }
     final String valText =
         value >= 1000 ? '${(value / 1000).toStringAsFixed(1)}K' : '$value';
     final double barH = (heightRatio * 80).clamp(10.0, 80.0);
