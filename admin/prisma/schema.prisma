@@ -26,6 +26,7 @@ model Profile {
   videoProgresses    VideoProgress[]
   dailyProgresses    DailyProgress[]
   userStats          UserStats?
+  dailyStepHistory   DailyStepHistory[]
   leaderboardEntries LeaderboardEntry[]
   feedbacks          Feedback[]
   bodyMetrics        BodyMetrics[]
@@ -42,6 +43,7 @@ model Course {
   description        String?
   thumbnailUrl       String?              @map("thumbnail_url")
   category           String?              // 'yoga' | 'general_exercise'
+  difficulty         String?              @default("Beginner") // 'Beginner' | 'Intermediate' | 'Advanced'
   totalDays          Int                  @map("total_days")
   priceInr           Decimal              @default(0.00) @map("price_inr") @db.Decimal(10, 2)
   isPublished        Boolean              @default(false) @map("is_published")
@@ -185,7 +187,19 @@ model UserStats {
   @@map("user_stats")
 }
 
-// 10. Leaderboard Entries
+// 10. Daily Step History
+model DailyStepHistory {
+  id      String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId  String  @map("user_id") @db.Uuid
+  dateStr String  @map("date_str")
+  steps   Int     @default(0)
+  user    Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dateStr])
+  @@map("daily_step_history")
+}
+
+// 11. Leaderboard Entries
 model LeaderboardEntry {
   id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId        String     @map("user_id") @db.Uuid
@@ -286,4 +300,13 @@ model HelpContent {
   updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz
 
   @@map("help_content")
+}
+
+// 17. Global app settings (key-value store)
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  @@map("app_settings")
 }
