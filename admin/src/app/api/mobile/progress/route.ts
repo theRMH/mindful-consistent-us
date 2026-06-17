@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
         isActive: true,
       },
       orderBy: { enrolledAt: "desc" },
+      include: { course: { select: { totalDays: true } } },
     });
 
     let completedDays: number[] = [];
@@ -74,6 +75,16 @@ export async function GET(req: NextRequest) {
       return { label: dayAbbr[d.getDay()], val: mins };
     });
 
+    // Current day based on enrollment date (not completedDays.length) so missed days don't shift the pointer
+    let currentDayNumber = completedDays.length + 1;
+    if (activeEnrollment) {
+      const enrolledAt = new Date(activeEnrollment.enrolledAt);
+      const now = new Date();
+      const daysSince = Math.floor((now.getTime() - enrolledAt.getTime()) / (1000 * 60 * 60 * 24));
+      const totalDays = activeEnrollment.course?.totalDays ?? 9999;
+      currentDayNumber = Math.min(daysSince + 1, totalDays);
+    }
+
     return NextResponse.json(
       {
         stats: {
@@ -88,6 +99,7 @@ export async function GET(req: NextRequest) {
         completedDays,
         completedVideoIds,
         activeCourseId: activeEnrollment?.courseId || null,
+        currentDayNumber,
         weeklyActivity,
       },
       { status: 200 },

@@ -452,7 +452,7 @@ class HomeScreen extends ConsumerWidget {
     final totalDays = activeCourse?.totalDays ?? 30;
     final progress = totalDays > 0 ? (completedCount / totalDays).clamp(0.0, 1.0) : 0.0;
     final progressPct = (progress * 100).toInt();
-    final currentDay = (completedCount + 1).clamp(1, totalDays);
+    final currentDay = (ps.currentDay ?? completedCount + 1).clamp(1, totalDays);
     final courseTitle = activeCourse?.title ?? 'No Active Course';
 
     return Container(
@@ -518,142 +518,10 @@ class HomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           // Day strip
-          SizedBox(
-            height: 60,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Connecting line (Right half, locked/translucent)
-                Positioned(
-                  left: 15,
-                  right: 15,
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: FractionallySizedBox(
-                      widthFactor: 0.5,
-                      child: Container(
-                        height: 2,
-                        color: Colors.white.withAlpha(76),
-                      ),
-                    ),
-                  ),
-                ),
-                // Connecting line (Left half, completed/bold)
-                Positioned(
-                  left: 15,
-                  right: 15,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: FractionallySizedBox(
-                      widthFactor: 0.5,
-                      child: Container(
-                        height: 4,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-                // Days row
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: List.generate(7, (index) {
-                    final startDay = (currentDay - 3).clamp(1, (totalDays - 6).clamp(1, totalDays));
-                    final dayNum = startDay + index;
-                    if (dayNum > totalDays) return const SizedBox(width: 30, height: 30);
-                    final isCompleted = ps.completedDays.contains(dayNum);
-                    final isCurrentDay = dayNum == currentDay;
-
-                    if (isCurrentDay) {
-                      return Stack(
-                        alignment: Alignment.center,
-                        clipBehavior: Clip.none,
-                        children: [
-                          CustomPaint(
-                            size: const Size(36, 36),
-                            painter: GradientCirclePainter(
-                              colors: const [Color(0xFF038A44), Color(0xFF72B942)],
-                              strokeWidth: 2,
-                            ),
-                            child: Container(
-                              width: 36,
-                              height: 36,
-                              alignment: Alignment.center,
-                              child: Container(
-                                width: 28,
-                                height: 28,
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    '$dayNum',
-                                    style: GoogleFonts.inter(
-                                      color: AppTheme.figmaGreen,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            top: -4,
-                            child: CustomPaint(
-                              size: const Size(8, 6),
-                              painter: TrianglePointerPainter(),
-                            ),
-                          ),
-                        ],
-                      );
-                    }
-
-                    if (isCompleted) {
-                      return Container(
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppTheme.figmaGreen, // solid green background
-                          border: Border.all(
-                            color: AppTheme.lightSage, // solid sage border
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            '$dayNum',
-                            style: GoogleFonts.inter(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-
-                    // Locked (Days 5, 6, 7)
-                    return Container(
-                      width: 30,
-                      height: 30,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Color(0xFF0E3C31), // Dark green background for locked days
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.lock_outline_rounded,
-                          size: 12,
-                          color: Colors.white,
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-              ],
-            ),
+          _DayStrip(
+            completedDays: ps.completedDays,
+            currentDay: currentDay,
+            totalDays: totalDays,
           ),
           const SizedBox(height: AppSpacing.md),
           // Progress bar row
@@ -759,10 +627,8 @@ class HomeScreen extends ConsumerWidget {
           _buildStatDivider(),
           Expanded(
             child: _buildStatItem(
-              icon: ps.completedSessionsToday > 0
-                  ? Icons.check_circle_rounded
-                  : Icons.check_circle_outline_rounded,
-              value: ps.completedSessionsToday > 0 ? '✓' : '0',
+              icon: Icons.check_circle_outline_rounded,
+              value: '${ps.completedSessionsToday}',
               label: 'Sessions',
               bgColor: const Color(0xFFE4F3ED),
               iconColor: const Color(0xFF007A4D),
@@ -1509,6 +1375,204 @@ class HomeScreen extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ─── Scrollable Day Strip ─────────────────────────────────────────────────────
+
+class _DayStrip extends StatefulWidget {
+  final List<int> completedDays;
+  final int currentDay;
+  final int totalDays;
+
+  const _DayStrip({
+    required this.completedDays,
+    required this.currentDay,
+    required this.totalDays,
+  });
+
+  @override
+  State<_DayStrip> createState() => _DayStripState();
+}
+
+class _DayStripState extends State<_DayStrip> {
+  final _scroll = ScrollController();
+  static const double _itemW = 44.0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _centreCurrentDay());
+  }
+
+  @override
+  void didUpdateWidget(_DayStrip old) {
+    super.didUpdateWidget(old);
+    if (old.currentDay != widget.currentDay) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _centreCurrentDay());
+    }
+  }
+
+  void _centreCurrentDay() {
+    if (!_scroll.hasClients) return;
+    final vp = _scroll.position.viewportDimension;
+    final target = (widget.currentDay - 1) * _itemW + _itemW / 2 - vp / 2;
+    _scroll.jumpTo(target.clamp(0.0, _scroll.position.maxScrollExtent));
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 60,
+      child: SingleChildScrollView(
+        controller: _scroll,
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: List.generate(widget.totalDays, (i) => _buildItem(i + 1)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildItem(int dayNum) {
+    final isCompleted = widget.completedDays.contains(dayNum);
+    final isCurrentDay = dayNum == widget.currentDay;
+    final isMissed = !isCompleted && !isCurrentDay && dayNum < widget.currentDay;
+    final isFirst = dayNum == 1;
+    final isLast = dayNum == widget.totalDays;
+
+    Widget circle;
+    if (isCurrentDay) {
+      circle = Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          CustomPaint(
+            size: const Size(36, 36),
+            painter: GradientCirclePainter(
+              colors: const [Color(0xFF038A44), Color(0xFF72B942)],
+              strokeWidth: 2,
+            ),
+            child: Container(
+              width: 36,
+              height: 36,
+              alignment: Alignment.center,
+              child: Container(
+                width: 28,
+                height: 28,
+                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                child: Center(
+                  child: Text(
+                    '$dayNum',
+                    style: GoogleFonts.inter(
+                      color: AppTheme.figmaGreen,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: -4,
+            child: CustomPaint(size: const Size(8, 6), painter: TrianglePointerPainter()),
+          ),
+        ],
+      );
+    } else if (isCompleted) {
+      circle = Container(
+        width: 30,
+        height: 30,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: const Color(0xFFE8F5E9),
+          border: Border.all(color: const Color(0xFF81C784), width: 1.5),
+        ),
+        child: Center(
+          child: Text(
+            '$dayNum',
+            style: GoogleFonts.inter(
+              color: AppTheme.figmaGreen,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      );
+    } else if (isMissed) {
+      circle = Container(
+        width: 30,
+        height: 30,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: const Color(0xFFFFEBEE),
+          border: Border.all(color: const Color(0xFFEF9A9A), width: 1.5),
+        ),
+        child: Center(
+          child: Text(
+            '$dayNum',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFE53935),
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      );
+    } else {
+      circle = Container(
+        width: 30,
+        height: 30,
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          color: Color(0xFF0E3C31),
+        ),
+        child: const Center(
+          child: Icon(Icons.lock_outline_rounded, size: 12, color: Colors.white),
+        ),
+      );
+    }
+
+    return SizedBox(
+      width: _itemW,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Connector lines — centred via Column so they always sit mid-strip
+          Positioned.fill(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        height: 3,
+                        color: isFirst ? Colors.transparent : Colors.white,
+                      ),
+                    ),
+                    Expanded(
+                      child: Container(
+                        height: 3,
+                        color: isLast ? Colors.transparent : Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          circle,
+        ],
+      ),
     );
   }
 }
