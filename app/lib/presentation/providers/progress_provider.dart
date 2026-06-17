@@ -45,6 +45,7 @@ class ProgressState {
   final List<LeaderboardUser> leaderboard;
   final String? activeCourseId;
   final int? currentDay;
+  final int stepsGoalDays;
   final int? userRank;
 
   final List<Map<String, dynamic>> weeklyActivity;
@@ -64,6 +65,7 @@ class ProgressState {
     this.leaderboard = const [],
     this.activeCourseId,
     this.currentDay,
+    this.stepsGoalDays = 0,
     this.userRank,
     this.weeklyActivity = const [
       {'label': 'M', 'val': 0},
@@ -91,6 +93,7 @@ class ProgressState {
     List<LeaderboardUser>? leaderboard,
     String? activeCourseId,
     int? currentDay,
+    int? stepsGoalDays,
     int? userRank,
     List<Map<String, dynamic>>? weeklyActivity,
     int? stepsGoal,
@@ -110,6 +113,7 @@ class ProgressState {
       leaderboard: leaderboard ?? this.leaderboard,
       activeCourseId: activeCourseId ?? this.activeCourseId,
       currentDay: currentDay ?? this.currentDay,
+      stepsGoalDays: stepsGoalDays ?? this.stepsGoalDays,
       userRank: userRank ?? this.userRank,
       weeklyActivity: weeklyActivity ?? this.weeklyActivity,
       stepsGoal: stepsGoal ?? this.stepsGoal,
@@ -209,6 +213,7 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
         leaderboard: leaderboardList,
         activeCourseId: progressData['activeCourseId'] as String?,
         currentDay: (progressData['currentDayNumber'] as num?)?.toInt(),
+        stepsGoalDays: (progressData['stepsGoalDays'] as num?)?.toInt() ?? 0,
         userRank: leaderboardData['userRank'] as int?,
         weeklyActivity: weeklyActivity,
         stepsGoal: (profileData['stepsGoal'] as num?)?.toInt() ?? 10000,

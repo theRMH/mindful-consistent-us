@@ -53,15 +53,16 @@ export async function GET(req: NextRequest) {
     });
     const completedVideoIds = videoProgressRecords.map((vp) => vp.videoId);
 
-    // Weekly activity: mindful minutes per day for the last 7 days
+    // Weekly activity: steps per day for the last 7 days
     const now = new Date();
     const sevenDaysAgo = new Date(now);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
     sevenDaysAgo.setHours(0, 0, 0, 0);
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString().slice(0, 10);
 
-    const weeklyVideos = await prisma.videoProgress.findMany({
-      where: { userId: user.id, isCompleted: true, watchedAt: { gte: sevenDaysAgo } },
-      select: { watchedAt: true, watchDurationSeconds: true },
+    const weeklySteps = await prisma.dailyStepHistory.findMany({
+      where: { userId: user.id, dateStr: { gte: sevenDaysAgoStr } },
+      select: { dateStr: true, steps: true },
     });
 
     const dayAbbr = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -69,10 +70,8 @@ export async function GET(req: NextRequest) {
       const d = new Date(now);
       d.setDate(d.getDate() - (6 - i));
       const dayStr = d.toISOString().slice(0, 10);
-      const mins = weeklyVideos
-        .filter(v => new Date(v.watchedAt).toISOString().slice(0, 10) === dayStr)
-        .reduce((sum, v) => sum + Math.round((v.watchDurationSeconds ?? 0) / 60), 0);
-      return { label: dayAbbr[d.getDay()], val: mins };
+      const steps = weeklySteps.find(s => s.dateStr === dayStr)?.steps ?? 0;
+      return { label: dayAbbr[d.getDay()], val: steps };
     });
 
     // Current day based on enrollment date (not completedDays.length) so missed days don't shift the pointer
@@ -84,6 +83,19 @@ export async function GET(req: NextRequest) {
       const totalDays = activeEnrollment.course?.totalDays ?? 9999;
       currentDayNumber = Math.min(daysSince + 1, totalDays);
     }
+
+    // Steps goal days: count days in active enrollment where user hit the daily step target
+    const stepsGoalSetting = await prisma.appSetting.findUnique({ where: { key: 'steps_goal' } });
+    const stepsGoal = parseInt(stepsGoalSetting?.value ?? '10000', 10);
+    const stepsGoalDays = activeEnrollment
+      ? await prisma.dailyProgress.count({
+          where: {
+            userId: user.id,
+            enrollmentId: activeEnrollment.id,
+            stepsCount: { gte: stepsGoal },
+          },
+        })
+      : 0;
 
     return NextResponse.json(
       {
@@ -100,6 +112,7 @@ export async function GET(req: NextRequest) {
         completedVideoIds,
         activeCourseId: activeEnrollment?.courseId || null,
         currentDayNumber,
+        stepsGoalDays,
         weeklyActivity,
       },
       { status: 200 },

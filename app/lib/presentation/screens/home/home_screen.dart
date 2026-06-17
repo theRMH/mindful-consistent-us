@@ -76,7 +76,7 @@ class HomeScreen extends ConsumerWidget {
               // ── 3. Stats Row ──────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                child: _buildStatsRow(context, progressState, activeCourse),
+                child: _buildStatsRow(context, ref, progressState, activeCourse),
               ),
 
               const SizedBox(height: AppSpacing.xl),
@@ -595,9 +595,12 @@ class HomeScreen extends ConsumerWidget {
 
   // ─── Stats Row ────────────────────────────────────────────────────────────
 
-  Widget _buildStatsRow(BuildContext context, ProgressState ps, CourseModel? activeCourse) {
+  Widget _buildStatsRow(BuildContext context, WidgetRef ref, ProgressState ps, CourseModel? activeCourse) {
+    final liveSteps = ref.watch(todayStepsProvider);
+    final cachedSteps = ref.watch(todayStepsCachedProvider).valueOrNull ?? 0;
+    final todaySteps = liveSteps > 0 ? liveSteps : cachedSteps;
     final goalPct = activeCourse != null && activeCourse.totalDays > 0
-        ? (ps.completedDays.length / activeCourse.totalDays * 100).toInt()
+        ? ((ps.completedDays.length + ps.stepsGoalDays) / (activeCourse.totalDays * 2) * 100).toInt().clamp(0, 100)
         : 0;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
@@ -638,7 +641,7 @@ class HomeScreen extends ConsumerWidget {
           Expanded(
             child: _buildStatItem(
               icon: Icons.local_fire_department_rounded,
-              value: ps.calories.toStringAsFixed(0),
+              value: (todaySteps * 0.04).toStringAsFixed(0),
               label: 'Calories',
               bgColor: const Color(0xFFFFECE5),
               iconColor: const Color(0xFFFF6D00),
