@@ -98,16 +98,19 @@ export async function POST(req: NextRequest) {
           : Array.from({ length: parsedDayNumber - 1 }, (_, i) => i + 1);
 
       if (daysToComplete.length > 0) {
-        // Upsert course days so they exist even if the admin hasn't built them yet
+        // Ensure course days exist (find or create without compound key upsert)
         const courseDays = await Promise.all(
-          daysToComplete.map((dayNum) =>
-            prisma.courseDay.upsert({
-              where: { courseId_dayNumber: { courseId: enrollment.courseId, dayNumber: dayNum } },
-              create: { courseId: enrollment.courseId, dayNumber: dayNum, title: `Day ${dayNum}` },
-              update: {},
+          daysToComplete.map(async (dayNum) => {
+            const existing = await prisma.courseDay.findFirst({
+              where: { courseId: enrollment.courseId, dayNumber: dayNum },
               select: { id: true, dayNumber: true },
-            }),
-          ),
+            });
+            if (existing) return existing;
+            return prisma.courseDay.create({
+              data: { courseId: enrollment.courseId, dayNumber: dayNum, title: `Day ${dayNum}` },
+              select: { id: true, dayNumber: true },
+            });
+          }),
         );
 
         if (courseDays.length > 0) {
