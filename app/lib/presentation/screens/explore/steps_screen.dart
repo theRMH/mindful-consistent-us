@@ -5,9 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pedometer/pedometer.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/config/theme.dart';
+import '../../../core/services/api_service.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/progress_provider.dart';
 
 class StepsScreen extends ConsumerStatefulWidget {
   const StepsScreen({super.key});
@@ -16,11 +19,12 @@ class StepsScreen extends ConsumerStatefulWidget {
   ConsumerState<StepsScreen> createState() => _StepsScreenState();
 }
 
-class _StepsScreenState extends ConsumerState<StepsScreen> {
+class _StepsScreenState extends ConsumerState<StepsScreen> with WidgetsBindingObserver {
   StreamSubscription<StepCount>? _stepSub;
   StreamSubscription<PedestrianStatus>? _statusSub;
 
   int _todaySteps = 0;
+  int _lastSyncedStepMark = 0;
   String _status = 'stopped';
   String? _error;
 
@@ -30,11 +34,20 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
   static const _prefBaseline = 'step_baseline';
   static const _prefBaselineDate = 'step_baseline_date';
   static const _prefHistory = 'step_history';
+  static const _prefRebootOffset = 'step_reboot_offset';
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initPedometer();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _syncToBackend();
+    }
   }
 
   String _todayStr() {
@@ -43,6 +56,21 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
   }
 
   Future<void> _initPedometer() async {
+    final status = await Permission.activityRecognition.request();
+    if (status.isPermanentlyDenied) {
+      if (mounted) {
+        setState(() => _error = 'permanently_denied');
+      }
+      return;
+    }
+    if (!status.isGranted) {
+      if (mounted) {
+        setState(() => _error =
+            'Motion permission denied. Enable it in Settings to track steps.');
+      }
+      return;
+    }
+
     final prefs = await SharedPreferences.getInstance();
     final savedHistory = prefs.getStringList(_prefHistory) ?? [];
     _history = savedHistory.map((s) {
@@ -53,6 +81,8 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
         'minutes': int.tryParse(parts.elementAtOrNull(2) ?? '0') ?? 0,
       };
     }).toList();
+
+    await _restoreHistoryFromBackend();
 
     _statusSub = Pedometer.pedestrianStatusStream.listen(
       (PedestrianStatus event) {
@@ -66,19 +96,41 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
         final prefs = await SharedPreferences.getInstance();
         final today = _todayStr();
         final savedDate = prefs.getString(_prefBaselineDate);
+        int baseline = prefs.getInt(_prefBaseline) ?? event.steps;
+        int rebootOffset = prefs.getInt(_prefRebootOffset) ?? 0;
 
         if (savedDate != today) {
-          // New day — save today's steps to history before resetting baseline
-          if (savedDate != null && _todaySteps > 0) {
-            _saveToHistory(savedDate, _todaySteps);
+          // New day — use hardware delta (not _todaySteps) so steps are
+          // preserved even if the app was closed overnight
+          if (savedDate != null) {
+            final prevDaySteps = max(0, event.steps - baseline);
+            if (prevDaySteps > 0) await _saveToHistory(savedDate, prevDaySteps);
           }
+          baseline = event.steps;
+          rebootOffset = 0;
           await prefs.setString(_prefBaselineDate, today);
-          await prefs.setInt(_prefBaseline, event.steps);
+          await prefs.setInt(_prefBaseline, baseline);
+          await prefs.setInt(_prefRebootOffset, 0);
+        } else if (event.steps < baseline) {
+          // Phone rebooted mid-day — hardware counter reset to 0.
+          // Carry forward steps accumulated before the reboot.
+          rebootOffset += _todaySteps;
+          baseline = event.steps;
+          await prefs.setInt(_prefRebootOffset, rebootOffset);
+          await prefs.setInt(_prefBaseline, baseline);
         }
 
-        final baseline = prefs.getInt(_prefBaseline) ?? event.steps;
-        final newSteps = max(0, event.steps - baseline);
-        if (mounted) setState(() => _todaySteps = newSteps);
+        final newSteps = rebootOffset + max(0, event.steps - baseline).toInt();
+        await prefs.setInt('step_today_count', newSteps);
+        if (mounted) {
+          setState(() => _todaySteps = newSteps);
+          ref.read(todayStepsProvider.notifier).state = newSteps;
+        }
+
+        if (newSteps - _lastSyncedStepMark >= 100) {
+          _lastSyncedStepMark = newSteps;
+          _syncToBackend();
+        }
       },
       onError: (e) {
         if (mounted) setState(() => _error = e.toString());
@@ -108,10 +160,62 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
         }).toList();
       });
     }
+    // Persist to backend so history survives uninstall
+    if (ref.read(authProvider).isAuthenticated) {
+      try { await ApiService().saveDailySteps(dateStr, steps); } catch (_) {}
+    }
+  }
+
+  // Fetch backend history and merge into SharedPreferences (called after login/init).
+  Future<void> _restoreHistoryFromBackend() async {
+    if (!ref.read(authProvider).isAuthenticated) return;
+    try {
+      final remote = await ApiService().getDailyStepHistory();
+      if (remote.isEmpty) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      final local = prefs.getStringList(_prefHistory) ?? [];
+      final localDates = local.map((e) => e.split('|')[0]).toSet();
+
+      // Add any remote days not already in local
+      final merged = List<String>.from(local);
+      for (final r in remote) {
+        final dateStr = r['dateStr'] as String? ?? '';
+        final steps = (r['steps'] as num?)?.toInt() ?? 0;
+        if (!localDates.contains(dateStr) && steps > 0) {
+          final minutes = (steps * 0.0084).toInt();
+          merged.add('$dateStr|$steps|$minutes');
+        }
+      }
+      merged.sort((a, b) => b.split('|')[0].compareTo(a.split('|')[0]));
+      final trimmed = merged.take(6).toList();
+      await prefs.setStringList(_prefHistory, trimmed);
+      if (mounted) {
+        setState(() {
+          _history = trimmed.map((s) {
+            final parts = s.split('|');
+            return {
+              'dateStr': parts[0],
+              'steps': int.tryParse(parts.elementAtOrNull(1) ?? '0') ?? 0,
+              'minutes': int.tryParse(parts.elementAtOrNull(2) ?? '0') ?? 0,
+            };
+          }).toList();
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _syncToBackend() async {
+    if (_todaySteps <= 0) return;
+    final calories = _todaySteps * 0.0496;
+    try {
+      await ApiService().syncSteps(_todaySteps, calories);
+    } catch (_) {}
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _stepSub?.cancel();
     _statusSub?.cancel();
     super.dispose();
@@ -124,7 +228,7 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
       return _buildLockedState(context);
     }
 
-    const goalSteps = 10000;
+    final goalSteps = ref.watch(progressProvider).stepsGoal;
     final stepsLeft = max(0, goalSteps - _todaySteps);
     final percentage = (_todaySteps / goalSteps).clamp(0.0, 1.0);
     final distanceKm = _todaySteps * 0.000773;
@@ -150,8 +254,13 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
         ),
         centerTitle: false,
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
+      body: RefreshIndicator(
+        color: AppTheme.figmaGreen,
+        onRefresh: () async {
+          await _initPedometer();
+        },
+        child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.xxxl),
         child: Column(
@@ -174,12 +283,29 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
                       const SizedBox(width: AppSpacing.sm),
                       Expanded(
                         child: Text(
-                          'Step tracking unavailable on this device. Grant motion permissions in Settings.',
+                          _error == 'permanently_denied'
+                              ? 'Motion permission blocked. Open Settings to enable step tracking.'
+                              : _error!,
                           style: GoogleFonts.inter(
                               fontSize: AppFontSizes.bodySmall,
                               color: Colors.orange.shade700),
                         ),
                       ),
+                      if (_error == 'permanently_denied') ...[
+                        const SizedBox(width: AppSpacing.sm),
+                        GestureDetector(
+                          onTap: () => openAppSettings(),
+                          child: Text(
+                            'Open',
+                            style: GoogleFonts.inter(
+                              fontSize: AppFontSizes.bodySmall,
+                              fontWeight: AppFontWeights.bold,
+                              color: Colors.orange.shade700,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -198,17 +324,18 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
             // ── 2. Three Metric Tiles ───────────────────────────────
             Row(
               children: [
-                Expanded(child: _buildMetricTile(emoji: '🔥', value: '$calories')),
+                Expanded(child: _buildMetricTile(icon: Icons.bolt_rounded, iconColor: const Color(0xFFF5A623), value: '$calories', label: 'kcal')),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: _buildMetricTile(
                     icon: Icons.access_time_rounded,
                     iconColor: AppTheme.figmaGreen,
                     value: '$durationMin min',
+                    label: 'active',
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
-                Expanded(child: _buildMetricTile(emoji: '👣', value: _status == 'walking' ? 'Walking' : 'Stopped')),
+                Expanded(child: _buildMetricTile(emoji: '👣', value: _status == 'walking' ? 'Walking' : 'Stopped', label: 'status')),
               ],
             ),
 
@@ -244,7 +371,7 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
               dayLabel: DateTime.now().day.toString(),
               steps: _todaySteps,
               minutes: durationMin,
-              maxSteps: max(10000, _todaySteps),
+              maxSteps: max(goalSteps, _todaySteps),
               isToday: true,
             ),
 
@@ -254,12 +381,13 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
                 dayLabel: (entry['dateStr'] as String).split('-').last.replaceFirst(RegExp('^0'), ''),
                 steps: entry['steps'] as int,
                 minutes: entry['minutes'] as int,
-                maxSteps: max(10000, _todaySteps),
+                maxSteps: max(goalSteps, entry['steps'] as int),
               ),
 
             const SizedBox(height: AppSpacing.xl),
 
             // ── 6. Trending Card ────────────────────────────────────
+            if (_todaySteps > 0)
             Container(
               padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.lg, vertical: AppSpacing.md + 2),
@@ -295,9 +423,68 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
               ),
             ),
 
+            if (_todaySteps == 0) ...[
+              const SizedBox(height: AppSpacing.lg),
+              _buildNudgeBanner(),
+            ],
+
             const SizedBox(height: AppSpacing.xxxl),
           ],
         ),
+        ),   // SingleChildScrollView
+      ),     // RefreshIndicator
+    );
+  }
+
+  Widget _buildNudgeBanner() {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF2E7D52), Color(0xFF4CAF7A)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(AppRadii.xxl),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.white.withAlpha(40),
+              borderRadius: BorderRadius.circular(AppRadii.xl),
+            ),
+            child: const Center(
+              child: Text('🚶', style: TextStyle(fontSize: 22)),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'No steps yet today',
+                  style: GoogleFonts.inter(
+                    fontSize: AppFontSizes.bodyLarge,
+                    fontWeight: AppFontWeights.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'A short walk goes a long way. Start moving!',
+                  style: GoogleFonts.inter(
+                    fontSize: AppFontSizes.bodySmall,
+                    color: Colors.white.withAlpha(210),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -588,6 +775,7 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
     IconData? icon,
     Color? iconColor,
     required String value,
+    String? label,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -613,6 +801,17 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
               color: AppTheme.figmaCharcoal,
             ),
           ),
+          if (label != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                color: AppTheme.figmaMutedGray,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -628,7 +827,7 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
     bool isToday = false,
   }) {
     final progress = (steps / maxSteps).clamp(0.0, 1.0);
-    final bool goalReached = steps >= 10000;
+    final bool goalReached = steps >= ref.read(progressProvider).stepsGoal;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.lg),
@@ -687,41 +886,14 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.xs),
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: AppTheme.lightGray,
-                        borderRadius: BorderRadius.circular(AppRadii.sm),
-                      ),
-                    ),
-                    FractionallySizedBox(
-                      widthFactor: progress,
-                      child: Container(
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: AppTheme.figmaGreen,
-                          borderRadius: BorderRadius.circular(AppRadii.sm),
-                        ),
-                      ),
-                    ),
-                    FractionallySizedBox(
-                      widthFactor: progress,
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: Transform.translate(
-                          offset: const Offset(0, -6),
-                          child: Icon(
-                            Icons.location_on_rounded,
-                            color: goalReached ? AppTheme.accentGold : AppTheme.figmaGreen,
-                            size: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadii.sm),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 10,
+                    backgroundColor: AppTheme.lightGray,
+                    color: goalReached ? AppTheme.accentGold : AppTheme.figmaGreen,
+                  ),
                 ),
               ],
             ),

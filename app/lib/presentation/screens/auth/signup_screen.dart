@@ -43,11 +43,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
     final success = await ref.read(authProvider.notifier).register(name, email, password);
     if (success && mounted) {
-      if (widget.redirect != null) {
-        context.go(widget.redirect!);
-      } else {
-        context.go('/home');
-      }
+      final dest = widget.redirect ?? '/home';
+      context.go(
+        '/body-metrics?skip=true&redirect=${Uri.encodeComponent(dest)}',
+      );
     } else if (mounted) {
       final errorMsg =
           ref.read(authProvider).errorMessage ?? 'Registration failed';

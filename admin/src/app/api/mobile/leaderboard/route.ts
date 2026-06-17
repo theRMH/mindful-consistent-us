@@ -7,13 +7,17 @@ export async function GET(req: NextRequest) {
     const user = await verifyAuth(req);
     const userId = user?.id ?? null;
 
+    const courseId = req.nextUrl.searchParams.get('courseId') ?? undefined;
+
     // Fetch top entries ordered by score; fetch extra to deduplicate per user
     const rawEntries = await prisma.leaderboardEntry.findMany({
+      where: courseId ? { courseId } : undefined,
       orderBy: { score: 'desc' },
       take: 50,
       include: {
         user: {
           select: {
+            email: true,
             fullName: true,
             avatarUrl: true,
             userStats: { select: { currentStreak: true } },
@@ -33,7 +37,7 @@ export async function GET(req: NextRequest) {
     const top10 = deduped.slice(0, 10).map((e, i) => ({
       rank: i + 1,
       userId: e.userId,
-      name: e.user.fullName ?? 'User',
+      name: e.user.fullName || e.user.email?.split('@')[0] || 'User',
       avatarUrl: e.user.avatarUrl ?? '',
       streak: e.user.userStats?.currentStreak ?? 0,
       score: Number(e.score),
@@ -49,7 +53,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({ entries: top10, userRank }, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching mobile leaderboard:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

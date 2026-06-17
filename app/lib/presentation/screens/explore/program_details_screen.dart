@@ -49,8 +49,8 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
     final coursesState = ref.watch(coursesProvider);
     final progressState = ref.watch(progressProvider);
     final courseAsync = ref.watch(courseDetailProvider(courseId));
-    final List<CourseDayModel> courseDays =
-        courseAsync.whenOrNull(data: (d) => d.days) ?? [];
+    final courseDetail = courseAsync.valueOrNull;
+    final List<CourseDayModel> courseDays = courseDetail?.days ?? [];
     final List<CourseDayModel> visibleDays = courseDays
         .where((day) => day.videos.isNotEmpty)
         .toList();
@@ -61,14 +61,18 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
     final bool isEnrolled = coursesState.enrolledCourseIds.contains(courseId);
     final bool isEnrollLoading = coursesState.isLoading;
     final enrollment = coursesState.enrollmentForCourse(courseId);
-    final enrolledAt = enrollment?.enrolledAt ?? DateTime.now();
-    final enrolledDate = DateTime(
-      enrolledAt.year,
-      enrolledAt.month,
-      enrolledAt.day,
-    );
+    final totalDays = courseDays.isNotEmpty ? courseDays.length : 30;
+    final difficulty = courseDetail?.difficulty ?? 'Beginner';
+    final avgDailyMins = courseDetail?.avgDailyMins ?? 30;
+    // Active day: which day to watch next (same as home screen)
+    final todayDayNumber = (progressState.completedDays.length + 1).clamp(1, totalDays);
+    // Expiry: 30-day calendar window from enrollment date
+    final enrolledAt = (enrollment?.enrolledAt ?? DateTime.now()).toLocal();
+    final enrolledDate = DateTime(enrolledAt.year, enrolledAt.month, enrolledAt.day);
     final now = DateTime.now();
     final todayDate = DateTime(now.year, now.month, now.day);
+    final calendarDayNumber = todayDate.difference(enrolledDate).inDays + 1;
+    final courseExpired = isEnrolled && calendarDayNumber > totalDays;
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundCream,
@@ -226,7 +230,7 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        '30 days',
+                                        '$totalDays days',
                                         style: GoogleFonts.inter(
                                           color: Colors.white,
                                           fontSize: 12,
@@ -252,7 +256,7 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        'Beginner',
+                                        difficulty,
                                         style: GoogleFonts.inter(
                                           color: Colors.white,
                                           fontSize: 12,
@@ -278,7 +282,7 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        '15m /day',
+                                        '${avgDailyMins}m /day',
                                         style: GoogleFonts.inter(
                                           color: Colors.white,
                                           fontSize: 12,
@@ -304,7 +308,9 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Wake up your body and mind with this 21-day mobility routine. Designed to improve your flexibility, reduce morning stiffness, and start your day with renewed energy and focus.',
+                            courseDetail?.description?.isNotEmpty == true
+                                ? courseDetail!.description!
+                                : 'A structured program designed to build strength, improve flexibility, and create a lasting daily practice.',
                             style: GoogleFonts.inter(
                               fontSize: 13,
                               height: 1.45,
@@ -458,11 +464,12 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                               : Column(
                                   children: displayedDays.map((dayModel) {
                                     final int dayNumber = dayModel.dayNumber;
-                                    final unlockDate = enrolledDate.add(
-                                      Duration(days: dayNumber - 1),
-                                    );
+                                    final isDayCompleted = progressState.completedDays.contains(dayNumber);
                                     final isPlayable =
-                                        isEnrolled && todayDate == unlockDate;
+                                        isEnrolled && !courseExpired && dayNumber == todayDayNumber;
+                                    final isMissed = isEnrolled && !courseExpired &&
+                                        !isDayCompleted && dayNumber < calendarDayNumber &&
+                                        dayNumber != todayDayNumber;
                                     final String dayStr = dayNumber
                                         .toString()
                                         .padLeft(2, '0');
@@ -484,9 +491,9 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                                       isGuest: isGuest,
                                       isEnrolled: isEnrolled,
                                       isPlayable: isPlayable,
+                                      isMissed: isMissed,
                                       courseId: courseId,
-                                      isCompleted: progressState.completedDays
-                                          .contains(dayNumber),
+                                      isCompleted: isDayCompleted,
                                       videos: dayVideos,
                                       completedVideoIds: completedVideoIds,
                                       onTap: () {
@@ -556,6 +563,7 @@ class SessionDayTile extends StatefulWidget {
   final bool isGuest;
   final bool isEnrolled;
   final bool isPlayable;
+  final bool isMissed;
   final String courseId;
   final bool isCompleted;
   final List<VideoModel> videos;
@@ -571,6 +579,7 @@ class SessionDayTile extends StatefulWidget {
     required this.isGuest,
     required this.isEnrolled,
     required this.isPlayable,
+    this.isMissed = false,
     required this.courseId,
     required this.isCompleted,
     this.videos = const [],
@@ -585,11 +594,11 @@ class SessionDayTile extends StatefulWidget {
 class _SessionDayTileState extends State<SessionDayTile> {
   bool _isExpanded = false;
 
+  // LEFT icon: tick if done, lock if locked, thumbnail otherwise.
   Widget _buildSessionStatusIcon({
     required String iconPath,
     required bool isCompleted,
-    required bool isEnrolled,
-    required bool isPlayable,
+    required bool isLocked,
   }) {
     if (isCompleted) {
       return Container(
@@ -603,7 +612,7 @@ class _SessionDayTileState extends State<SessionDayTile> {
       );
     }
 
-    if (isEnrolled && isPlayable) {
+    if (isLocked) {
       return Container(
         width: 48,
         height: 48,
@@ -611,27 +620,7 @@ class _SessionDayTileState extends State<SessionDayTile> {
           color: Color(0xFFFFEBEE),
           shape: BoxShape.circle,
         ),
-        child: const Icon(
-          Icons.close_rounded,
-          color: Color(0xFFD32F2F),
-          size: 24,
-        ),
-      );
-    }
-
-    if (isEnrolled && !isPlayable) {
-      return Container(
-        width: 48,
-        height: 48,
-        decoration: const BoxDecoration(
-          color: Color(0xFFF1F3F5),
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(
-          Icons.lock_outline_rounded,
-          color: AppTheme.coolGray,
-          size: 22,
-        ),
+        child: const Icon(Icons.lock_outline_rounded, color: Color(0xFFE57373), size: 22),
       );
     }
 
@@ -670,6 +659,30 @@ class _SessionDayTileState extends State<SessionDayTile> {
     );
   }
 
+  // RIGHT play button: green solid when active, grey outlined otherwise.
+  Widget _buildPlayButton({required bool isActive}) {
+    if (isActive) {
+      return Container(
+        width: 30,
+        height: 30,
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          color: AppTheme.figmaGreen,
+        ),
+        child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18),
+      );
+    }
+    return Container(
+      width: 30,
+      height: 30,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: AppTheme.coolGray, width: 1.0),
+      ),
+      child: const Icon(Icons.play_arrow_rounded, color: AppTheme.coolGray, size: 18),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final List<Map<String, String>> subSessions = [
@@ -681,15 +694,33 @@ class _SessionDayTileState extends State<SessionDayTile> {
     ];
     final useRealVideos = widget.videos.isNotEmpty;
 
+    // Compute header totals from actual rendered sessions
+    final int sessionCount = useRealVideos
+        ? widget.videos.length
+        : subSessions.length;
+    final int totalMins = useRealVideos
+        ? widget.videos.fold<int>(
+            0, (sum, v) => sum + v.durationSeconds ~/ 60)
+        : subSessions.fold<int>(0, (sum, s) {
+            final n = int.tryParse(
+                  s['duration']!.replaceAll(RegExp(r'[^0-9]'), ''),
+                ) ??
+                0;
+            return sum + n;
+          });
+    final headerSubtitle =
+        '$sessionCount ${sessionCount == 1 ? 'Session' : 'Sessions'}';
+    final headerDuration = totalMins > 0 ? '$totalMins Mins' : '';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: widget.isMissed ? const Color(0xFFFFF5F5) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: _isExpanded
-              ? const Color(0xFFE2E8F0)
-              : const Color(0xFFC8D6CE),
+          color: widget.isMissed
+              ? const Color(0xFFFFCDD2)
+              : (_isExpanded ? const Color(0xFFE2E8F0) : const Color(0xFFC8D6CE)),
           width: 1.5,
         ),
         boxShadow: const [
@@ -786,7 +817,7 @@ class _SessionDayTileState extends State<SessionDayTile> {
                             Row(
                               children: [
                                 Text(
-                                  widget.subtitle,
+                                  headerSubtitle,
                                   style: GoogleFonts.inter(
                                     color: _isExpanded
                                         ? Colors.white.withAlpha(204)
@@ -795,25 +826,27 @@ class _SessionDayTileState extends State<SessionDayTile> {
                                     fontSize: 10,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Icon(
-                                  Icons.access_time_outlined,
-                                  size: 11,
-                                  color: _isExpanded
-                                      ? Colors.white.withAlpha(204)
-                                      : AppTheme.coolGray,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  widget.duration,
-                                  style: GoogleFonts.inter(
+                                if (headerDuration.isNotEmpty) ...[
+                                  const SizedBox(width: 8),
+                                  Icon(
+                                    Icons.access_time_outlined,
+                                    size: 11,
                                     color: _isExpanded
                                         ? Colors.white.withAlpha(204)
                                         : AppTheme.coolGray,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 10,
                                   ),
-                                ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    headerDuration,
+                                    style: GoogleFonts.inter(
+                                      color: _isExpanded
+                                          ? Colors.white.withAlpha(204)
+                                          : AppTheme.coolGray,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ],
@@ -859,8 +892,7 @@ class _SessionDayTileState extends State<SessionDayTile> {
                 children: useRealVideos
                     ? List.generate(widget.videos.length, (subIndex) {
                         final video = widget.videos[subIndex];
-                        final isVideoCompleted = widget.completedVideoIds
-                            .contains(video.id);
+                        final isVideoCompleted = widget.completedVideoIds.contains(video.id);
                         final iconPath = video.thumbnailUrl?.isNotEmpty == true
                             ? video.thumbnailUrl!
                             : 'assets/icon_asana.png';
@@ -870,17 +902,11 @@ class _SessionDayTileState extends State<SessionDayTile> {
                               widget.onTap();
                             } else if (!widget.isEnrolled) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Please enroll to view sessions',
-                                  ),
-                                ),
+                                const SnackBar(content: Text('Please enroll to view sessions')),
                               );
                             } else if (!widget.isPlayable) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('This session is locked today'),
-                                ),
+                                const SnackBar(content: Text('This session is locked today')),
                               );
                             } else {
                               context.push(
@@ -902,94 +928,68 @@ class _SessionDayTileState extends State<SessionDayTile> {
                             padding: const EdgeInsets.only(bottom: 20.0),
                             child: Row(
                               children: [
+                                // LEFT: tick if done, lock if locked, thumbnail if active
                                 _buildSessionStatusIcon(
                                   iconPath: iconPath,
                                   isCompleted: isVideoCompleted,
-                                  isEnrolled: widget.isEnrolled,
-                                  isPlayable: widget.isPlayable,
+                                  isLocked: widget.isEnrolled && !widget.isPlayable,
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         video.title,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                         style: GoogleFonts.inter(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.normal,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
                                           color: AppTheme.darkSlate,
                                         ),
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        video.durationSeconds > 0
-                                            ? '${video.durationSeconds ~/ 60} mins'
-                                            : '',
+                                        () {
+                                          final dur = video.durationSeconds > 0
+                                              ? '${video.durationSeconds ~/ 60} mins'
+                                              : '';
+                                          final status = isVideoCompleted
+                                              ? 'Completed'
+                                              : (widget.isPlayable ? 'Up Next' : '');
+                                          if (dur.isEmpty) return status;
+                                          if (status.isEmpty) return dur;
+                                          return '$dur • $status';
+                                        }(),
                                         style: GoogleFonts.inter(
                                           fontSize: 10,
                                           fontWeight: FontWeight.w600,
-                                          color: AppTheme.figmaGreen,
+                                          color: isVideoCompleted
+                                              ? AppTheme.figmaGreen
+                                              : (widget.isPlayable
+                                                  ? const Color(0xFFE67E22)
+                                                  : AppTheme.coolGray),
                                         ),
                                       ),
-                                      if (isVideoCompleted) ...[
-                                        const SizedBox(height: 2),
+                                      if (video.description != null &&
+                                          video.description!.isNotEmpty) ...[
+                                        const SizedBox(height: 1),
                                         Text(
-                                          'Completed',
+                                          video.description!,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                           style: GoogleFonts.inter(
                                             fontSize: 10,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppTheme.figmaGreen,
+                                            color: AppTheme.coolGray,
                                           ),
                                         ),
                                       ],
                                     ],
                                   ),
                                 ),
-                                if (isVideoCompleted)
-                                  Container(
-                                    width: 30,
-                                    height: 30,
-                                    decoration: const BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: AppTheme.figmaGreen,
-                                    ),
-                                    child: const Icon(
-                                      Icons.check_rounded,
-                                      color: Colors.white,
-                                      size: 16,
-                                    ),
-                                  )
-                                else
-                                  Container(
-                                    width: 30,
-                                    height: 30,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: AppTheme.figmaGreen,
-                                        width: 1.0,
-                                      ),
-                                    ),
-                                    padding: const EdgeInsets.all(2.0),
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: AppTheme.figmaGreen,
-                                          width: 1.0,
-                                        ),
-                                      ),
-                                      child: const Center(
-                                        child: Icon(
-                                          Icons.play_arrow_rounded,
-                                          color: AppTheme.figmaGreen,
-                                          size: 14,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                                // RIGHT: always play button; green if active, grey otherwise
+                                _buildPlayButton(isActive: widget.isPlayable && !isVideoCompleted),
                               ],
                             ),
                           ),
@@ -1062,9 +1062,11 @@ class _SessionDayTileState extends State<SessionDayTile> {
                                     children: [
                                       Text(
                                         session['title']!,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                         style: GoogleFonts.inter(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.normal,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
                                           color: AppTheme.darkSlate,
                                         ),
                                       ),
@@ -1077,15 +1079,18 @@ class _SessionDayTileState extends State<SessionDayTile> {
                                           color: AppTheme.figmaGreen,
                                         ),
                                       ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        description,
-                                        style: GoogleFonts.inter(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppTheme.coolGray,
+                                      if (description.isNotEmpty) ...[
+                                        const SizedBox(height: 1),
+                                        Text(
+                                          description,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 10,
+                                            color: AppTheme.coolGray,
+                                          ),
                                         ),
-                                      ),
+                                      ],
                                     ],
                                   ),
                                 ),

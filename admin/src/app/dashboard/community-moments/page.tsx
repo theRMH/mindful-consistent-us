@@ -41,6 +41,11 @@ export default function CommunityMomentsPage() {
     name: '', quote: '', photoUrl: '', avatarUrl: '', streakDays: '0', sortOrder: '0',
   });
   const [error, setError] = useState('');
+  const [editingMoment, setEditingMoment] = useState<Moment | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: '', quote: '', photoUrl: '', avatarUrl: '', streakDays: '0',
+  });
+  const [editSaving, setEditSaving] = useState(false);
 
   const fetchMoments = async () => {
     setLoading(true);
@@ -110,6 +115,33 @@ export default function CommunityMomentsPage() {
       body: JSON.stringify({ isPublished: !m.isPublished }),
     });
     fetchMoments();
+  };
+
+  const openEditMoment = (m: Moment) => {
+    setEditingMoment(m);
+    setEditForm({
+      name: m.name,
+      quote: m.quote,
+      photoUrl: m.photoUrl ?? '',
+      avatarUrl: m.avatarUrl ?? '',
+      streakDays: String(m.streakDays),
+    });
+  };
+
+  const handleEditSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingMoment || editSaving) return;
+    setEditSaving(true);
+    const res = await fetch(`/api/admin/community-moments/${editingMoment.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(editForm),
+    });
+    setEditSaving(false);
+    if (res.ok) {
+      setEditingMoment(null);
+      fetchMoments();
+    }
   };
 
   return (
@@ -251,7 +283,13 @@ export default function CommunityMomentsPage() {
                           {m.isPublished ? 'Published' : 'Hidden'}
                         </button>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <td className="px-6 py-4 whitespace-nowrap text-right space-x-4">
+                        <button
+                          onClick={() => openEditMoment(m)}
+                          className="text-blue-600 hover:text-blue-800 text-sm font-bold"
+                        >
+                          Edit
+                        </button>
                         <button
                           onClick={() => handleDelete(m.id)}
                           className="text-red-500 hover:text-red-700 text-sm font-bold"
@@ -265,6 +303,76 @@ export default function CommunityMomentsPage() {
               </table>
             )}
           </div>
+          {/* Edit Moment Modal */}
+          {editingMoment && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+              <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden border border-gray-100">
+                <div className="p-6 space-y-4">
+                  <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+                    <h3 className="font-bold text-gray-900">Edit Moment</h3>
+                    <button onClick={() => setEditingMoment(null)} className="text-gray-400 hover:text-gray-600 font-bold text-xs">✕ Cancel</button>
+                  </div>
+                  <form onSubmit={handleEditSave} className="space-y-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1">Name *</label>
+                        <input
+                          required
+                          value={editForm.name}
+                          onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1">Streak Days</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={editForm.streakDays}
+                          onChange={e => setEditForm(f => ({ ...f, streakDays: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 mb-1">Quote *</label>
+                      <textarea
+                        required
+                        rows={2}
+                        value={editForm.quote}
+                        onChange={e => setEditForm(f => ({ ...f, quote: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1">Photo URL</label>
+                        <input
+                          value={editForm.photoUrl}
+                          onChange={e => setEditForm(f => ({ ...f, photoUrl: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1">Avatar URL</label>
+                        <input
+                          value={editForm.avatarUrl}
+                          onChange={e => setEditForm(f => ({ ...f, avatarUrl: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end space-x-3 pt-2 border-t border-gray-100">
+                      <button type="button" onClick={() => setEditingMoment(null)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-bold text-gray-700 hover:bg-gray-50">Cancel</button>
+                      <button type="submit" disabled={editSaving} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-lg disabled:opacity-50">
+                        {editSaving ? 'Saving…' : 'Save Changes'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 

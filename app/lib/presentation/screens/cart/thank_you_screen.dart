@@ -4,7 +4,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/config/theme.dart';
 
 class ThankYouScreen extends StatefulWidget {
-  const ThankYouScreen({super.key});
+  final String? courseTitle;
+  final int? amountPaid;
+
+  const ThankYouScreen({super.key, this.courseTitle, this.amountPaid});
 
   @override
   State<ThankYouScreen> createState() => _ThankYouScreenState();
@@ -36,6 +39,9 @@ class _ThankYouScreenState extends State<ThankYouScreen>
 
   @override
   Widget build(BuildContext context) {
+    final title = widget.courseTitle ?? 'Your Program';
+    final amount = widget.amountPaid != null ? '₹${widget.amountPaid}' : '—';
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -52,7 +58,6 @@ class _ThankYouScreenState extends State<ThankYouScreen>
               children: [
                 const Spacer(flex: 2),
 
-                // ── Animated checkmark circle ──────────────────────────────
                 FadeTransition(
                   opacity: _fadeAnim,
                   child: ScaleTransition(
@@ -83,7 +88,6 @@ class _ThankYouScreenState extends State<ThankYouScreen>
 
                 const SizedBox(height: 36),
 
-                // ── Title ──────────────────────────────────────────────────
                 FadeTransition(
                   opacity: _fadeAnim,
                   child: Text(
@@ -102,7 +106,7 @@ class _ThankYouScreenState extends State<ThankYouScreen>
                 FadeTransition(
                   opacity: _fadeAnim,
                   child: Text(
-                    'You\'re all set! Your 30 Days Yoga Course\nhas been added to your active programs.',
+                    'You\'re all set! $title has been added to your active programs.',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.inter(
                       fontSize: 14,
@@ -114,7 +118,6 @@ class _ThankYouScreenState extends State<ThankYouScreen>
 
                 const SizedBox(height: 36),
 
-                // ── Order summary card ─────────────────────────────────────
                 FadeTransition(
                   opacity: _fadeAnim,
                   child: Container(
@@ -134,9 +137,9 @@ class _ThankYouScreenState extends State<ThankYouScreen>
                     ),
                     child: Column(
                       children: [
-                        _orderRow('Course', '30 Days Yoga Course'),
+                        _orderRow('Course', title),
                         const Divider(height: 24, color: AppTheme.lightGray),
-                        _orderRow('Amount Paid', '₹999'),
+                        _orderRow('Amount Paid', amount),
                         const Divider(height: 24, color: AppTheme.lightGray),
                         _orderRow('Payment Method', 'UPI'),
                         const Divider(height: 24, color: AppTheme.lightGray),
@@ -176,7 +179,6 @@ class _ThankYouScreenState extends State<ThankYouScreen>
 
                 const Spacer(flex: 3),
 
-                // ── Go to Programs button ──────────────────────────────────
                 SizedBox(
                   width: double.infinity,
                   height: 56,
@@ -242,12 +244,15 @@ class _ThankYouScreenState extends State<ThankYouScreen>
             fontWeight: FontWeight.w500,
           ),
         ),
-        Text(
-          value,
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.darkSlate,
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.darkSlate,
+            ),
           ),
         ),
       ],

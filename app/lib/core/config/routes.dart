@@ -184,7 +184,13 @@ class AppRouter {
       // 9. Thank You Screen
       GoRoute(
         path: '/thank-you',
-        builder: (context, state) => const ThankYouScreen(),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return ThankYouScreen(
+            courseTitle: extra?['courseTitle'] as String?,
+            amountPaid: extra?['amountPaid'] as int?,
+          );
+        },
       ),
 
       // 10. Free Videos (accessible by registered users, no bottom nav)

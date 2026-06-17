@@ -52,6 +52,28 @@ export async function GET(req: NextRequest) {
     });
     const completedVideoIds = videoProgressRecords.map((vp) => vp.videoId);
 
+    // Weekly activity: mindful minutes per day for the last 7 days
+    const now = new Date();
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    const weeklyVideos = await prisma.videoProgress.findMany({
+      where: { userId: user.id, isCompleted: true, watchedAt: { gte: sevenDaysAgo } },
+      select: { watchedAt: true, watchDurationSeconds: true },
+    });
+
+    const dayAbbr = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    const weeklyActivity = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - (6 - i));
+      const dayStr = d.toISOString().slice(0, 10);
+      const mins = weeklyVideos
+        .filter(v => new Date(v.watchedAt).toISOString().slice(0, 10) === dayStr)
+        .reduce((sum, v) => sum + Math.round((v.watchDurationSeconds ?? 0) / 60), 0);
+      return { label: dayAbbr[d.getDay()], val: mins };
+    });
+
     return NextResponse.json(
       {
         stats: {
@@ -66,10 +88,11 @@ export async function GET(req: NextRequest) {
         completedDays,
         completedVideoIds,
         activeCourseId: activeEnrollment?.courseId || null,
+        weeklyActivity,
       },
       { status: 200 },
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error fetching mobile progress:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },

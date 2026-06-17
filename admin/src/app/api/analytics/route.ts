@@ -175,7 +175,7 @@ export async function GET() {
       activityLast14Days,
       userGrowthLast30,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Analytics error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

@@ -10,6 +10,13 @@ import '../../providers/courses_provider.dart';
 import '../../providers/progress_provider.dart';
 import '../explore/videos_screen.dart';
 
+const List<String> _funnyLeaderNames = [
+  'GrapplingTiger', 'FastestCheetah', 'ZoningZebra',
+  'BlazePhoenix', 'IronCondor', 'SwiftFalcon',
+  'NinjaPanda', 'FierceLynx', 'RoaringLion', 'StealthWolf',
+  'FlashingHawk', 'MightyBison', 'GlidingEagle', 'SprintingHorse', 'FuriousBear',
+];
+
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -37,14 +44,25 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── 1. Header Banner ──────────────────────────────────
-              _buildHeader(context, ref, userName, progressState.currentStreak),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── 1. Header Banner (fixed, does not scroll) ─────────
+            _buildHeader(context, ref, userName, progressState.currentStreak),
 
+            // ── Scrollable body with pull-to-refresh ──────────────
+            Expanded(
+              child: RefreshIndicator(
+                color: AppTheme.figmaGreen,
+                onRefresh: () async {
+                  await ref.read(progressProvider.notifier).refreshFromApi();
+                  ref.invalidate(homeLeaderboardProvider);
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
               const SizedBox(height: AppSpacing.lg),
 
               // ── 2. Active Course Progress Banner ──────────────────
@@ -293,7 +311,7 @@ class HomeScreen extends ConsumerWidget {
               // ── 6. Weekly Activity ────────────────────────────────
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                child: _buildWeeklyActivityCard(context),
+                child: _buildWeeklyActivityCard(context, progressState.weeklyActivity),
               ),
 
               const SizedBox(height: AppSpacing.xl),
@@ -301,15 +319,19 @@ class HomeScreen extends ConsumerWidget {
               // ── 7. Community Leaderboard ──────────────────────────
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                child: _buildLeaderboardCard(context, progressState),
+                child: _buildLeaderboardCard(context, ref, progressState),
               ),
 
               const SizedBox(height: AppSpacing.xxxl),
-            ],
-          ),
-        ),
-      ),
-    );
+                    ],       // inner Column children
+                  ),         // inner Column
+                ),           // SingleChildScrollView
+              ),             // RefreshIndicator
+            ),               // Expanded
+          ],                 // outer Column children
+        ),                   // outer Column
+      ),                     // SafeArea
+    );                       // Scaffold
   }
 
   // ─── Header ───────────────────────────────────────────────────────────────
@@ -321,7 +343,7 @@ class HomeScreen extends ConsumerWidget {
       decoration: const BoxDecoration(
         image: DecorationImage(
           image: AssetImage('assets/home_header_bg.png'),
-          fit: BoxFit.contain,
+          fit: BoxFit.cover,
           alignment: Alignment.center,
         ),
       ),
@@ -737,8 +759,10 @@ class HomeScreen extends ConsumerWidget {
           _buildStatDivider(),
           Expanded(
             child: _buildStatItem(
-              icon: Icons.check_circle_outline_rounded,
-              value: '${ps.completedSessionsToday}',
+              icon: ps.completedSessionsToday > 0
+                  ? Icons.check_circle_rounded
+                  : Icons.check_circle_outline_rounded,
+              value: ps.completedSessionsToday > 0 ? '✓' : '0',
               label: 'Sessions',
               bgColor: const Color(0xFFE4F3ED),
               iconColor: const Color(0xFF007A4D),
@@ -841,6 +865,9 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildStepsTodayCard(BuildContext context, WidgetRef ref, ProgressState ps) {
+    final liveSteps = ref.watch(todayStepsProvider);
+    final cached = ref.watch(todayStepsCachedProvider).valueOrNull ?? 0;
+    final steps = liveSteps > 0 ? liveSteps : cached;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
@@ -852,7 +879,7 @@ class HomeScreen extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.directions_run_rounded,
+              const Icon(Icons.directions_walk_rounded,
                   color: Colors.white, size: 22),
               const SizedBox(width: AppSpacing.sm),
               Text(
@@ -882,7 +909,7 @@ class HomeScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _formatSteps(ps.steps),
+                    _formatSteps(steps),
                     style: GoogleFonts.inter(
                       color: Colors.white,
                       fontSize: 36,
@@ -908,7 +935,7 @@ class HomeScreen extends ConsumerWidget {
                       const Icon(Icons.place_outlined,
                           color: Colors.white, size: 16),
                       Text(
-                        '${(ps.steps * 0.0008).toStringAsFixed(1)} km',
+                        '${(steps * 0.0008).toStringAsFixed(1)} km',
                         style: GoogleFonts.inter(
                           color: Colors.white,
                           fontSize: 20,
@@ -935,7 +962,7 @@ class HomeScreen extends ConsumerWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(AppRadii.sm),
                 child: LinearProgressIndicator(
-                  value: (ps.steps / 10000).clamp(0.0, 1.0),
+                  value: (steps / ref.watch(progressProvider).stepsGoal).clamp(0.0, 1.0),
                   backgroundColor: Colors.white.withAlpha(60),
                   color: Colors.white,
                   minHeight: 7,
@@ -959,16 +986,11 @@ class HomeScreen extends ConsumerWidget {
 
   // ─── Weekly Activity ───────────────────────────────────────────────────────
 
-  Widget _buildWeeklyActivityCard(BuildContext context) {
-    const data = [
-      {'label': 'M', 'val': 3200},
-      {'label': 'T', 'val': 7100},
-      {'label': 'W', 'val': 6000},
-      {'label': 'T', 'val': 9000},
-      {'label': 'F', 'val': 4800},
-      {'label': 'S', 'val': 2600},
-      {'label': 'S', 'val': 2100},
-    ];
+  Widget _buildWeeklyActivityCard(
+      BuildContext context, List<Map<String, dynamic>> data) {
+    final allEmpty = data.every((d) => (d['val'] as int) == 0);
+    final maxVal = data.fold<int>(
+        1, (m, d) => ((d['val'] as int) > m ? d['val'] as int : m));
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -1028,17 +1050,35 @@ class HomeScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.lg),
           SizedBox(
             height: 150,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: data.map((d) {
-                final val = d['val'] as int;
-                final label = d['label'] as String;
-                final heightRatio = (val / 10000).clamp(0.1, 1.0);
-                final isHighlight = val == 9000;
-                return _buildBar(label, val, heightRatio, isHighlight);
-              }).toList(),
-            ),
+            child: allEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.bar_chart_rounded,
+                            size: 36, color: AppTheme.lightGray),
+                        const SizedBox(height: 8),
+                        Text(
+                          'No activity this week',
+                          style: GoogleFonts.inter(
+                            fontSize: AppFontSizes.bodyMedium,
+                            color: AppTheme.coolGray,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: data.map((d) {
+                      final val = d['val'] as int;
+                      final label = d['label'] as String;
+                      final heightRatio = (val / maxVal).clamp(0.05, 1.0);
+                      final isHighlight = val == maxVal && val > 0;
+                      return _buildBar(label, val, heightRatio, isHighlight);
+                    }).toList(),
+                  ),
           ),
         ],
       ),
@@ -1162,8 +1202,16 @@ class HomeScreen extends ConsumerWidget {
 
   // ─── Community Leaderboard ─────────────────────────────────────────────────
 
-  Widget _buildLeaderboardCard(BuildContext context, ProgressState ps) {
-    final leaderboard = ps.leaderboard;
+  String _resolveLeaderName(LeaderboardUser? user, int rankIndex, String authName) {
+    if (user == null) return _funnyLeaderNames[rankIndex % _funnyLeaderNames.length];
+    if (user.name.isNotEmpty) return user.name;
+    if (user.isCurrentUser && authName.isNotEmpty) return authName;
+    return _funnyLeaderNames[rankIndex % _funnyLeaderNames.length];
+  }
+
+  Widget _buildLeaderboardCard(BuildContext context, WidgetRef ref, ProgressState ps) {
+    final liveAsync = ref.watch(homeLeaderboardProvider);
+    final leaderboard = liveAsync.valueOrNull ?? ps.leaderboard;
     final rank1 = leaderboard.isNotEmpty ? leaderboard[0] : null;
     final rank2 = leaderboard.length > 1 ? leaderboard[1] : null;
     final rank3 = leaderboard.length > 2 ? leaderboard[2] : null;
@@ -1172,6 +1220,15 @@ class HomeScreen extends ConsumerWidget {
         : leaderboard.firstWhere((e) => e.isCurrentUser);
     final myRank = currentUser?.rank ?? ps.userRank;
     final myScore = currentUser?.score;
+
+    final authUser = ref.read(authProvider).user;
+    final authName = (authUser?.fullName ?? '').isNotEmpty
+        ? authUser?.fullName ?? ''
+        : (authUser?.email ?? '').split('@')[0];
+
+    final name1 = _resolveLeaderName(rank1, 0, authName);
+    final name2 = _resolveLeaderName(rank2, 1, authName);
+    final name3 = _resolveLeaderName(rank3, 2, authName);
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -1201,7 +1258,7 @@ class HomeScreen extends ConsumerWidget {
               ),
               const Spacer(),
               GestureDetector(
-                onTap: () {},
+                onTap: () => context.push('/community-leaderboard'),
                 child: Row(
                   children: [
                     Text(
@@ -1237,23 +1294,32 @@ class HomeScreen extends ConsumerWidget {
                   children: [
                     _buildLeaderItem(
                       rank: rank2 != null ? '${rank2.rank}' : '-',
-                      name: rank2?.name ?? '',
+                      name: name2,
+                      avatarUrl: rank2?.avatarUrl ?? '',
                       pts: rank2 != null ? '${rank2.score} pts' : '',
+                      streak: rank2?.streak ?? 0,
                       medal: '🥈',
+                      avatarColor: const Color(0xFF78909C),
                       isCenter: false,
                     ),
                     _buildLeaderItem(
                       rank: rank1 != null ? '${rank1.rank}' : '-',
-                      name: rank1?.name ?? '',
+                      name: name1,
+                      avatarUrl: rank1?.avatarUrl ?? '',
                       pts: rank1 != null ? '${rank1.score} pts' : '',
+                      streak: rank1?.streak ?? 0,
                       medal: '🥇',
+                      avatarColor: const Color(0xFFF59E0B),
                       isCenter: true,
                     ),
                     _buildLeaderItem(
                       rank: rank3 != null ? '${rank3.rank}' : '-',
-                      name: rank3?.name ?? '',
+                      name: name3,
+                      avatarUrl: rank3?.avatarUrl ?? '',
                       pts: rank3 != null ? '${rank3.score} pts' : '',
+                      streak: rank3?.streak ?? 0,
                       medal: '🥉',
+                      avatarColor: const Color(0xFF8D6E63),
                       isCenter: false,
                     ),
                   ],
@@ -1262,42 +1328,57 @@ class HomeScreen extends ConsumerWidget {
           // Your rank
           Container(
             padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                horizontal: AppSpacing.lg, vertical: AppSpacing.md),
             decoration: BoxDecoration(
-              color: const Color(0xFFF5FAF5),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF2E7D52), AppTheme.figmaGreen],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
               borderRadius: BorderRadius.circular(AppRadii.xl),
-              border: Border.all(color: const Color(0xFFE8F5EE)),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.figmaGreen.withAlpha(60),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
             child: Row(
               children: [
-                Text(
-                  'Your Rank',
-                  style: GoogleFonts.inter(
-                    fontSize: AppFontSizes.bodySmall,
-                    color: AppTheme.coolGray,
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Your Rank',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        color: Colors.white.withAlpha(180),
+                        fontWeight: AppFontWeights.medium,
+                      ),
+                    ),
+                    Text(
+                      myScore != null ? '$myScore pts' : 'No score yet',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        color: Colors.white.withAlpha(180),
+                      ),
+                    ),
+                  ],
                 ),
                 const Spacer(),
-                Text(
-                  myRank != null ? '$myRank' : '–',
-                  style: GoogleFonts.inter(
-                    fontSize: 22,
-                    fontWeight: AppFontWeights.bold,
-                    color: AppTheme.figmaCharcoal,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
                 Container(
                   width: 1,
-                  height: 28,
-                  color: const Color(0xFFDDDDDD),
+                  height: 32,
+                  color: Colors.white.withAlpha(60),
                 ),
-                const SizedBox(width: AppSpacing.sm),
+                const SizedBox(width: AppSpacing.md),
                 Text(
-                  myScore != null ? '$myScore pts' : 'No score yet',
+                  myRank != null ? '#$myRank' : '–',
                   style: GoogleFonts.inter(
-                    fontSize: 9,
-                    color: AppTheme.coolGray,
+                    fontSize: 26,
+                    fontWeight: AppFontWeights.bold,
+                    color: Colors.white,
                   ),
                 ),
               ],
@@ -1311,9 +1392,12 @@ class HomeScreen extends ConsumerWidget {
   Widget _buildLeaderItem({
     required String rank,
     required String name,
+    required String avatarUrl,
     required String pts,
     required String medal,
     required bool isCenter,
+    required Color avatarColor,
+    required int streak,
   }) {
     final double avatarR = isCenter ? 28 : 22;
     final double podiumH = isCenter ? 36 : (rank == '2' ? 22 : 14);
@@ -1322,25 +1406,41 @@ class HomeScreen extends ConsumerWidget {
         : rank == '2'
             ? const Color(0xFFB0BEC5)
             : const Color(0xFFBF8970);
+    final String displayName = name;
+    final String initial = name.isNotEmpty ? name.substring(0, 1).toUpperCase() : rank;
+
+    Widget avatarChild = Text(
+      initial,
+      style: GoogleFonts.inter(
+        color: avatarColor,
+        fontWeight: AppFontWeights.bold,
+        fontSize: isCenter ? 18 : 14,
+      ),
+    );
 
     return Column(
       children: [
         Text(medal, style: TextStyle(fontSize: isCenter ? 28 : 22)),
         const SizedBox(height: 4),
-        // Avatar with rank badge
         Stack(
           clipBehavior: Clip.none,
           children: [
-            CircleAvatar(
-              radius: avatarR,
-              backgroundColor: AppTheme.figmaGreen.withAlpha(30),
-              child: Text(
-                name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?',
-                style: GoogleFonts.inter(
-                  color: AppTheme.figmaGreen,
-                  fontWeight: AppFontWeights.bold,
-                  fontSize: isCenter ? 18 : 14,
-                ),
+            Container(
+              width: avatarR * 2,
+              height: avatarR * 2,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: avatarColor.withAlpha(35),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(avatarR),
+                child: avatarUrl.isNotEmpty
+                    ? Image.network(
+                        avatarUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Center(child: avatarChild),
+                      )
+                    : Center(child: avatarChild),
               ),
             ),
             Positioned(
@@ -1369,31 +1469,39 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 8),
-        Text(
-          name,
-          style: GoogleFonts.inter(
-            fontSize: AppFontSizes.bodySmall,
-            fontWeight: AppFontWeights.semiBold,
-            color: AppTheme.figmaCharcoal,
+        SizedBox(
+          width: isCenter ? 80 : 64,
+          child: Text(
+            displayName,
+            style: GoogleFonts.inter(
+              fontSize: AppFontSizes.bodySmall,
+              fontWeight: AppFontWeights.semiBold,
+              color: AppTheme.figmaCharcoal,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          textAlign: TextAlign.center,
         ),
         Text(
           pts,
           style: GoogleFonts.inter(
             fontSize: 9,
-            color: AppTheme.coolGray,
+            fontWeight: AppFontWeights.semiBold,
+            color: avatarColor,
           ),
         ),
+        if (streak > 0)
+          Text(
+            '🔥 $streak',
+            style: GoogleFonts.inter(fontSize: 9, color: AppTheme.coolGray),
+          ),
         const SizedBox(height: 6),
-        // Podium block
         Container(
           width: isCenter ? 72 : 56,
           height: podiumH,
           decoration: BoxDecoration(
-            color: isCenter
-                ? AppTheme.figmaGreen.withAlpha(25)
-                : const Color(0xFFF5F5F5),
+            color: avatarColor.withAlpha(isCenter ? 180 : 120),
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(6),
               topRight: Radius.circular(6),

@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
       },
       { status: 200 },
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error setting demo day:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },

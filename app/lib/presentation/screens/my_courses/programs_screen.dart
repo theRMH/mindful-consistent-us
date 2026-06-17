@@ -344,6 +344,17 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
 
   // ─── Active / Completed list (shared layout) ───────────────────────────────
 
+  bool _isCalendarExpired(CourseModel c, CoursesState coursesState) {
+    final enrollment = coursesState.enrollmentForCourse(c.id);
+    if (enrollment == null) return false;
+    final enrolledAt = enrollment.enrolledAt.toLocal();
+    final enrolledDate = DateTime(enrolledAt.year, enrolledAt.month, enrolledAt.day);
+    final now = DateTime.now();
+    final todayDate = DateTime(now.year, now.month, now.day);
+    final todayDayNumber = todayDate.difference(enrolledDate).inDays + 1;
+    return todayDayNumber > c.totalDays;
+  }
+
   Widget _buildActiveOrCompletedList(
     CoursesState coursesState,
     ProgressState progressState, {
@@ -354,16 +365,64 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
             final comp = c.id == progressState.activeCourseId
                 ? progressState.completedDays.length
                 : 0;
-            return comp >= c.totalDays;
+            return comp >= c.totalDays || _isCalendarExpired(c, coursesState);
           }).toList()
-        : coursesState.activeCourses;
+        : coursesState.activeCourses.where((c) {
+            final comp = c.id == progressState.activeCourseId
+                ? progressState.completedDays.length
+                : 0;
+            return comp < c.totalDays && !_isCalendarExpired(c, coursesState);
+          }).toList();
 
     if (courses.isEmpty) {
       return Center(
-        child: Text(
-          isCompleted ? 'No completed programs yet.' : 'No active programs.\nExplore to enroll!',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.inter(color: AppTheme.coolGray, fontSize: 13),
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isCompleted ? Icons.emoji_events_outlined : Icons.school_outlined,
+                size: 52,
+                color: AppTheme.figmaGreen.withAlpha(80),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                isCompleted ? 'No completed programs yet.' : 'No active programs.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  color: AppTheme.figmaCharcoal,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                isCompleted
+                    ? 'Complete a program to see it here.'
+                    : 'Enroll in a program to start your journey.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(color: AppTheme.coolGray, fontSize: 13),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => context.go('/programs?tab=explore'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.figmaGreen,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+                child: Text(
+                  'Browse Programs',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -603,7 +662,6 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
       itemBuilder: (context, index) {
         final course = courses[index];
         final imagePath = _thumbnailPath(course);
-        final categoryLabel = course.category == 'yoga' ? 'Yoga' : 'Workout';
         final price = '₹${course.priceInr.toStringAsFixed(0)}';
 
         return _buildExploreCourseCard(
@@ -611,15 +669,19 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
           title: course.title,
           imagePath: imagePath,
           days: course.totalDays,
-          level: categoryLabel,
-          duration: '${course.totalDays}d course',
+          difficulty: course.difficulty,
+          avgDailyMins: course.avgDailyMins,
           price: price,
           onTap: () => context.push('/program_details', extra: {
             'courseId': course.id,
             'title': course.title,
             'imagePath': imagePath,
           }),
-          onEnroll: () => ref.read(coursesProvider.notifier).enroll(course.id),
+          onEnroll: () => context.push('/program_details', extra: {
+            'courseId': course.id,
+            'title': course.title,
+            'imagePath': imagePath,
+          }),
         );
       },
     );
@@ -630,8 +692,8 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
     required String title,
     required String imagePath,
     required int days,
-    required String level,
-    required String duration,
+    required String difficulty,
+    required int avgDailyMins,
     required String price,
     required VoidCallback onTap,
     VoidCallback? onEnroll,
@@ -646,54 +708,62 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
           border: Border.all(color: const Color(0xFFF0F0F0)),
           boxShadow: const [
             BoxShadow(
-              color: Color(0x08000000),
-              blurRadius: 12,
-              offset: Offset(0, 4),
+              color: Color(0x10000000),
+              blurRadius: 16,
+              offset: Offset(0, 6),
             ),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image: padded + rounded corners + price badge
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.sm),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadii.xl),
-                child: Stack(
-                  children: [
-                    _buildCourseImage(imagePath, height: 185, width: double.infinity),
-                    Positioned(
-                      right: AppSpacing.md,
-                      bottom: AppSpacing.md,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
-                          vertical: AppSpacing.xs,
+            // Image with price badge straddling the bottom edge
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(AppRadii.xl),
+                    child: _buildCourseImage(imagePath, height: 185, width: double.infinity),
+                  ),
+                ),
+                Positioned(
+                  right: AppSpacing.md + AppSpacing.sm,
+                  bottom: -(AppSpacing.lg - 2),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md + 2,
+                      vertical: AppSpacing.sm,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.figmaGreen,
+                      borderRadius: BorderRadius.circular(AppRadii.xl),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x30000000),
+                          blurRadius: 8,
+                          offset: Offset(0, 3),
                         ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.figmaGreen,
-                          borderRadius: BorderRadius.circular(AppRadii.xl),
-                        ),
-                        child: Text(
-                          price,
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontWeight: AppFontWeights.bold,
-                            fontSize: AppFontSizes.bodyLarge,
-                          ),
-                        ),
+                      ],
+                    ),
+                    child: Text(
+                      price,
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontWeight: AppFontWeights.bold,
+                        fontSize: AppFontSizes.bodyLarge,
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
 
-            // Card body
+            // Card body — top padding accommodates the badge overlap
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg, AppSpacing.xs, AppSpacing.lg, AppSpacing.md,
+                AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, AppSpacing.md,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -708,7 +778,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
                   ),
                   const SizedBox(height: AppSpacing.sm),
 
-                  // Stats row — evenly distributed
+                  // Stats row: days | difficulty | Xm/day
                   IntrinsicHeight(
                     child: Row(
                       children: [
@@ -741,7 +811,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
                                   size: 15, color: AppTheme.coolGray),
                               const SizedBox(width: AppSpacing.xs),
                               Text(
-                                level,
+                                difficulty,
                                 style: GoogleFonts.inter(
                                   color: AppTheme.coolGray,
                                   fontSize: AppFontSizes.bodyMedium,
@@ -763,7 +833,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
                                   size: 13, color: AppTheme.coolGray),
                               const SizedBox(width: AppSpacing.xs),
                               Text(
-                                duration,
+                                '${avgDailyMins}m /day',
                                 style: GoogleFonts.inter(
                                   color: AppTheme.coolGray,
                                   fontSize: AppFontSizes.bodyMedium,

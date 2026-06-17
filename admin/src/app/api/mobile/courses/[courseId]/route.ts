@@ -26,8 +26,15 @@ export async function GET(
       return NextResponse.json({ error: 'Course not found' }, { status: 404 });
     }
 
-    return NextResponse.json(course, { status: 200 });
-  } catch (error: any) {
+    const totalSecs = course.courseDays.reduce(
+      (sum, day) => sum + day.videos.reduce((s, v) => s + (v.durationSeconds ?? 0), 0),
+      0,
+    );
+    const totalDays = course.totalDays > 0 ? course.totalDays : 1;
+    const avgDailyMins = Math.max(5, Math.round((totalSecs / totalDays / 60) / 5) * 5);
+
+    return NextResponse.json({ ...course, difficulty: course.difficulty ?? 'Beginner', avgDailyMins }, { status: 200 });
+  } catch (error) {
     console.error('Error fetching mobile course details:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

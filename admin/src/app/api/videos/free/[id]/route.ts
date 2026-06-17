@@ -40,7 +40,7 @@ export async function PATCH(
     });
 
     return NextResponse.json(updated, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error updating free video:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
@@ -58,7 +58,7 @@ export async function DELETE(
     });
 
     return NextResponse.json({ success: true }, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error deleting free video:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

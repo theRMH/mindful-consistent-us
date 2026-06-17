@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json(freeVideos, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching free videos:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(freeVideo, { status: 201 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error creating free video:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

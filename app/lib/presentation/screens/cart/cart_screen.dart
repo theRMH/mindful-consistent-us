@@ -914,7 +914,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
     if (mounted) {
       Navigator.pop(context); // close dialog
-      context.go('/thank-you');
+      context.go('/thank-you', extra: {
+        'courseTitle': _courseData?['title'] as String?,
+        'amountPaid': _totalPayable.toInt(),
+      });
     }
   }
 }

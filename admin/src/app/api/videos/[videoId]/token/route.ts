@@ -58,7 +58,7 @@ export async function GET(
       streamUrl,
       expires,
     }, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error generating streaming token:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

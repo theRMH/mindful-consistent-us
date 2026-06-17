@@ -26,7 +26,7 @@ export async function PATCH(
     });
 
     return NextResponse.json(updated, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error updating video:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
@@ -40,7 +40,7 @@ export async function DELETE(
     const { videoId } = await params;
     await prisma.video.delete({ where: { id: videoId } });
     return NextResponse.json({ success: true }, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error deleting video:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

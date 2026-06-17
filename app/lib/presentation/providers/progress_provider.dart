@@ -46,6 +46,7 @@ class ProgressState {
   final String? activeCourseId;
   final int? userRank;
   final List<Map<String, dynamic>> weeklyActivity;
+  final int stepsGoal;
   final bool isLoading;
   final String? error;
 
@@ -70,6 +71,7 @@ class ProgressState {
       {'label': 'S', 'val': 0},
       {'label': 'S', 'val': 0},
     ],
+    this.stepsGoal = 10000,
     this.isLoading = false,
     this.error,
   });
@@ -87,6 +89,7 @@ class ProgressState {
     String? activeCourseId,
     int? userRank,
     List<Map<String, dynamic>>? weeklyActivity,
+    int? stepsGoal,
     bool? isLoading,
     String? error,
   }) {
@@ -104,6 +107,7 @@ class ProgressState {
       activeCourseId: activeCourseId ?? this.activeCourseId,
       userRank: userRank ?? this.userRank,
       weeklyActivity: weeklyActivity ?? this.weeklyActivity,
+      stepsGoal: stepsGoal ?? this.stepsGoal,
       isLoading: isLoading ?? this.isLoading,
       error: error ?? this.error,
     );
@@ -160,8 +164,14 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
 
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final progressData = await _apiService.getProgress();
-      final leaderboardData = await _apiService.getLeaderboard();
+      final results = await Future.wait([
+        _apiService.getProgress(),
+        _apiService.getLeaderboard(),
+        _apiService.getProfile(),
+      ]);
+      final progressData = results[0];
+      final leaderboardData = results[1];
+      final profileData = results[2];
 
       final stats = progressData['stats'] ?? {};
       final compDays = List<int>.from(progressData['completedDays'] ?? []);
@@ -195,6 +205,7 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
         activeCourseId: progressData['activeCourseId'] as String?,
         userRank: leaderboardData['userRank'] as int?,
         weeklyActivity: weeklyActivity,
+        stepsGoal: (profileData['stepsGoal'] as num?)?.toInt() ?? 10000,
         isLoading: false,
       );
     } catch (e) {
@@ -253,6 +264,7 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
     int dayNumber, {
     String courseId = '',
     String? videoId,
+    int? todaySteps,
   }) async {
     if (AppConfig.useMockData) {
       if (!state.completedDays.contains(dayNumber)) {
@@ -268,7 +280,7 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
     } else {
       state = state.copyWith(isLoading: true);
       try {
-        await _apiService.completeDay(courseId, dayNumber, videoId: videoId);
+        await _apiService.completeDay(courseId, dayNumber, videoId: videoId, todaySteps: todaySteps);
         await refreshFromApi();
       } catch (e) {
         state = state.copyWith(isLoading: false, error: e.toString());
@@ -450,3 +462,24 @@ final progressProvider = StateNotifierProvider<ProgressNotifier, ProgressState>(
     return ProgressNotifier(ref);
   },
 );
+
+// Leaderboard fetched independently so home screen always shows fresh data.
+// Watches authProvider so it re-runs after login (token is set before this fires).
+final homeLeaderboardProvider = FutureProvider<List<LeaderboardUser>>((ref) async {
+  ref.watch(authProvider); // re-run when auth state changes
+  final api = ApiService();
+  final data = await api.getLeaderboard();
+  final entries = data['entries'] as List<dynamic>? ?? [];
+  return entries.map((e) => LeaderboardUser.fromJson(e as Map<String, dynamic>)).toList();
+});
+
+// Live today's step count from the local pedometer (written by StepsScreen).
+// Home screen reads this instead of progressState.steps so both show the same number.
+final todayStepsProvider = StateProvider<int>((ref) => 0);
+
+// Initial value loaded from SharedPreferences so home shows the right number
+// before the user visits the steps page.
+final todayStepsCachedProvider = FutureProvider<int>((ref) async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getInt('step_today_count') ?? 0;
+});

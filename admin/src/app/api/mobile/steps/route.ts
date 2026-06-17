@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ success: true }, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error syncing steps:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

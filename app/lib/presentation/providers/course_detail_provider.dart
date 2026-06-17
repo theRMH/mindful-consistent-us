@@ -4,12 +4,18 @@ import '../../data/models/course_model.dart';
 
 class CourseDetail {
   final String title;
+  final String? description;
   final int totalDays;
+  final String difficulty;
+  final int avgDailyMins;
   final List<CourseDayModel> days;
 
   CourseDetail({
     required this.title,
+    this.description,
     required this.totalDays,
+    this.difficulty = 'Beginner',
+    this.avgDailyMins = 30,
     required this.days,
   });
 
@@ -20,7 +26,10 @@ class CourseDetail {
         [];
     return CourseDetail(
       title: json['title'] as String,
+      description: json['description'] as String?,
       totalDays: json['totalDays'] as int,
+      difficulty: json['difficulty'] as String? ?? 'Beginner',
+      avgDailyMins: (json['avgDailyMins'] as num?)?.toInt() ?? 30,
       days: daysList,
     );
   }

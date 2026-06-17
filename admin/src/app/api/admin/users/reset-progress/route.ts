@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     ]);
 
     return NextResponse.json({ success: true, userId }, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error resetting progress:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },

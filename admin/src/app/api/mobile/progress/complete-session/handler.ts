@@ -10,7 +10,7 @@ export async function handleCompleteSession(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { courseId, dayNumber, videoId } = body;
+    const { courseId, dayNumber, videoId, todaySteps } = body;
 
     if (!courseId || !dayNumber) {
       return NextResponse.json(
@@ -144,6 +144,14 @@ export async function handleCompleteSession(req: NextRequest) {
     const shouldCompleteDay =
       totalDayVideos > 0 && completedVideoCount >= totalDayVideos;
     const newlyCompletedDay = shouldCompleteDay && !wasDayComplete;
+    // Streak is earned by watching the FIRST video of the day (not all videos)
+    const isFirstVideoToday = isNewVideoCompletion && !existingProgress;
+
+    // Update stepsCount with today's steps if provided and higher than stored
+    const existingSteps = existingProgress?.stepsCount ?? 0;
+    const updatedSteps = (typeof todaySteps === 'number' && todaySteps > existingSteps)
+      ? todaySteps
+      : existingSteps;
 
     const progress = await prisma.dailyProgress.upsert({
       where: {
@@ -158,6 +166,7 @@ export async function handleCompleteSession(req: NextRequest) {
         completedAt: newlyCompletedDay ? today : existingProgress?.completedAt,
         dayDate,
         videosWatched: completedVideoCount,
+        stepsCount: updatedSteps,
         ...(isNewVideoCompletion
           ? { totalWatchSeconds: { increment: video.durationSeconds || 0 } }
           : {}),
@@ -170,11 +179,9 @@ export async function handleCompleteSession(req: NextRequest) {
         completedAt: shouldCompleteDay ? today : null,
         dayDate,
         videosWatched: completedVideoCount,
-        totalWatchSeconds: isNewVideoCompletion
-          ? video.durationSeconds || 0
-          : 0,
+        totalWatchSeconds: isNewVideoCompletion ? video.durationSeconds || 0 : 0,
         caloriesBurnt: 0,
-        stepsCount: 0,
+        stepsCount: typeof todaySteps === 'number' ? todaySteps : 0,
       },
     });
 
@@ -185,38 +192,28 @@ export async function handleCompleteSession(req: NextRequest) {
     const currentStreak = userStats?.currentStreak ?? 0;
     let newStreak = currentStreak;
 
-    if (newlyCompletedDay) {
-      const completedTodayElsewhere = await prisma.dailyProgress.findFirst({
+    // Streak increments when the FIRST video of the day is watched
+    if (isFirstVideoToday) {
+      const activityTodayElsewhere = await prisma.dailyProgress.findFirst({
         where: {
           userId: user.id,
-          isComplete: true,
+          videosWatched: { gt: 0 },
           dayDate,
-          NOT: {
-            AND: [
-              { userId: user.id },
-              { enrollmentId: enrollment.id },
-              { courseDayId: courseDay.id },
-            ],
-          },
+          NOT: { AND: [{ enrollmentId: enrollment.id }, { courseDayId: courseDay.id }] },
         },
       });
 
-      if (!completedTodayElsewhere) {
-        const lastCompleted = await prisma.dailyProgress.findFirst({
-          where: {
-            userId: user.id,
-            isComplete: true,
-            dayDate: { lt: dayDate },
-          },
-          orderBy: { dayDate: "desc" },
+      if (!activityTodayElsewhere) {
+        const lastActive = await prisma.dailyProgress.findFirst({
+          where: { userId: user.id, videosWatched: { gt: 0 }, dayDate: { lt: dayDate } },
+          orderBy: { dayDate: 'desc' },
         });
 
-        if (!lastCompleted) {
+        if (!lastActive) {
           newStreak = 1;
         } else {
           const daysDiff = Math.round(
-            (dayDate.getTime() - new Date(lastCompleted.dayDate).getTime()) /
-              (1000 * 60 * 60 * 24),
+            (dayDate.getTime() - new Date(lastActive.dayDate).getTime()) / (1000 * 60 * 60 * 24),
           );
           newStreak = daysDiff === 1 ? currentStreak + 1 : 1;
         }
@@ -229,10 +226,7 @@ export async function handleCompleteSession(req: NextRequest) {
       where: { userId: user.id },
       update: {
         ...(isNewVideoCompletion
-          ? {
-              totalWatchSeconds: { increment: video.durationSeconds || 0 },
-              totalSessions: { increment: 1 },
-            }
+          ? { totalWatchSeconds: { increment: video.durationSeconds || 0 }, totalSessions: { increment: 1 } }
           : {}),
         currentStreak: newStreak,
         longestStreak: newLongest,
@@ -240,24 +234,38 @@ export async function handleCompleteSession(req: NextRequest) {
       },
       create: {
         userId: user.id,
-        totalWatchSeconds: isNewVideoCompletion
-          ? video.durationSeconds || 0
-          : 0,
+        totalWatchSeconds: isNewVideoCompletion ? video.durationSeconds || 0 : 0,
         totalSessions: isNewVideoCompletion ? 1 : 0,
         currentStreak: newStreak,
         longestStreak: newLongest,
       },
     });
 
-    const allCompletedCount = await prisma.dailyProgress.count({
-      where: {
-        userId: user.id,
-        enrollmentId: enrollment.id,
-        isComplete: true,
-      },
-    });
+    // ── New scoring formula ────────────────────────────────────────────────
+    // 50 pts  per day with ≥1 video watched  (streak maintenance)
+    // 30 pts  bonus when ALL videos complete  (optional, small bonus)
+    // 10 pts  × current streak               (streak multiplier)
+    // 25 pts  per day steps goal was reached  (steps bonus)
+    const stepsGoalSetting = await prisma.appSetting.findUnique({ where: { key: 'steps_goal' } });
+    const stepsGoal = parseInt(stepsGoalSetting?.value ?? '10000', 10);
 
-    const newScore = allCompletedCount * 100 + newStreak * 10;
+    const [daysWithActivity, daysAllComplete, stepsGoalDays] = await Promise.all([
+      prisma.dailyProgress.count({
+        where: { userId: user.id, enrollmentId: enrollment.id, videosWatched: { gt: 0 } },
+      }),
+      prisma.dailyProgress.count({
+        where: { userId: user.id, enrollmentId: enrollment.id, isComplete: true },
+      }),
+      prisma.dailyProgress.count({
+        where: { userId: user.id, enrollmentId: enrollment.id, stepsCount: { gte: stepsGoal } },
+      }),
+    ]);
+
+    const newScore =
+      daysWithActivity * 50 +
+      daysAllComplete * 30 +
+      newStreak * 10 +
+      stepsGoalDays * 25;
 
     await prisma.leaderboardEntry.upsert({
       where: {
@@ -268,14 +276,14 @@ export async function handleCompleteSession(req: NextRequest) {
         },
       },
       update: {
-        daysCompleted: allCompletedCount,
+        daysCompleted: daysWithActivity,
         score: newScore,
       },
       create: {
         userId: user.id,
         courseId,
         enrollmentId: enrollment.id,
-        daysCompleted: allCompletedCount,
+        daysCompleted: daysWithActivity,
         score: newScore,
         snapshotDate: dayDate,
       },
@@ -291,7 +299,7 @@ export async function handleCompleteSession(req: NextRequest) {
       },
       { status: 200 },
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error completing session:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },

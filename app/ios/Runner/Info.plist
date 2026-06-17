@@ -66,5 +66,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSMotionUsageDescription</key>
+	<string>We use your motion data to count your daily steps.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>We read your step data from Apple Health to track your daily activity.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>We write your step data to Apple Health.</string>
 </dict>
 </plist>

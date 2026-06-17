@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <!-- Reschedule local notifications after reboot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- Health Connect — read steps -->
+    <uses-permission android:name="android.permission.health.READ_STEPS"/>
     <application
         android:label="ConsistentUs"
         android:name="${applicationName}"
@@ -50,5 +52,7 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Health Connect app -->
+        <package android:name="com.google.android.apps.healthdata"/>
     </queries>
 </manifest>

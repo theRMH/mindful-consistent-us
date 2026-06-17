@@ -14,6 +14,7 @@ export function getFirebaseAdmin(): FirebaseAdminApp | null {
 
   try {
     // Dynamic require so build doesn't fail when firebase-admin isn't installed yet
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const admin = require('firebase-admin');
     if (!admin.apps.length) {
       const serviceAccount = JSON.parse(serviceAccountJson);

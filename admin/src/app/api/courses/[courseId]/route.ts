@@ -27,7 +27,7 @@ export async function GET(
     }
 
     return NextResponse.json(course, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching course details:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
@@ -95,7 +95,7 @@ export async function POST(
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error processing course builder update:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
@@ -126,7 +126,7 @@ export async function PATCH(
     });
 
     return NextResponse.json(updated, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error updating course details:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
@@ -145,7 +145,7 @@ export async function DELETE(
     });
 
     return NextResponse.json({ success: true }, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error deleting course:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

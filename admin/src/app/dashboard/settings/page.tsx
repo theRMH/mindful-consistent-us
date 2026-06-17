@@ -1,5 +1,6 @@
 import { CopyButton } from './CopyButton';
 import { SeedButton } from './SeedButton';
+import { StepsGoalSetting } from './StepsGoalSetting';
 
 const TEST_PHONES = [
   { phone: '+91 9999999999', otp: '123456', note: 'Primary dev number' },
@@ -42,6 +43,12 @@ export default function SettingsPage() {
           Configuration hub for the Flutter client and Supabase integration.
         </p>
       </div>
+
+      {/* ── Game Settings ───────────────────────────────────────────── */}
+      <section>
+        <h3 className="text-lg font-bold text-gray-900 mb-3">Gamification</h3>
+        <StepsGoalSetting />
+      </section>
 
       {/* ── Environment Variables ────────────────────────────────────── */}
       <section className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">

@@ -118,11 +118,13 @@ class ApiService {
     String courseId,
     int dayNumber, {
     required String videoId,
+    int? todaySteps,
   }) async {
     final body = <String, dynamic>{
       'courseId': courseId,
       'dayNumber': dayNumber,
       'videoId': videoId,
+      'todaySteps': todaySteps,
     };
     final res = await _post('/api/mobile/progress/complete-session', body);
     return res as Map<String, dynamic>;
@@ -132,9 +134,10 @@ class ApiService {
     String courseId,
     int dayNumber, {
     String? videoId,
+    int? todaySteps,
   }) async {
     if (videoId != null) {
-      return completeSession(courseId, dayNumber, videoId: videoId);
+      return completeSession(courseId, dayNumber, videoId: videoId, todaySteps: todaySteps);
     }
     final res = await _post('/api/mobile/progress/complete-day', {
       'courseId': courseId,
@@ -165,6 +168,15 @@ class ApiService {
 
   Future<void> syncSteps(int steps, double calories) async {
     await _post('/api/mobile/steps', {'steps': steps, 'calories': calories});
+  }
+
+  Future<void> saveDailySteps(String dateStr, int steps) async {
+    await _post('/api/mobile/steps/history', {'dateStr': dateStr, 'steps': steps});
+  }
+
+  Future<List<Map<String, dynamic>>> getDailyStepHistory() async {
+    final res = await _get('/api/mobile/steps/history');
+    return (res as List<dynamic>).cast<Map<String, dynamic>>();
   }
 
   Future<void> syncProfile({String? fullName, String? avatarUrl}) async {

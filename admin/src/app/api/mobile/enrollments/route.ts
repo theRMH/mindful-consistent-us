@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json(enrollments, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching mobile enrollments:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(enrollment, { status: 201 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error creating mobile enrollment:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

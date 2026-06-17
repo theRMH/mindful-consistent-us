@@ -15,7 +15,7 @@ export async function PATCH(
     });
 
     return NextResponse.json(updated, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error updating course day:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
@@ -31,7 +31,7 @@ export async function DELETE(
     await prisma.courseDay.delete({ where: { id: dayId } });
 
     return NextResponse.json({ success: true }, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error deleting course day:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

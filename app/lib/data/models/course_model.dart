@@ -5,8 +5,10 @@ class CourseModel {
   final String? description;
   final String? thumbnailUrl;
   final String? category; // 'yoga' | 'general_exercise'
+  final String difficulty; // 'Beginner' | 'Intermediate' | 'Advanced'
   final int totalDays;
   final double priceInr;
+  final int avgDailyMins; // average video duration per day, rounded to 5m
 
   const CourseModel({
     required this.id,
@@ -15,8 +17,10 @@ class CourseModel {
     this.description,
     this.thumbnailUrl,
     this.category,
+    this.difficulty = 'Beginner',
     required this.totalDays,
     required this.priceInr,
+    this.avgDailyMins = 30,
   });
 
   factory CourseModel.fromJson(Map<String, dynamic> json) {
@@ -27,8 +31,10 @@ class CourseModel {
       description: json['description'] as String?,
       thumbnailUrl: json['thumbnailUrl'] as String?,
       category: json['category'] as String?,
+      difficulty: json['difficulty'] as String? ?? 'Beginner',
       totalDays: json['totalDays'] as int,
       priceInr: double.parse(json['priceInr']?.toString() ?? '0'),
+      avgDailyMins: json['avgDailyMins'] as int? ?? 30,
     );
   }
 }
@@ -51,7 +57,7 @@ class EnrollmentModel {
       id: json['id'] as String,
       courseId: json['courseId'] as String,
       isActive: json['isActive'] as bool? ?? true,
-      enrolledAt: DateTime.parse(json['enrolledAt'] as String),
+      enrolledAt: DateTime.parse(json['enrolledAt'] as String).toLocal(),
     );
   }
 }

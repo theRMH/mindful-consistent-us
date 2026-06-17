@@ -52,7 +52,7 @@ export async function GET(
     }
 
     return NextResponse.json(courseDay, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching day content:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

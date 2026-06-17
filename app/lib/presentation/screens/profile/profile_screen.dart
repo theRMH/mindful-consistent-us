@@ -4,24 +4,78 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/progress_provider.dart';
 import '../../../core/config/theme.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/services/health_sync_service.dart';
 
 final _profileDataProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
   return ApiService().getProfile();
 });
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  bool _healthConnected = false;
+
+  static const _prefHealthConnected = 'health_connected';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHealthPref();
+  }
+
+  Future<void> _loadHealthPref() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _healthConnected = prefs.getBool(_prefHealthConnected) ?? false;
+      });
+    }
+  }
+
+  Future<void> _toggleHealthConnect(bool value) async {
+    if (value) {
+      final granted = await HealthSyncService().requestAuthorization();
+      if (granted == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Health Connect is not available on this device. Install it from Play Store to sync steps.'),
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+        return;
+      }
+      if (!granted) {
+        await openAppSettings();
+        return;
+      }
+      await HealthSyncService().syncTodaySteps();
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_prefHealthConnected, value);
+    if (mounted) setState(() => _healthConnected = value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final profileAsync = ref.watch(_profileDataProvider);
     final progressState = ref.watch(progressProvider);
     final authState = ref.watch(authProvider);
+    final bool isAuthenticated = authState.isAuthenticated;
 
     final String fullName = profileAsync.when(
       data: (p) => (p['fullName'] as String?)?.trim().isNotEmpty == true
@@ -158,7 +212,7 @@ class ProfileScreen extends ConsumerWidget {
             // ── 2. Menu options ───────────────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _buildMenuCard(context, ref, authState.isAuthenticated),
+              child: _buildMenuCard(context, ref, isAuthenticated),
             ),
 
             const SizedBox(height: 24),
@@ -277,6 +331,7 @@ class ProfileScreen extends ConsumerWidget {
   // ─── Menu List ────────────────────────────────────────────────────────────
 
   Widget _buildMenuCard(BuildContext context, WidgetRef ref, bool isAuthenticated) {
+    final healthLabel = Platform.isIOS ? 'Connect Apple Health' : 'Connect Google Fit';
     return Column(
       children: [
         _buildMenuTile(
@@ -328,6 +383,7 @@ class ProfileScreen extends ConsumerWidget {
           title: 'Help & Support',
           onTap: () => context.push('/help'),
         ),
+        _buildHealthTile(healthLabel),
         if (isAuthenticated)
           _buildMenuTile(
             icon: Icons.logout_rounded,
@@ -397,6 +453,43 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildHealthTile(String label) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8F5EE),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: const Icon(Icons.favorite_rounded,
+                color: AppTheme.figmaGreen, size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.figmaCharcoal,
+              ),
+            ),
+          ),
+          Switch(
+            value: _healthConnected,
+            onChanged: _toggleHealthConnect,
+            activeThumbColor: AppTheme.figmaGreen,
+            activeTrackColor: AppTheme.figmaGreen.withAlpha(80),
+          ),
+        ],
       ),
     );
   }

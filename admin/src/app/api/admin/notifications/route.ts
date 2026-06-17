@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Send via Firebase if configured and there are tokens
-    let firebaseResult: { successCount: number; failureCount: number } = { successCount: 0, failureCount: 0 };
+    const firebaseResult: { successCount: number; failureCount: number } = { successCount: 0, failureCount: 0 };
     if (tokens.length > 0) {
       try {
         const admin = getFirebaseAdmin();
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
       sentCount: tokens.length,
       firebaseResult,
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error('Error sending notification:', err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
 
 async function resolveTargetTokens(
   targetType: string,
-  segmentRule: any
+  segmentRule: Record<string, unknown>
 ): Promise<string[]> {
   let profiles: { fcmToken: string | null }[] = [];
 
@@ -94,18 +94,18 @@ async function resolveTargetTokens(
       select: { fcmToken: true },
     });
   } else if (targetType === 'segment' && segmentRule) {
-    if (segmentRule.type === 'missed_days') {
-      // Users who have not completed a day in the last N days
-      const days = segmentRule.value ?? 2;
-      const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - days);
+    const ruleType = segmentRule.type as string;
+    const ruleValue = (segmentRule.value as number) ?? 2;
+    const ruleCourseId = segmentRule.courseId as string | undefined;
 
+    if (ruleType === 'missed_days') {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - ruleValue);
       const activeUsers = await prisma.dailyProgress.groupBy({
         by: ['userId'],
         where: { isComplete: true, dayDate: { gte: cutoff } },
       });
       const activeUserIds = new Set(activeUsers.map((u) => u.userId));
-
       profiles = await prisma.profile.findMany({
         where: {
           fcmToken: { not: null },
@@ -114,27 +114,22 @@ async function resolveTargetTokens(
         },
         select: { fcmToken: true },
       });
-    } else if (segmentRule.type === 'streak') {
-      // Users with streak >= N days
-      const minStreak = segmentRule.value ?? 3;
+    } else if (ruleType === 'streak') {
       const stats = await prisma.userStats.findMany({
-        where: { currentStreak: { gte: minStreak } },
+        where: { currentStreak: { gte: ruleValue } },
         select: { userId: true },
       });
-      const ids = stats.map((s) => s.userId);
       profiles = await prisma.profile.findMany({
-        where: { id: { in: ids }, fcmToken: { not: null } },
+        where: { id: { in: stats.map((s) => s.userId) }, fcmToken: { not: null } },
         select: { fcmToken: true },
       });
-    } else if (segmentRule.type === 'course' && segmentRule.courseId) {
-      // Users enrolled in a specific course
+    } else if (ruleType === 'course' && ruleCourseId) {
       const enrollments = await prisma.enrollment.findMany({
-        where: { courseId: segmentRule.courseId, isActive: true },
+        where: { courseId: ruleCourseId, isActive: true },
         select: { userId: true },
       });
-      const ids = enrollments.map((e) => e.userId);
       profiles = await prisma.profile.findMany({
-        where: { id: { in: ids }, fcmToken: { not: null } },
+        where: { id: { in: enrollments.map((e) => e.userId) }, fcmToken: { not: null } },
         select: { fcmToken: true },
       });
     }

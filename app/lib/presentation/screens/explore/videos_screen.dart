@@ -99,21 +99,31 @@ class VideosScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.xl),
             ],
             Expanded(
-              child: isGuest
-                  ? (fvState.isLoading
-                        ? const Center(child: CircularProgressIndicator())
-                        : _buildGuestContent(context, fvState.videos))
-                  : hasEnrolledCourses
-                  ? _buildRegisteredContent(
-                      context,
-                      ref,
-                      viewingCourseId,
-                      fvState.videos.isNotEmpty &&
-                              fvState.videos.first.youtubeVideoId != null
-                          ? fvState.videos.first.youtubeVideoId!
-                          : 'dJMOsV_2nXI',
-                    )
-                  : _buildLoggedInNoCourseContent(context, fvState),
+              child: RefreshIndicator(
+                color: AppTheme.figmaGreen,
+                onRefresh: () async {
+                  await Future.wait([
+                    ref.read(freeVideosProvider.notifier).refresh(),
+                    ref.read(coursesProvider.notifier).refresh(),
+                    ref.read(progressProvider.notifier).refreshFromApi(),
+                  ]);
+                },
+                child: isGuest
+                    ? (fvState.isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : _buildGuestContent(context, fvState.videos))
+                    : hasEnrolledCourses
+                    ? _buildRegisteredContent(
+                        context,
+                        ref,
+                        viewingCourseId,
+                        fvState.videos.isNotEmpty &&
+                                fvState.videos.first.youtubeVideoId != null
+                            ? fvState.videos.first.youtubeVideoId!
+                            : 'dJMOsV_2nXI',
+                      )
+                    : _buildLoggedInNoCourseContent(context, fvState),
+              ),
             ),
           ],
         ),
@@ -410,13 +420,90 @@ class VideosScreen extends ConsumerWidget {
                   )
                   .toList();
 
-        if (todayDay == null || todayVideos.isEmpty) {
+        if (todayDay == null) {
           return Center(
             child: Text(
-              todayDay == null
-                  ? 'No sessions unlocked for today.'
-                  : 'No ${ref.watch(videoCategoryProvider)} sessions today.',
+              'No sessions unlocked for today.',
               style: GoogleFonts.inter(color: AppTheme.figmaMutedGray),
+            ),
+          );
+        }
+
+        if (todayVideos.isEmpty) {
+          final isGeneralWorkout =
+              ref.watch(videoCategoryProvider) == 'General Workout';
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5FAF2),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFFD4EAC8)),
+                    ),
+                    child: const Icon(
+                      Icons.directions_run_rounded,
+                      color: AppTheme.figmaGreen,
+                      size: 30,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Text(
+                    isGeneralWorkout
+                        ? 'No General Workout videos today'
+                        : 'No Yoga sessions today',
+                    style: GoogleFonts.inter(
+                      fontSize: AppFontSizes.bodyLarge,
+                      fontWeight: AppFontWeights.bold,
+                      color: AppTheme.figmaCharcoal,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    isGeneralWorkout
+                        ? 'Your program has no workout scheduled for today. Try our free course to keep moving.'
+                        : 'Check back tomorrow for your next session.',
+                    style: GoogleFonts.inter(
+                      fontSize: AppFontSizes.bodyMedium,
+                      color: AppTheme.figmaMutedGray,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (isGeneralWorkout) ...[
+                    const SizedBox(height: AppSpacing.xl),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        onPressed: () => context.push('/free-videos'),
+                        icon: const Icon(Icons.play_circle_outline_rounded,
+                            size: 20),
+                        label: Text(
+                          'Explore Free Course',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: AppFontWeights.semiBold,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.figmaGreen,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppRadii.pill),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           );
         }
@@ -439,13 +526,26 @@ class VideosScreen extends ConsumerWidget {
                         color: AppTheme.figmaCharcoal,
                       ),
                     ),
-                    Text(
-                      'View All',
-                      style: GoogleFonts.inter(
-                        fontSize: AppFontSizes.bodyMedium,
-                        fontWeight: AppFontWeights.bold,
-                        color: AppTheme.figmaCharcoal,
-                        decoration: TextDecoration.underline,
+                    GestureDetector(
+                      onTap: () {
+                        final course = match.isNotEmpty ? match.first : null;
+                        final thumbPath = (course?.thumbnailUrl != null && course!.thumbnailUrl!.isNotEmpty)
+                            ? course.thumbnailUrl!
+                            : (category == 'yoga' ? 'assets/course_30_days.png' : 'assets/course_48_days.png');
+                        context.push('/program_details', extra: {
+                          'courseId': viewingCourseId,
+                          'title': course?.title ?? '',
+                          'imagePath': thumbPath,
+                        });
+                      },
+                      child: Text(
+                        'View All',
+                        style: GoogleFonts.inter(
+                          fontSize: AppFontSizes.bodyMedium,
+                          fontWeight: AppFontWeights.bold,
+                          color: AppTheme.figmaCharcoal,
+                          decoration: TextDecoration.underline,
+                        ),
                       ),
                     ),
                   ],
@@ -501,63 +601,15 @@ class VideosScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.xl),
 
-              // Keep Going card
+              // Keep Going banner
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                child: Container(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF5FAF2),
-                    borderRadius: BorderRadius.circular(AppRadii.xxl),
-                    border: Border.all(color: const Color(0xFFD4EAC8)),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: const BoxDecoration(
-                          color: AppTheme.darkTeal,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.star_rounded,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Keep Going!',
-                              style: GoogleFonts.inter(
-                                fontSize: AppFontSizes.bodyLarge,
-                                fontWeight: AppFontWeights.bold,
-                                color: AppTheme.figmaCharcoal,
-                              ),
-                            ),
-                            Text(
-                              'Consistency is the key\nto transformation. 🌱',
-                              style: GoogleFonts.inter(
-                                fontSize: AppFontSizes.bodyMedium,
-                                color: AppTheme.figmaMutedGray,
-                                height: 1.4,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Image.asset(
-                        'assets/keep_going.png',
-                        width: 90,
-                        height: 70,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, _, _) => const SizedBox(width: 90),
-                      ),
-                    ],
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadii.xxl),
+                  child: Image.asset(
+                    'assets/keep_going.png',
+                    width: double.infinity,
+                    fit: BoxFit.fitWidth,
                   ),
                 ),
               ),
@@ -590,28 +642,15 @@ class VideosScreen extends ConsumerWidget {
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Just starting? Watch the guidelines',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              Text(
-                                'Explore now',
-                                style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  color: Colors.white.withAlpha(178),
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            'Just starting? Watch the guidelines',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                         const Icon(
@@ -827,29 +866,14 @@ class VideosScreen extends ConsumerWidget {
           // Timeline column
           SizedBox(
             width: 20,
-            child: Column(
+            child: Stack(
+              fit: StackFit.expand,
               children: [
-                Container(
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isCompleted ? AppTheme.figmaGreen : Colors.white,
-                    border: Border.all(
-                      color: AppTheme.figmaGreen,
-                      width: 1.5,
-                    ),
-                  ),
-                  child: isCompleted
-                      ? const Icon(
-                          Icons.check_rounded,
-                          color: Colors.white,
-                          size: 13,
-                        )
-                      : null,
-                ),
                 if (index < total - 1)
-                  Expanded(
+                  Positioned(
+                    left: 9.25,
+                    top: 20,
+                    bottom: 0,
                     child: Container(
                       width: 1.5,
                       color: isCompleted
@@ -857,7 +881,33 @@ class VideosScreen extends ConsumerWidget {
                           : const Color(0xFFE0E0E0),
                     ),
                   ),
-                if (index == total - 1) const Spacer(),
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: index < total - 1 ? 16.0 : 0.0,
+                  child: Center(
+                    child: Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isCompleted ? AppTheme.figmaGreen : Colors.white,
+                        border: Border.all(
+                          color: AppTheme.figmaGreen,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: isCompleted
+                          ? const Icon(
+                              Icons.check_rounded,
+                              color: Colors.white,
+                              size: 13,
+                            )
+                          : null,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -1113,9 +1163,6 @@ class VideosScreen extends ConsumerWidget {
     List<CourseModel> activeCourses,
   ) {
     final isYoga = label == 'Yoga';
-    final categorySubtitle = isYoga
-        ? 'Mind • Flexibility • Strength'
-        : 'Strength • Mobility • Cardio';
 
     return GestureDetector(
       onTap: () {
@@ -1175,16 +1222,6 @@ class VideosScreen extends ConsumerWidget {
                       color: isActive ? Colors.white : AppTheme.figmaCharcoal,
                       fontWeight: AppFontWeights.bold,
                       fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    categorySubtitle,
-                    style: GoogleFonts.inter(
-                      color: isActive
-                          ? Colors.white.withAlpha(178)
-                          : AppTheme.brown,
-                      fontSize: 10,
                     ),
                   ),
                 ],

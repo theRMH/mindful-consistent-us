@@ -1,36 +1,42 @@
-import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../core/config/app_config.dart';
 import '../../../core/config/theme.dart';
+import '../../../core/services/api_service.dart';
 
-class ProgramsCompletedScreen extends StatelessWidget {
-  const ProgramsCompletedScreen({super.key});
+class ProgramsCompletedScreen extends StatefulWidget {
+  final String? courseId;
+  const ProgramsCompletedScreen({super.key, this.courseId});
 
-  Future<bool> _submitFeedback(int rating, String comment) async {
+  @override
+  State<ProgramsCompletedScreen> createState() => _ProgramsCompletedScreenState();
+}
+
+class _ProgramsCompletedScreenState extends State<ProgramsCompletedScreen> {
+  String _courseTitle = 'Your Program';
+  int _totalDays = 30;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCourse();
+  }
+
+  Future<void> _loadCourse() async {
+    if (widget.courseId == null) return;
     try {
-      final client = HttpClient();
-      final uri = Uri.parse('${AppConfig.apiBaseUrl}/api/feedback');
-      final request = await client.postUrl(uri);
-      
-      request.headers.contentType = ContentType.json;
-      request.headers.set('Authorization', 'Bearer mock-user-123');
-      
-      final payload = {
-        'targetType': 'course',
-        'rating': rating,
-        'comment': comment,
-      };
-      
-      request.write(jsonEncode(payload));
-      final response = await request.close();
-      
-      return response.statusCode == 201;
-    } catch (e) {
-      return false;
-    }
+      final data = await ApiService().getCourseDetails(widget.courseId!);
+      if (mounted) {
+        setState(() {
+          _courseTitle = (data['title'] as String?) ?? 'Your Program';
+          _totalDays = (data['totalDays'] as int?) ?? 30;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<bool> _submitFeedback(int rating, String comment) {
+    return ApiService().submitFeedback(rating: rating, comment: comment);
   }
 
   void _showFeedbackDialog(BuildContext context) {
@@ -67,8 +73,6 @@ class ProgramsCompletedScreen extends StatelessWidget {
                       style: GoogleFonts.inter(color: AppTheme.coolGray, fontSize: 13),
                     ),
                     const SizedBox(height: 20),
-                    
-                    // Star Rating selector
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: List.generate(5, (index) {
@@ -82,17 +86,11 @@ class ProgramsCompletedScreen extends StatelessWidget {
                           ),
                           onPressed: isSubmitting
                               ? null
-                              : () {
-                                  setState(() {
-                                    selectedRating = starValue;
-                                  });
-                                },
+                              : () => setState(() => selectedRating = starValue),
                         );
                       }),
                     ),
                     const SizedBox(height: 16),
-                    
-                    // Comment input
                     TextFormField(
                       controller: commentController,
                       enabled: !isSubmitting,
@@ -129,32 +127,25 @@ class ProgramsCompletedScreen extends StatelessWidget {
                   onPressed: isSubmitting
                       ? null
                       : () async {
-                           setState(() {
-                             isSubmitting = true;
-                           });
-                           final success = await _submitFeedback(
-                             selectedRating,
-                             commentController.text,
-                           );
-                           if (!context.mounted) return;
-                           Navigator.pop(dialogContext);
-                           
-                           if (success) {
-                             ScaffoldMessenger.of(context).showSnackBar(
-                               const SnackBar(
-                                 content: Text('Thank you for your review!'),
-                                 backgroundColor: AppTheme.darkTeal,
-                               ),
-                             );
-                           } else {
-                             ScaffoldMessenger.of(context).showSnackBar(
-                               const SnackBar(
-                                 content: Text('Failed to submit feedback. Please try again.'),
-                                 backgroundColor: Colors.red,
-                               ),
-                             );
-                           }
-                         },
+                          setState(() => isSubmitting = true);
+                          final success = await _submitFeedback(
+                            selectedRating,
+                            commentController.text,
+                          );
+                          if (!context.mounted) return;
+                          Navigator.pop(dialogContext);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                success
+                                    ? 'Thank you for your review!'
+                                    : 'Failed to submit feedback. Please try again.',
+                              ),
+                              backgroundColor:
+                                  success ? AppTheme.darkTeal : Colors.red,
+                            ),
+                          );
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.darkTeal,
                     shape: RoundedRectangleBorder(
@@ -173,7 +164,8 @@ class ProgramsCompletedScreen extends StatelessWidget {
                         )
                       : Text(
                           'Submit',
-                          style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold),
+                          style: GoogleFonts.inter(
+                              color: Colors.white, fontWeight: FontWeight.bold),
                         ),
                 ),
               ],
@@ -195,7 +187,6 @@ class ProgramsCompletedScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Spacer(),
-              // Celebration Badge
               Center(
                 child: Container(
                   width: 120,
@@ -212,8 +203,6 @@ class ProgramsCompletedScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 32),
-              
-              // Success Messages
               Text(
                 'Congratulations!',
                 textAlign: TextAlign.center,
@@ -225,7 +214,7 @@ class ProgramsCompletedScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'You have successfully completed the 30-Day Yoga Journey! Your commitment is inspiring.',
+                'You have successfully completed $_courseTitle! Your commitment is inspiring.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   color: AppTheme.coolGray,
@@ -234,8 +223,6 @@ class ProgramsCompletedScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 40),
-
-              // Achievement Card
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -252,18 +239,37 @@ class ProgramsCompletedScreen extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    _buildCompletedRow(context, 'Program Name', '30-Day Yoga Course'),
+                    _buildCompletedRow(context, 'Program Name', _courseTitle),
                     const Divider(height: 24, color: Color(0xFFF1F3F5)),
-                    _buildCompletedRow(context, 'Duration', '30 Days Complete'),
+                    _buildCompletedRow(context, 'Duration', '$_totalDays Days Complete'),
                     const Divider(height: 24, color: Color(0xFFF1F3F5)),
                     _buildCompletedRow(context, 'Status', '100% Completed'),
                   ],
                 ),
               ),
-              
               const Spacer(),
-              
-              // Buttons
+              ElevatedButton(
+                onPressed: () {
+                  final courseParam =
+                      widget.courseId != null ? '&courseId=${widget.courseId}' : '';
+                  context.push(
+                      '/body-metrics?skip=false$courseParam&redirect=${Uri.encodeComponent('/home')}');
+                },
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  backgroundColor: AppTheme.primaryGreen,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 0,
+                ),
+                child: Text(
+                  'Log Your Progress',
+                  style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: () => _showFeedbackDialog(context),
                 style: OutlinedButton.styleFrom(
@@ -275,25 +281,22 @@ class ProgramsCompletedScreen extends StatelessWidget {
                 ),
                 child: Text(
                   'Share Your Feedback',
-                  style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.darkTeal),
+                  style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.darkTeal),
                 ),
               ),
               const SizedBox(height: 12),
-              
-              ElevatedButton(
+              TextButton(
                 onPressed: () => context.go('/home'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  backgroundColor: AppTheme.primaryGreen,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: 0,
-                ),
                 child: Text(
                   'Back to Home',
-                  style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: AppTheme.coolGray,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -316,12 +319,15 @@ class ProgramsCompletedScreen extends StatelessWidget {
             fontSize: 13,
           ),
         ),
-        Text(
-          value,
-          style: GoogleFonts.inter(
-            fontWeight: FontWeight.bold,
-            color: AppTheme.darkSlate,
-            fontSize: 14,
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: GoogleFonts.inter(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.darkSlate,
+              fontSize: 14,
+            ),
           ),
         ),
       ],

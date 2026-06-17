@@ -115,6 +115,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
           widget.dayNumber,
           courseId: widget.courseId,
           videoId: widget.videoId,
+          todaySteps: ref.read(todayStepsProvider),
         );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
