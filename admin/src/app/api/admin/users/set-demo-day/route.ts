@@ -13,7 +13,8 @@ function enrolledAtForDemoDay(dayNumber: number) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { userId, enrollmentId, dayNumber, resetProgress = true } = body;
+    // completedDayNumbers: which days to mark complete. Defaults to all days before dayNumber.
+    const { userId, enrollmentId, dayNumber, resetProgress = true, completedDayNumbers } = body;
 
     const parsedDayNumber = parseInt(String(dayNumber), 10);
 
@@ -32,13 +33,8 @@ export async function POST(req: NextRequest) {
     }
 
     const enrollment = await prisma.enrollment.findFirst({
-      where: {
-        id: enrollmentId,
-        userId,
-      },
-      include: {
-        course: true,
-      },
+      where: { id: enrollmentId, userId },
+      include: { course: true },
     });
 
     if (!enrollment) {
@@ -57,6 +53,7 @@ export async function POST(req: NextRequest) {
 
     const demoEnrolledAt = enrolledAtForDemoDay(parsedDayNumber);
 
+    // Reset all progress and backdate enrollment
     await prisma.$transaction([
       ...(resetProgress
         ? [
@@ -88,12 +85,64 @@ export async function POST(req: NextRequest) {
         : []),
       prisma.enrollment.update({
         where: { id: enrollmentId },
-        data: {
-          enrolledAt: demoEnrolledAt,
-          isActive: true,
-        },
+        data: { enrolledAt: demoEnrolledAt, isActive: true },
       }),
     ]);
+
+    // Seed dailyProgress records for completed days
+    if (resetProgress) {
+      const daysToComplete: number[] =
+        Array.isArray(completedDayNumbers) && completedDayNumbers.length > 0
+          ? completedDayNumbers.map(Number)
+          : Array.from({ length: parsedDayNumber - 1 }, (_, i) => i + 1);
+
+      if (daysToComplete.length > 0) {
+        const courseDays = await prisma.courseDay.findMany({
+          where: { courseId: enrollment.courseId, dayNumber: { in: daysToComplete } },
+          select: { id: true, dayNumber: true },
+        });
+
+        if (courseDays.length > 0) {
+          await prisma.dailyProgress.createMany({
+            data: courseDays.map((cd) => {
+              const dayDate = new Date(demoEnrolledAt);
+              dayDate.setUTCDate(dayDate.getUTCDate() + (cd.dayNumber - 1));
+              return {
+                userId,
+                enrollmentId,
+                courseDayId: cd.id,
+                isComplete: true,
+                completedAt: dayDate,
+                dayDate,
+                videosWatched: 1,
+                totalWatchSeconds: 1800,
+                caloriesBurnt: 0,
+                stepsCount: 0,
+              };
+            }),
+          });
+
+          // Calculate streak: consecutive complete days ending at dayNumber-1
+          const completedSet = new Set(daysToComplete);
+          let streak = 0;
+          for (let d = parsedDayNumber - 1; d >= 1; d--) {
+            if (completedSet.has(d)) streak++;
+            else break;
+          }
+
+          await prisma.userStats.update({
+            where: { userId },
+            data: {
+              totalSessions: courseDays.length,
+              totalWatchSeconds: courseDays.length * 1800,
+              currentStreak: streak,
+              longestStreak: streak,
+              updatedAt: new Date(),
+            },
+          });
+        }
+      }
+    }
 
     return NextResponse.json(
       {
