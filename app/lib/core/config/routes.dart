@@ -187,8 +187,10 @@ class AppRouter {
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
           return ThankYouScreen(
+            courseId: extra?['courseId'] as String?,
             courseTitle: extra?['courseTitle'] as String?,
             amountPaid: extra?['amountPaid'] as int?,
+            whatsappLink: extra?['whatsappLink'] as String?,
           );
         },
       ),
@@ -220,6 +222,15 @@ class AppRouter {
       GoRoute(
         path: '/body-metrics-history',
         builder: (context, state) => const BodyMetricsHistoryScreen(),
+      ),
+
+      // Course detail by path param — used after purchase so body-metrics can redirect here
+      GoRoute(
+        path: '/course/:courseId',
+        builder: (context, state) {
+          final courseId = state.pathParameters['courseId'];
+          return ProgramDetailsScreen(courseId: courseId, showBackButton: true);
+        },
       ),
 
       // 13. Community Leaderboard

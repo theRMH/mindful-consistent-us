@@ -47,9 +47,6 @@ class HomeScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── 1. Header Banner (fixed, does not scroll) ─────────
-            _buildHeader(context, ref, userName, progressState.currentStreak),
-
             // ── Scrollable body with pull-to-refresh ──────────────
             Expanded(
               child: RefreshIndicator(
@@ -63,6 +60,8 @@ class HomeScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+              // ── 1. Header Banner ──────────────────────────────────
+              _buildHeader(context, ref, userName, progressState.currentStreak),
               const SizedBox(height: AppSpacing.lg),
 
               // ── 2. Active Course Progress Banner ──────────────────
@@ -320,6 +319,32 @@ class HomeScreen extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
                 child: _buildLeaderboardCard(context, ref, progressState),
+              ),
+
+              const SizedBox(height: AppSpacing.md),
+
+              // ── 8. Points permalink ────────────────────────────────
+              GestureDetector(
+                onTap: () => _showPointsExplanation(context),
+                child: Center(
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        const TextSpan(text: '💡  '),
+                        TextSpan(
+                          text: 'How are points calculated?',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: AppTheme.figmaGreen,
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
+                            decorationColor: AppTheme.figmaGreen,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
 
               const SizedBox(height: AppSpacing.xxxl),
@@ -1387,6 +1412,190 @@ class HomeScreen extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+void _showPointsExplanation(BuildContext context) {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (_) => const _PointsExplanationSheet(),
+  );
+}
+
+class _PointsExplanationSheet extends StatelessWidget {
+  const _PointsExplanationSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    const items = [
+      (emoji: '📹', action: 'Watch at least 1 video today', pts: '+50 pts'),
+      (emoji: '✅', action: 'Complete all videos for the day', pts: '+10 pts'),
+      (emoji: '🔥', action: 'Streak bonus (per streak day)', pts: '+10 pts'),
+      (emoji: '👟', action: 'Walk at least 5,000 steps', pts: '+10 pts'),
+    ];
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: const Color(0xFFDDDDDD),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Title row
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppTheme.figmaGreen.withAlpha(20),
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Text('⭐', style: TextStyle(fontSize: 18)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'How Points are Calculated',
+                    style: GoogleFonts.inter(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.figmaCharcoal,
+                    ),
+                  ),
+                  Text(
+                    'Earn points through daily activity',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: AppTheme.coolGray,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // Point rows
+          ...items.map((item) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFA),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFEEEEEE)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFE0E0E0)),
+                        ),
+                        child: Center(
+                          child: Text(item.emoji, style: const TextStyle(fontSize: 18)),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Text(
+                          item.action,
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: AppTheme.figmaCharcoal,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppTheme.figmaGreen.withAlpha(18),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          item.pts,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.figmaGreen,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )),
+
+          const SizedBox(height: 8),
+
+          // Streak explanation
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF8E1),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFFFE082)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('🔥', style: TextStyle(fontSize: 16)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'What is a streak? Each consecutive day you watch at least 1 video counts as +1 streak day. Miss a day and your streak resets to 0.',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      height: 1.5,
+                      color: const Color(0xFF7B5800),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Footer note
+          Text(
+            'Points are updated after each completed session.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              color: AppTheme.coolGray,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

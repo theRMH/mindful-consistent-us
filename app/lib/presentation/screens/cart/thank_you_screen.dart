@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/config/theme.dart';
 
 class ThankYouScreen extends StatefulWidget {
+  final String? courseId;
   final String? courseTitle;
   final int? amountPaid;
+  final String? whatsappLink;
 
-  const ThankYouScreen({super.key, this.courseTitle, this.amountPaid});
+  const ThankYouScreen({super.key, this.courseId, this.courseTitle, this.amountPaid, this.whatsappLink});
 
   @override
   State<ThankYouScreen> createState() => _ThankYouScreenState();
@@ -179,11 +182,49 @@ class _ThankYouScreenState extends State<ThankYouScreen>
 
                 const Spacer(flex: 3),
 
+                if (widget.whatsappLink != null && widget.whatsappLink!.isNotEmpty) ...[
+                  FadeTransition(
+                    opacity: _fadeAnim,
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          final uri = Uri.parse(widget.whatsappLink!);
+                          if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+                        },
+                        icon: const Text('💬', style: TextStyle(fontSize: 18)),
+                        label: Text(
+                          'Join the WhatsApp Community',
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF25D366),
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFF25D366), width: 1.5),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
                 SizedBox(
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: () => context.go('/home'),
+                    onPressed: () {
+                    final courseId = widget.courseId;
+                    final redirect = courseId != null
+                        ? '/course/$courseId'
+                        : '/programs?tab=active';
+                    context.go(
+                      '/body-metrics?skip=false&redirect=${Uri.encodeComponent(redirect)}',
+                    );
+                  },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryGreen,
                       foregroundColor: Colors.white,

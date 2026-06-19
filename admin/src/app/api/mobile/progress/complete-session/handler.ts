@@ -241,14 +241,11 @@ export async function handleCompleteSession(req: NextRequest) {
       },
     });
 
-    // ── New scoring formula ────────────────────────────────────────────────
-    // 50 pts  per day with ≥1 video watched  (streak maintenance)
-    // 30 pts  bonus when ALL videos complete  (optional, small bonus)
-    // 10 pts  × current streak               (streak multiplier)
-    // 25 pts  per day steps goal was reached  (steps bonus)
-    const stepsGoalSetting = await prisma.appSetting.findUnique({ where: { key: 'steps_goal' } });
-    const stepsGoal = parseInt(stepsGoalSetting?.value ?? '10000', 10);
-
+    // ── Scoring formula ────────────────────────────────────────────────────
+    // 50 pts  per day with ≥1 video watched
+    // 10 pts  bonus when ALL videos complete for the day
+    // 10 pts  × current streak
+    // 10 pts  per day with ≥5,000 steps
     const [daysWithActivity, daysAllComplete, stepsGoalDays] = await Promise.all([
       prisma.dailyProgress.count({
         where: { userId: user.id, enrollmentId: enrollment.id, videosWatched: { gt: 0 } },
@@ -257,15 +254,15 @@ export async function handleCompleteSession(req: NextRequest) {
         where: { userId: user.id, enrollmentId: enrollment.id, isComplete: true },
       }),
       prisma.dailyProgress.count({
-        where: { userId: user.id, enrollmentId: enrollment.id, stepsCount: { gte: stepsGoal } },
+        where: { userId: user.id, enrollmentId: enrollment.id, stepsCount: { gte: 5000 } },
       }),
     ]);
 
     const newScore =
       daysWithActivity * 50 +
-      daysAllComplete * 30 +
+      daysAllComplete * 10 +
       newStreak * 10 +
-      stepsGoalDays * 25;
+      stepsGoalDays * 10;
 
     await prisma.leaderboardEntry.upsert({
       where: {

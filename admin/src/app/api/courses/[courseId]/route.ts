@@ -109,7 +109,7 @@ export async function PATCH(
   try {
     const { courseId } = await params;
     const body = await req.json();
-    const { title, slug, description, priceInr, totalDays, isPublished, thumbnailUrl, category } = body;
+    const { title, slug, description, priceInr, priceUsd, totalDays, isPublished, thumbnailUrl, category, whatsappLink, scheduledStartDate, instructorName, instructorTitle, instructorBio, instructorPhotoUrl } = body;
 
     const updated = await prisma.course.update({
       where: { id: courseId },
@@ -118,10 +118,17 @@ export async function PATCH(
         slug,
         description,
         priceInr: priceInr !== undefined ? parseFloat(priceInr) : undefined,
+        priceUsd: priceUsd !== undefined ? (priceUsd !== null ? parseFloat(priceUsd) : null) : undefined,
         totalDays: totalDays !== undefined ? parseInt(totalDays, 10) : undefined,
         isPublished: isPublished !== undefined ? isPublished : undefined,
         thumbnailUrl,
         category: category !== undefined ? category : undefined,
+        whatsappLink: whatsappLink !== undefined ? whatsappLink : undefined,
+        scheduledStartDate: scheduledStartDate !== undefined ? (scheduledStartDate ? new Date(scheduledStartDate) : null) : undefined,
+        instructorName: instructorName !== undefined ? instructorName : undefined,
+        instructorTitle: instructorTitle !== undefined ? instructorTitle : undefined,
+        instructorBio: instructorBio !== undefined ? instructorBio : undefined,
+        instructorPhotoUrl: instructorPhotoUrl !== undefined ? instructorPhotoUrl : undefined,
       },
     });
 

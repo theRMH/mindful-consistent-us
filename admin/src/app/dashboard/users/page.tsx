@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import Link from "next/link";
 import CreateUserButton from "./CreateUserButton";
+import ExportUsersButton from "./ExportUsersButton";
 
 export const dynamic = "force-dynamic";
 
@@ -40,12 +41,7 @@ export default async function UsersDirectoryPage({
           </p>
         </div>
         <div className="flex items-center gap-3 flex-shrink-0">
-          <a
-            href="/api/admin/users/export"
-            className="px-4 py-2 border border-gray-200 text-gray-600 hover:bg-gray-50 text-sm font-bold rounded-lg transition-colors"
-          >
-            Export CSV
-          </a>
+          <ExportUsersButton />
           <CreateUserButton />
         </div>
       </div>

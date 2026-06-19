@@ -25,8 +25,10 @@ class _StepsScreenState extends ConsumerState<StepsScreen> with WidgetsBindingOb
 
   int _todaySteps = 0;
   int _lastSyncedStepMark = 0;
+  int _recoveredTodaySteps = 0;
   String _status = 'stopped';
   String? _error;
+  bool _isInitializing = true;
 
   // Persisted per-day history: list of {dateStr, steps, minutes}
   List<Map<String, dynamic>> _history = [];
@@ -58,16 +60,11 @@ class _StepsScreenState extends ConsumerState<StepsScreen> with WidgetsBindingOb
   Future<void> _initPedometer() async {
     final status = await Permission.activityRecognition.request();
     if (status.isPermanentlyDenied) {
-      if (mounted) {
-        setState(() => _error = 'permanently_denied');
-      }
+      if (mounted) setState(() { _error = 'permanently_denied'; _isInitializing = false; });
       return;
     }
     if (!status.isGranted) {
-      if (mounted) {
-        setState(() => _error =
-            'Motion permission denied. Enable it in Settings to track steps.');
-      }
+      if (mounted) setState(() { _error = 'Motion permission denied. Enable it in Settings to track steps.'; _isInitializing = false; });
       return;
     }
 
@@ -91,6 +88,8 @@ class _StepsScreenState extends ConsumerState<StepsScreen> with WidgetsBindingOb
       onError: (_) {},
     );
 
+    if (mounted) setState(() => _isInitializing = false);
+
     _stepSub = Pedometer.stepCountStream.listen(
       (StepCount event) async {
         final prefs = await SharedPreferences.getInstance();
@@ -100,17 +99,34 @@ class _StepsScreenState extends ConsumerState<StepsScreen> with WidgetsBindingOb
         int rebootOffset = prefs.getInt(_prefRebootOffset) ?? 0;
 
         if (savedDate != today) {
-          // New day — use hardware delta (not _todaySteps) so steps are
-          // preserved even if the app was closed overnight
           if (savedDate != null) {
+            // Normal new-day rollover: save yesterday's count to history
             final prevDaySteps = max(0, event.steps - baseline);
             if (prevDaySteps > 0) await _saveToHistory(savedDate, prevDaySteps);
+            baseline = event.steps;
+            rebootOffset = 0;
+          } else {
+            // Fresh start (app data cleared or first install).
+            // Restore today's count from backend by adjusting baseline so
+            // todaySteps starts at the recovered value instead of 0.
+            if (_recoveredTodaySteps > 0) {
+              if (event.steps >= _recoveredTodaySteps) {
+                // Hardware counter is ahead of recovered count — no mid-day reboot
+                baseline = event.steps - _recoveredTodaySteps;
+                rebootOffset = 0;
+              } else {
+                // Device rebooted between morning and now — counter reset to 0
+                baseline = event.steps;
+                rebootOffset = _recoveredTodaySteps;
+              }
+            } else {
+              baseline = event.steps;
+              rebootOffset = 0;
+            }
           }
-          baseline = event.steps;
-          rebootOffset = 0;
           await prefs.setString(_prefBaselineDate, today);
           await prefs.setInt(_prefBaseline, baseline);
-          await prefs.setInt(_prefRebootOffset, 0);
+          await prefs.setInt(_prefRebootOffset, rebootOffset);
         } else if (event.steps < baseline) {
           // Phone rebooted mid-day — hardware counter reset to 0.
           // Carry forward steps accumulated before the reboot.
@@ -178,10 +194,16 @@ class _StepsScreenState extends ConsumerState<StepsScreen> with WidgetsBindingOb
       final localDates = local.map((e) => e.split('|')[0]).toSet();
 
       // Add any remote days not already in local
+      final today = _todayStr();
       final merged = List<String>.from(local);
       for (final r in remote) {
         final dateStr = r['dateStr'] as String? ?? '';
         final steps = (r['steps'] as num?)?.toInt() ?? 0;
+        if (dateStr == today && steps > 0) {
+          // Capture today's last-synced count so fresh-start can restore it
+          _recoveredTodaySteps = steps;
+          continue; // don't add today to history — it's tracked live
+        }
         if (!localDates.contains(dateStr) && steps > 0) {
           final minutes = (steps * 0.0084).toInt();
           merged.add('$dateStr|$steps|$minutes');
@@ -210,6 +232,8 @@ class _StepsScreenState extends ConsumerState<StepsScreen> with WidgetsBindingOb
     final calories = _todaySteps * 0.0496;
     try {
       await ApiService().syncSteps(_todaySteps, calories);
+      // Persist today's exact count so it survives an app-data clear
+      await ApiService().saveDailySteps(_todayStr(), _todaySteps);
     } catch (_) {}
   }
 
@@ -227,6 +251,8 @@ class _StepsScreenState extends ConsumerState<StepsScreen> with WidgetsBindingOb
     if (!authState.isAuthenticated) {
       return _buildLockedState(context);
     }
+
+    if (_isInitializing) return _buildSkeleton();
 
     final goalSteps = ref.watch(progressProvider).stepsGoal;
     final stepsLeft = max(0, goalSteps - _todaySteps);
@@ -387,41 +413,7 @@ class _StepsScreenState extends ConsumerState<StepsScreen> with WidgetsBindingOb
             const SizedBox(height: AppSpacing.xl),
 
             // ── 6. Trending Card ────────────────────────────────────
-            if (_todaySteps > 0)
-            Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg, vertical: AppSpacing.md + 2),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(AppRadii.xxl),
-                border: Border.all(color: const Color(0xFFF0F0F0)),
-                boxShadow: const [
-                  BoxShadow(color: Color(0x06000000), blurRadius: 10, offset: Offset(0, 4)),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF8E0),
-                      borderRadius: BorderRadius.circular(AppRadii.xl),
-                    ),
-                    child: const Center(child: Text('📈', style: TextStyle(fontSize: 20))),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Text(
-                    "You're walking more this week",
-                    style: GoogleFonts.inter(
-                      fontSize: AppFontSizes.bodyLarge,
-                      fontWeight: AppFontWeights.semiBold,
-                      color: AppTheme.figmaCharcoal,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            if (_todaySteps > 0) _buildTrendingCard(),
 
             if (_todaySteps == 0) ...[
               const SizedBox(height: AppSpacing.lg),
@@ -433,6 +425,134 @@ class _StepsScreenState extends ConsumerState<StepsScreen> with WidgetsBindingOb
         ),
         ),   // SingleChildScrollView
       ),     // RefreshIndicator
+    );
+  }
+
+  Widget _buildSkeleton() {
+    final grey = const Color(0xFFEEEEEE);
+    final lightGrey = const Color(0xFFF5F5F5);
+    Widget box(double w, double h, {double r = 12}) =>
+        Container(width: w, height: h, decoration: BoxDecoration(color: grey, borderRadius: BorderRadius.circular(r)));
+    Widget fill(double h, {double r = 12}) =>
+        Container(height: h, decoration: BoxDecoration(color: grey, borderRadius: BorderRadius.circular(r)));
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: GestureDetector(
+          onTap: () => context.go('/home'),
+          child: const Icon(Icons.arrow_back_rounded, color: AppTheme.figmaGreen),
+        ),
+        title: Text('Steps', style: GoogleFonts.inter(fontWeight: AppFontWeights.bold, color: AppTheme.figmaGreen, fontSize: AppFontSizes.h3)),
+        centerTitle: false,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.xxxl),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Pedometer card skeleton
+            Container(
+              width: double.infinity,
+              height: 200,
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              decoration: BoxDecoration(color: lightGrey, borderRadius: BorderRadius.circular(AppRadii.xxl)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  box(120, 16),
+                  const SizedBox(height: AppSpacing.lg),
+                  box(160, 44, r: 8),
+                  const SizedBox(height: AppSpacing.sm),
+                  box(200, 14, r: 6),
+                  const Spacer(),
+                  fill(10, r: 5),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            // Metric tiles skeleton
+            Row(
+              children: [
+                Expanded(child: Container(height: 80, decoration: BoxDecoration(color: lightGrey, borderRadius: BorderRadius.circular(AppRadii.xxl)))),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(child: Container(height: 80, decoration: BoxDecoration(color: lightGrey, borderRadius: BorderRadius.circular(AppRadii.xxl)))),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(child: Container(height: 80, decoration: BoxDecoration(color: lightGrey, borderRadius: BorderRadius.circular(AppRadii.xxl)))),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xxxl),
+            // History skeleton
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [box(100, 16), box(60, 14)]),
+            const SizedBox(height: AppSpacing.lg),
+            for (int i = 0; i < 3; i++) ...[
+              Row(children: [
+                box(32, 40, r: 6),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  fill(14, r: 6),
+                  const SizedBox(height: AppSpacing.xs),
+                  fill(10, r: 5),
+                ])),
+              ]),
+              const SizedBox(height: AppSpacing.lg),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTrendingCard() {
+    // Compare today's steps to the average of available history days
+    final historySteps = _history.map((e) => e['steps'] as int).toList();
+    final historyAvg = historySteps.isEmpty ? 0 : historySteps.fold(0, (a, b) => a + b) ~/ historySteps.length;
+
+    final String emoji;
+    final String message;
+    final Color bgColor;
+
+    if (historySteps.isEmpty) {
+      emoji = '🚀';
+      message = "Great start! Keep walking to build your streak";
+      bgColor = const Color(0xFFFFF8E0);
+    } else if (_todaySteps >= historyAvg) {
+      emoji = '📈';
+      message = "You're walking more than usual — keep it up!";
+      bgColor = const Color(0xFFFFF8E0);
+    } else {
+      emoji = '💪';
+      message = "You're a bit below your usual pace — let's go!";
+      bgColor = const Color(0xFFFFEEEE);
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md + 2),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppRadii.xxl),
+        border: Border.all(color: const Color(0xFFF0F0F0)),
+        boxShadow: const [BoxShadow(color: Color(0x06000000), blurRadius: 10, offset: Offset(0, 4))],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(AppRadii.xl)),
+            child: Center(child: Text(emoji, style: const TextStyle(fontSize: 20))),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Text(
+              message,
+              style: GoogleFonts.inter(fontSize: AppFontSizes.bodyLarge, fontWeight: AppFontWeights.semiBold, color: AppTheme.figmaCharcoal),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -599,49 +719,13 @@ class _StepsScreenState extends ConsumerState<StepsScreen> with WidgetsBindingOb
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Live Pedometer',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontSize: AppFontSizes.bodyLarge,
-                  fontWeight: AppFontWeights.bold,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md, vertical: AppSpacing.xs + 1),
-                decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(30),
-                  borderRadius: BorderRadius.circular(AppRadii.xl),
-                  border: Border.all(color: Colors.white.withAlpha(80)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 7,
-                      height: 7,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      'Live now',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: AppFontSizes.bodyMedium,
-                        fontWeight: AppFontWeights.semiBold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          Text(
+            'Live Pedometer',
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontSize: AppFontSizes.bodyLarge,
+              fontWeight: AppFontWeights.bold,
+            ),
           ),
 
           const SizedBox(height: AppSpacing.sm),
@@ -671,7 +755,7 @@ class _StepsScreenState extends ConsumerState<StepsScreen> with WidgetsBindingOb
           const SizedBox(height: AppSpacing.xl),
 
           Text(
-            'Daily goal',
+            'Daily Goal (Walking + Movement)',
             style: GoogleFonts.inter(
               color: Colors.white.withAlpha(200),
               fontSize: AppFontSizes.bodyMedium,

@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const token = 'figd_tvOEIgPHWBaZ9ZX8CvWneZnIXI_CQ8v2RNgtGARL';
-const fileKey = 'hQ16GxeRwYFvOFK7eFJDCc';
+const fileKey = 'BUfDh5I6kChgKRI0wNPY8R';
 // Node ID in the URL is 0-1, which corresponds to 0:1 in the Figma API
 const nodeId = '0:1';
 

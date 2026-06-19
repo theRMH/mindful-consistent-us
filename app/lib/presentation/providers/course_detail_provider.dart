@@ -9,6 +9,11 @@ class CourseDetail {
   final String difficulty;
   final int avgDailyMins;
   final List<CourseDayModel> days;
+  final String? instructorName;
+  final String? instructorTitle;
+  final String? instructorBio;
+  final String? instructorPhotoUrl;
+  final String? whatsappLink;
 
   CourseDetail({
     required this.title,
@@ -17,6 +22,11 @@ class CourseDetail {
     this.difficulty = 'Beginner',
     this.avgDailyMins = 30,
     required this.days,
+    this.instructorName,
+    this.instructorTitle,
+    this.instructorBio,
+    this.instructorPhotoUrl,
+    this.whatsappLink,
   });
 
   factory CourseDetail.fromJson(Map<String, dynamic> json) {
@@ -31,6 +41,11 @@ class CourseDetail {
       difficulty: json['difficulty'] as String? ?? 'Beginner',
       avgDailyMins: (json['avgDailyMins'] as num?)?.toInt() ?? 30,
       days: daysList,
+      instructorName: json['instructorName'] as String?,
+      instructorTitle: json['instructorTitle'] as String?,
+      instructorBio: json['instructorBio'] as String?,
+      instructorPhotoUrl: json['instructorPhotoUrl'] as String?,
+      whatsappLink: json['whatsappLink'] as String?,
     );
   }
 }

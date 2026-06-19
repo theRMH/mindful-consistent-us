@@ -21,6 +21,7 @@ class HealthSyncService {
     }
   }
 
+
   Future<bool> _isAvailable() async {
     try {
       final status = await _health.getHealthConnectSdkStatus();

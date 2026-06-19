@@ -9,6 +9,10 @@ class CourseModel {
   final int totalDays;
   final double priceInr;
   final int avgDailyMins; // average video duration per day, rounded to 5m
+  final String? instructorName;
+  final String? instructorTitle;
+  final String? instructorBio;
+  final String? instructorPhotoUrl;
 
   const CourseModel({
     required this.id,
@@ -21,6 +25,10 @@ class CourseModel {
     required this.totalDays,
     required this.priceInr,
     this.avgDailyMins = 30,
+    this.instructorName,
+    this.instructorTitle,
+    this.instructorBio,
+    this.instructorPhotoUrl,
   });
 
   factory CourseModel.fromJson(Map<String, dynamic> json) {
@@ -35,6 +43,10 @@ class CourseModel {
       totalDays: json['totalDays'] as int,
       priceInr: double.parse(json['priceInr']?.toString() ?? '0'),
       avgDailyMins: json['avgDailyMins'] as int? ?? 30,
+      instructorName: json['instructorName'] as String?,
+      instructorTitle: json['instructorTitle'] as String?,
+      instructorBio: json['instructorBio'] as String?,
+      instructorPhotoUrl: json['instructorPhotoUrl'] as String?,
     );
   }
 }

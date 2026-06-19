@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const token = 'figd_tvOEIgPHWBaZ9ZX8CvWneZnIXI_CQ8v2RNgtGARL';
-const fileKey = 'hQ16GxeRwYFvOFK7eFJDCc';
+const fileKey = 'BUfDh5I6kChgKRI0wNPY8R';
 
 const options = {
   hostname: 'api.figma.com',

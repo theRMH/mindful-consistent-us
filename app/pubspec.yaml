@@ -51,6 +51,9 @@ dependencies:
   # Image picker for avatar upload
   image_picker: ^1.1.2
 
+  # URL launching (WhatsApp links, external URLs)
+  url_launcher: ^6.3.0
+
   # Device Integrations
   pedometer: ^4.0.0
   health: ^12.2.0

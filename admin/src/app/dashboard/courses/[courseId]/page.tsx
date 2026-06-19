@@ -33,8 +33,15 @@ interface Course {
   category: string | null;
   totalDays: number;
   priceInr: number;
+  priceUsd: number | null;
+  whatsappLink: string | null;
+  scheduledStartDate: string | null;
   thumbnailUrl: string | null;
   isPublished: boolean;
+  instructorName: string | null;
+  instructorTitle: string | null;
+  instructorBio: string | null;
+  instructorPhotoUrl: string | null;
   courseDays: CourseDay[];
 }
 
@@ -64,6 +71,13 @@ export default function CourseBuilder({
   const [editThumbnail, setEditThumbnail] = useState("");
   const [editCategory, setEditCategory] = useState("yoga");
   const [editPublished, setEditPublished] = useState(false);
+  const [editPriceUsd, setEditPriceUsd] = useState("");
+  const [editWhatsapp, setEditWhatsapp] = useState("");
+  const [editScheduledStart, setEditScheduledStart] = useState("");
+  const [editInstructorName, setEditInstructorName] = useState("");
+  const [editInstructorTitle, setEditInstructorTitle] = useState("");
+  const [editInstructorBio, setEditInstructorBio] = useState("");
+  const [editInstructorPhoto, setEditInstructorPhoto] = useState("");
   const [courseSubmitting, setCourseSubmitting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -85,11 +99,13 @@ export default function CourseBuilder({
   const [videoTitle, setVideoTitle] = useState("");
   const [videoDescription, setVideoDescription] = useState("");
   const [videoCategory, setVideoCategory] = useState("yoga");
-  const [videoDuration, setVideoDuration] = useState("1200");
-  const [videoSource, setVideoSource] = useState<"bunny" | "youtube">("bunny");
+  const [videoDuration, setVideoDuration] = useState("20");
+  const [videoSource, setVideoSource] = useState<"bunny" | "youtube" | "supabase">("bunny");
   const [bunnyVideoId, setBunnyVideoId] = useState("");
   const [bunnyLibraryId, setBunnyLibraryId] = useState("");
   const [youtubeVideoId, setYoutubeVideoId] = useState("");
+  const [supabaseVideoUrl, setSupabaseVideoUrl] = useState("");
+  const [supabaseUploading, setSupabaseUploading] = useState(false);
   const [isFree, setIsFree] = useState(false);
   const [videoThumbnail, setVideoThumbnail] = useState("");
   const [videoSubmitting, setVideoSubmitting] = useState(false);
@@ -99,15 +115,35 @@ export default function CourseBuilder({
   const [editVideoTitle, setEditVideoTitle] = useState("");
   const [editVideoDescription, setEditVideoDescription] = useState("");
   const [editVideoCategory, setEditVideoCategory] = useState("yoga");
-  const [editVideoDuration, setEditVideoDuration] = useState("1200");
-  const [editVideoSource, setEditVideoSource] = useState<"bunny" | "youtube">(
+  const [editVideoDuration, setEditVideoDuration] = useState("20");
+  const [editVideoSource, setEditVideoSource] = useState<"bunny" | "youtube" | "supabase">(
     "bunny",
   );
   const [editBunnyVideoId, setEditBunnyVideoId] = useState("");
   const [editBunnyLibraryId, setEditBunnyLibraryId] = useState("");
   const [editYoutubeVideoId, setEditYoutubeVideoId] = useState("");
+  const [editSupabaseVideoUrl, setEditSupabaseVideoUrl] = useState("");
+  const [editSupabaseUploading, setEditSupabaseUploading] = useState(false);
   const [editVideoIsFree, setEditVideoIsFree] = useState(false);
   const [editVideoSubmitting, setEditVideoSubmitting] = useState(false);
+
+  const handleVideoFileUpload = async (file: File, isEdit: boolean) => {
+    const setUploading = isEdit ? setEditSupabaseUploading : setSupabaseUploading;
+    const setUrl = isEdit ? setEditSupabaseVideoUrl : setSupabaseVideoUrl;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload/video", { method: "POST", body: fd });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Upload failed");
+      const { url } = await res.json();
+      setUrl(url as string);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const fetchCourseData = async () => {
     try {
@@ -124,6 +160,13 @@ export default function CourseBuilder({
       setEditThumbnail(data.thumbnailUrl || "");
       setEditCategory(data.category || "yoga");
       setEditPublished(data.isPublished);
+      setEditPriceUsd(data.priceUsd != null ? Number(data.priceUsd).toString() : "");
+      setEditWhatsapp(data.whatsappLink || "");
+      setEditScheduledStart(data.scheduledStartDate ? data.scheduledStartDate.slice(0, 10) : "");
+      setEditInstructorName(data.instructorName || "");
+      setEditInstructorTitle(data.instructorTitle || "");
+      setEditInstructorBio(data.instructorBio || "");
+      setEditInstructorPhoto(data.instructorPhotoUrl || "");
       setLoading(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
@@ -186,12 +229,11 @@ export default function CourseBuilder({
           title: videoTitle,
           description: videoDescription || undefined,
           category: videoCategory,
-          durationSeconds: videoDuration,
+          durationSeconds: Number(videoDuration) * 60,
           videoSource,
-          bunnyVideoId: videoSource === "bunny" ? bunnyVideoId : undefined,
+          bunnyVideoId: videoSource === "bunny" ? bunnyVideoId : videoSource === "supabase" ? supabaseVideoUrl : undefined,
           bunnyLibraryId: videoSource === "bunny" ? bunnyLibraryId : undefined,
-          youtubeVideoId:
-            videoSource === "youtube" ? youtubeVideoId : undefined,
+          youtubeVideoId: videoSource === "youtube" ? youtubeVideoId : undefined,
           isFree,
           thumbnailUrl: videoThumbnail || undefined,
         }),
@@ -206,6 +248,7 @@ export default function CourseBuilder({
       setVideoSource("bunny");
       setBunnyVideoId("");
       setYoutubeVideoId("");
+      setSupabaseVideoUrl("");
       setVideoThumbnail("");
       fetchCourseData();
     } catch (err) {
@@ -220,11 +263,12 @@ export default function CourseBuilder({
     setEditVideoTitle(vid.title);
     setEditVideoDescription(vid.description ?? "");
     setEditVideoCategory(vid.category);
-    setEditVideoDuration(vid.durationSeconds.toString());
-    setEditVideoSource(vid.videoSource as "bunny" | "youtube");
-    setEditBunnyVideoId(vid.bunnyVideoId ?? "");
+    setEditVideoDuration(Math.round(vid.durationSeconds / 60).toString());
+    setEditVideoSource(vid.videoSource as "bunny" | "youtube" | "supabase");
+    setEditBunnyVideoId(vid.videoSource === "bunny" ? (vid.bunnyVideoId ?? "") : "");
     setEditBunnyLibraryId(vid.bunnyLibraryId ?? "");
     setEditYoutubeVideoId(vid.youtubeVideoId ?? "");
+    setEditSupabaseVideoUrl(vid.videoSource === "supabase" ? (vid.bunnyVideoId ?? "") : "");
     setEditVideoIsFree(vid.isFree);
     setActiveDayId(null);
     setShowDayForm(false);
@@ -243,14 +287,11 @@ export default function CourseBuilder({
           title: editVideoTitle,
           description: editVideoDescription || undefined,
           category: editVideoCategory,
-          durationSeconds: editVideoDuration,
+          durationSeconds: Number(editVideoDuration) * 60,
           videoSource: editVideoSource,
-          bunnyVideoId:
-            editVideoSource === "bunny" ? editBunnyVideoId : undefined,
-          bunnyLibraryId:
-            editVideoSource === "bunny" ? editBunnyLibraryId : undefined,
-          youtubeVideoId:
-            editVideoSource === "youtube" ? editYoutubeVideoId : undefined,
+          bunnyVideoId: editVideoSource === "bunny" ? editBunnyVideoId : editVideoSource === "supabase" ? editSupabaseVideoUrl : undefined,
+          bunnyLibraryId: editVideoSource === "bunny" ? editBunnyLibraryId : undefined,
+          youtubeVideoId: editVideoSource === "youtube" ? editYoutubeVideoId : undefined,
           isFree: editVideoIsFree,
         }),
       });
@@ -295,6 +336,13 @@ export default function CourseBuilder({
           totalDays: editTotalDays,
           isPublished: editPublished,
           thumbnailUrl: editThumbnail,
+          priceUsd: editPriceUsd !== "" ? editPriceUsd : null,
+          whatsappLink: editWhatsapp || null,
+          scheduledStartDate: editScheduledStart || null,
+          instructorName: editInstructorName,
+          instructorTitle: editInstructorTitle,
+          instructorBio: editInstructorBio,
+          instructorPhotoUrl: editInstructorPhoto,
         }),
       });
 
@@ -687,11 +735,12 @@ export default function CourseBuilder({
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-500">
-                      Duration (Secs)
+                      Duration (Mins)
                     </label>
                     <input
                       type="number"
                       required
+                      min="1"
                       value={videoDuration}
                       onChange={(e) => setVideoDuration(e.target.value)}
                       className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
@@ -716,6 +765,13 @@ export default function CourseBuilder({
                       className={`flex-1 py-1.5 transition-colors ${videoSource === "youtube" ? "bg-red-500 text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
                     >
                       YouTube
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVideoSource("supabase")}
+                      className={`flex-1 py-1.5 transition-colors ${videoSource === "supabase" ? "bg-violet-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+                    >
+                      Upload
                     </button>
                   </div>
                 </div>
@@ -746,7 +802,7 @@ export default function CourseBuilder({
                       />
                     </div>
                   </>
-                ) : (
+                ) : videoSource === "youtube" ? (
                   <div>
                     <label className="block text-xs font-bold text-gray-500">
                       YouTube Video ID
@@ -759,6 +815,45 @@ export default function CourseBuilder({
                       className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
                       placeholder="e.g. dQw4w9WgXcQ"
                     />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500">
+                      Video File
+                    </label>
+                    <div className="mt-1">
+                      <label className={`flex items-center justify-center w-full px-4 py-6 border-2 border-dashed rounded-md cursor-pointer transition-colors ${supabaseUploading ? "border-gray-200 bg-gray-50 cursor-not-allowed" : "border-violet-300 hover:border-violet-400 hover:bg-violet-50"}`}>
+                        <div className="text-center">
+                          {supabaseUploading ? (
+                            <p className="text-xs text-gray-500 font-medium">Uploading…</p>
+                          ) : supabaseVideoUrl ? (
+                            <>
+                              <p className="text-xs text-emerald-600 font-bold">✓ Uploaded</p>
+                              <p className="text-[10px] text-gray-400 mt-0.5 break-all max-w-[180px]">{supabaseVideoUrl.split("/").pop()}</p>
+                              <p className="text-[10px] text-violet-500 mt-1">Click to replace</p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-xs text-gray-600 font-medium">Click to select video</p>
+                              <p className="text-[10px] text-gray-400 mt-0.5">MP4, MOV, WebM — uploaded to Supabase</p>
+                            </>
+                          )}
+                        </div>
+                        <input
+                          type="file"
+                          accept="video/*"
+                          className="hidden"
+                          disabled={supabaseUploading}
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) handleVideoFileUpload(f, false);
+                          }}
+                        />
+                      </label>
+                    </div>
+                    {!supabaseVideoUrl && !supabaseUploading && (
+                      <p className="mt-1 text-[10px] text-red-500">Upload a file before saving.</p>
+                    )}
                   </div>
                 )}
                 <div>
@@ -865,11 +960,12 @@ export default function CourseBuilder({
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-500">
-                      Duration (Secs)
+                      Duration (Mins)
                     </label>
                     <input
                       type="number"
                       required
+                      min="1"
                       value={editVideoDuration}
                       onChange={(e) => setEditVideoDuration(e.target.value)}
                       className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
@@ -894,6 +990,13 @@ export default function CourseBuilder({
                       className={`flex-1 py-1.5 transition-colors ${editVideoSource === "youtube" ? "bg-red-500 text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
                     >
                       YouTube
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditVideoSource("supabase")}
+                      className={`flex-1 py-1.5 transition-colors ${editVideoSource === "supabase" ? "bg-violet-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+                    >
+                      Upload
                     </button>
                   </div>
                 </div>
@@ -924,7 +1027,7 @@ export default function CourseBuilder({
                       />
                     </div>
                   </>
-                ) : (
+                ) : editVideoSource === "youtube" ? (
                   <div>
                     <label className="block text-xs font-bold text-gray-500">
                       YouTube Video ID
@@ -937,6 +1040,42 @@ export default function CourseBuilder({
                       className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
                       placeholder="e.g. dQw4w9WgXcQ"
                     />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500">
+                      Video File
+                    </label>
+                    <div className="mt-1">
+                      <label className={`flex items-center justify-center w-full px-4 py-6 border-2 border-dashed rounded-md cursor-pointer transition-colors ${editSupabaseUploading ? "border-gray-200 bg-gray-50 cursor-not-allowed" : "border-violet-300 hover:border-violet-400 hover:bg-violet-50"}`}>
+                        <div className="text-center">
+                          {editSupabaseUploading ? (
+                            <p className="text-xs text-gray-500 font-medium">Uploading…</p>
+                          ) : editSupabaseVideoUrl ? (
+                            <>
+                              <p className="text-xs text-emerald-600 font-bold">✓ Uploaded</p>
+                              <p className="text-[10px] text-gray-400 mt-0.5 break-all max-w-[180px]">{editSupabaseVideoUrl.split("/").pop()}</p>
+                              <p className="text-[10px] text-violet-500 mt-1">Click to replace</p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-xs text-gray-600 font-medium">Click to select video</p>
+                              <p className="text-[10px] text-gray-400 mt-0.5">MP4, MOV, WebM — uploaded to Supabase</p>
+                            </>
+                          )}
+                        </div>
+                        <input
+                          type="file"
+                          accept="video/*"
+                          className="hidden"
+                          disabled={editSupabaseUploading}
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) handleVideoFileUpload(f, true);
+                          }}
+                        />
+                      </label>
+                    </div>
                   </div>
                 )}
                 <div className="flex items-center">
@@ -1030,16 +1169,28 @@ export default function CourseBuilder({
                     rows={4}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">
-                      INR Price (₹)
+                      Price (₹ INR)
                     </label>
                     <input
                       type="number"
                       required
                       value={editPrice}
                       onChange={(e) => setEditPrice(e.target.value)}
+                      className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">
+                      Price ($ USD)
+                    </label>
+                    <input
+                      type="number"
+                      value={editPriceUsd}
+                      onChange={(e) => setEditPriceUsd(e.target.value)}
+                      placeholder="Optional"
                       className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
                     />
                   </div>
@@ -1056,6 +1207,32 @@ export default function CourseBuilder({
                     />
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">
+                      WhatsApp Link
+                    </label>
+                    <input
+                      type="text"
+                      value={editWhatsapp}
+                      onChange={(e) => setEditWhatsapp(e.target.value)}
+                      placeholder="https://chat.whatsapp.com/..."
+                      className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">
+                      Scheduled Start Date
+                    </label>
+                    <input
+                      type="date"
+                      value={editScheduledStart}
+                      onChange={(e) => setEditScheduledStart(e.target.value)}
+                      className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-0.5">Leave blank for immediate access</p>
+                  </div>
+                </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">
                     Thumbnail Image URL
@@ -1067,6 +1244,53 @@ export default function CourseBuilder({
                     className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
                     placeholder="https://..."
                   />
+                </div>
+                <div className="pt-2 border-t border-gray-100">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Instructor</p>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500">Name</label>
+                        <input
+                          type="text"
+                          value={editInstructorName}
+                          onChange={(e) => setEditInstructorName(e.target.value)}
+                          className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+                          placeholder="e.g. Deepa"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500">Title</label>
+                        <input
+                          type="text"
+                          value={editInstructorTitle}
+                          onChange={(e) => setEditInstructorTitle(e.target.value)}
+                          className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+                          placeholder="e.g. Certified Yoga Instructor"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500">Bio</label>
+                      <textarea
+                        value={editInstructorBio}
+                        onChange={(e) => setEditInstructorBio(e.target.value)}
+                        className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+                        rows={3}
+                        placeholder="Short bio shown in the app when the instructor card is tapped…"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500">Photo URL</label>
+                      <input
+                        type="text"
+                        value={editInstructorPhoto}
+                        onChange={(e) => setEditInstructorPhoto(e.target.value)}
+                        className="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900 bg-white"
+                        placeholder="https://..."
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div className="flex items-center">
                   <input

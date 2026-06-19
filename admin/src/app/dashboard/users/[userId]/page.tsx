@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import AssignCourseButton from "../AssignCourseButton";
 import TestingTools from "./TestingTools";
+import CurrencyToggle from "./CurrencyToggle";
 
 export const dynamic = "force-dynamic";
 
@@ -104,6 +105,11 @@ export default async function UserDetailPage({
               <div>
                 <dt className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Phone</dt>
                 <dd className="text-sm font-semibold text-gray-800">{profile.phone || "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Currency</dt>
+                <CurrencyToggle userId={profile.id} current={profile.currency ?? 'INR'} />
+                <p className="text-[10px] text-gray-400 mt-1">Controls price display — USD for non-Indian users</p>
               </div>
               <div>
                 <dt className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Notifications</dt>

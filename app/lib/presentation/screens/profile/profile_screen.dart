@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../providers/auth_provider.dart';
@@ -60,7 +59,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         return;
       }
       if (!granted) {
-        await openAppSettings();
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Text('Allow Steps Access'),
+              content: const Text(
+                'To sync your steps, please open the Health Connect app and allow this app to read Steps data.\n\n'
+                'Health Connect → App permissions → Mindful → Steps → Allow',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+        }
         return;
       }
       await HealthSyncService().syncTodaySteps();

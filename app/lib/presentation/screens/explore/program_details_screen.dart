@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/courses_provider.dart';
 import '../../providers/progress_provider.dart';
@@ -41,15 +42,16 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
     final bool isGuest = authState.user == null;
     final double statusBarHeight = MediaQuery.of(context).padding.top;
 
-    final String title = widget.courseTitle ?? '30 Days Yoga Course';
-    final String imagePath =
-        widget.courseImagePath ?? 'assets/course_30_days.png';
     final courseId = widget.courseId ?? '30-days-yoga';
 
     final coursesState = ref.watch(coursesProvider);
     final progressState = ref.watch(progressProvider);
     final courseAsync = ref.watch(courseDetailProvider(courseId));
     final courseDetail = courseAsync.valueOrNull;
+
+    final String title = widget.courseTitle ?? courseDetail?.title ?? 'Your Program';
+    final String imagePath =
+        widget.courseImagePath ?? 'assets/course_30_days.png';
     final List<CourseDayModel> courseDays = courseDetail?.days ?? [];
     final List<CourseDayModel> visibleDays = courseDays
         .where((day) => day.videos.isNotEmpty)
@@ -320,95 +322,139 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                           const SizedBox(height: 24),
 
                           // Instructor Card
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 12,
+                          GestureDetector(
+                            onTap: () => _showInstructorSheet(
+                              context,
+                              name: courseDetail?.instructorName ?? 'Deepa',
+                              title: courseDetail?.instructorTitle ?? 'Certified Yoga Instructor',
+                              bio: courseDetail?.instructorBio,
+                              photoUrl: courseDetail?.instructorPhotoUrl,
                             ),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: const Color(0xFFE2E8F0),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
                               ),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0x02000000),
-                                  blurRadius: 8,
-                                  offset: Offset(0, 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: const Color(0xFFE2E8F0),
                                 ),
-                              ],
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 40,
-                                  height: 40,
-                                  decoration: const BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    image: DecorationImage(
-                                      image: AssetImage(
-                                        'assets/avatar_priya.png',
-                                      ),
-                                      fit: BoxFit.cover,
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Color(0x02000000),
+                                    blurRadius: 8,
+                                    offset: Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  _InstructorAvatar(
+                                    photoUrl: courseDetail?.instructorPhotoUrl,
+                                    size: 40,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          courseDetail?.instructorName ?? 'Deepa',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppTheme.darkSlate,
+                                          ),
+                                        ),
+                                        Text(
+                                          courseDetail?.instructorTitle ?? 'Certified Yoga Instructor',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppTheme.figmaGreen,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        'Deepa',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppTheme.darkSlate,
-                                        ),
+                                  Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.white,
+                                      border: Border.all(
+                                        color: AppTheme.figmaGreen.withAlpha(76),
                                       ),
-                                      Text(
-                                        'Certified Yoga Instructor',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppTheme.figmaGreen,
-                                        ),
+                                    ),
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.person_outline_rounded,
+                                        color: AppTheme.figmaGreen,
+                                        size: 18,
                                       ),
-                                      Text(
-                                        '8+ Years of Experience',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppTheme.coolGray,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Container(
-                                  width: 32,
-                                  height: 32,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Colors.white,
-                                    border: Border.all(
-                                      color: AppTheme.figmaGreen.withAlpha(76),
                                     ),
                                   ),
-                                  child: const Center(
-                                    child: Icon(
-                                      Icons.person_outline_rounded,
-                                      color: AppTheme.figmaGreen,
-                                      size: 18,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
+                          if (isEnrolled &&
+                              courseDetail?.whatsappLink != null &&
+                              courseDetail!.whatsappLink!.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            GestureDetector(
+                              onTap: () async {
+                                final uri = Uri.parse(courseDetail.whatsappLink!);
+                                if (await canLaunchUrl(uri)) {
+                                  launchUrl(uri, mode: LaunchMode.externalApplication);
+                                }
+                              },
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE8F5E3),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: const Color(0xFF25D366).withAlpha(80)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Text('💬', style: TextStyle(fontSize: 22)),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Join the Community',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w700,
+                                              color: const Color(0xFF1A5C2A),
+                                            ),
+                                          ),
+                                          Text(
+                                            'Connect with others on WhatsApp',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 11,
+                                              color: const Color(0xFF4A7C5A),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(Icons.chevron_right_rounded, color: Color(0xFF25D366)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+
                           const SizedBox(height: 28),
 
                           // Sessions Header & View All Row
@@ -550,6 +596,26 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  void _showInstructorSheet(
+    BuildContext context, {
+    required String name,
+    required String title,
+    String? bio,
+    String? photoUrl,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _InstructorSheet(
+        name: name,
+        title: title,
+        bio: bio,
+        photoUrl: photoUrl,
       ),
     );
   }
@@ -1286,4 +1352,108 @@ class KriyaIconPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _InstructorAvatar extends StatelessWidget {
+  final String? photoUrl;
+  final double size;
+
+  const _InstructorAvatar({this.photoUrl, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    final url = photoUrl;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: const Color(0xFFE8F5E9),
+        image: url != null && url.isNotEmpty
+            ? DecorationImage(
+                image: NetworkImage(url),
+                fit: BoxFit.cover,
+              )
+            : const DecorationImage(
+                image: AssetImage('assets/avatar_priya.png'),
+                fit: BoxFit.cover,
+              ),
+      ),
+    );
+  }
+}
+
+class _InstructorSheet extends StatelessWidget {
+  final String name;
+  final String title;
+  final String? bio;
+  final String? photoUrl;
+
+  const _InstructorSheet({
+    required this.name,
+    required this.title,
+    this.bio,
+    this.photoUrl,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE2E8F0),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 28),
+          _InstructorAvatar(photoUrl: photoUrl, size: 88),
+          const SizedBox(height: 16),
+          Text(
+            name,
+            style: GoogleFonts.inter(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.darkSlate,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.figmaGreen,
+            ),
+          ),
+          if (bio != null && bio!.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: Text(
+                bio!,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  height: 1.6,
+                  color: const Color(0xFF5B5B5B),
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
 }

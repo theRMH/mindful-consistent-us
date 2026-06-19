@@ -17,6 +17,7 @@ model Profile {
   fullName           String?              @map("full_name")
   avatarUrl          String?              @map("avatar_url")
   phone              String?
+  currency                String               @default("INR")
   fcmToken                String?              @map("fcm_token")
   notificationsEnabled    Boolean              @default(false) @map("notifications_enabled")
   notificationTime        String?              @map("notification_time")
@@ -47,6 +48,13 @@ model Course {
   totalDays          Int                  @map("total_days")
   priceInr           Decimal              @default(0.00) @map("price_inr") @db.Decimal(10, 2)
   isPublished        Boolean              @default(false) @map("is_published")
+  priceUsd           Decimal?             @map("price_usd") @db.Decimal(10, 2)
+  whatsappLink       String?              @map("whatsapp_link")
+  scheduledStartDate DateTime?            @map("scheduled_start_date") @db.Date
+  instructorName     String?              @map("instructor_name")
+  instructorTitle    String?              @map("instructor_title")
+  instructorBio      String?              @map("instructor_bio")
+  instructorPhotoUrl String?              @map("instructor_photo_url")
   createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz
   courseDays         CourseDay[]
   enrollments        Enrollment[]

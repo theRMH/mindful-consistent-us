@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/services/api_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/courses_provider.dart';
 import '../../../core/config/theme.dart';
-import '../../../core/services/api_service.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   final String courseId;
@@ -20,7 +20,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     text: 'FIT20',
   );
   bool _couponApplied = false;
-  bool _checkingMetrics = false;
   int _selectedUpiIndex = 0;
   final int _quantity = 1;
 
@@ -669,7 +668,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               child: SizedBox(
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: _checkingMetrics ? null : _handleCheckout,
+                  onPressed: _handleCheckout,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.figmaGreen,
                     foregroundColor: Colors.white,
@@ -678,16 +677,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                       borderRadius: BorderRadius.circular(24),
                     ),
                   ),
-                  child: _checkingMetrics
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : Row(
+                  child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
@@ -720,26 +710,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     if (!isLoggedIn) {
       _showAuthSheet();
     } else {
-      _checkMetricsThenPay();
+      _processPayment();
     }
-  }
-
-  Future<void> _checkMetricsThenPay() async {
-    setState(() => _checkingMetrics = true);
-    try {
-      final records = await ApiService().getBodyMetrics();
-      if (!mounted) return;
-      if (records.isEmpty) {
-        final cartPath = Uri.encodeComponent('/cart?courseId=${widget.courseId}');
-        context.push('/body-metrics?skip=false&courseId=${widget.courseId}&redirect=$cartPath');
-        return;
-      }
-    } catch (_) {
-      // If the check fails, proceed anyway so payment is not blocked
-    } finally {
-      if (mounted) setState(() => _checkingMetrics = false);
-    }
-    _processPayment();
   }
 
   void _showAuthSheet() {
@@ -915,8 +887,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     if (mounted) {
       Navigator.pop(context); // close dialog
       context.go('/thank-you', extra: {
+        'courseId': widget.courseId,
         'courseTitle': _courseData?['title'] as String?,
         'amountPaid': _totalPayable.toInt(),
+        'whatsappLink': _courseData?['whatsappLink'] as String?,
       });
     }
   }

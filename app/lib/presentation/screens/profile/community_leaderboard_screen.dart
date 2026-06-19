@@ -160,50 +160,6 @@ class _CommunityLeaderboardScreenState
             ),
           ),
 
-          // Points formula footer
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFFFFFFFF), Color(0xFFF0F8F1)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-            child: Row(
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: AppTheme.figmaGreen.withAlpha(20),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.info_outline_rounded,
-                      color: AppTheme.figmaGreen, size: 16),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text.rich(
-                    TextSpan(
-                      style: GoogleFonts.inter(
-                          fontSize: 11, color: AppTheme.coolGray, height: 1.6),
-                      children: const [
-                        TextSpan(
-                          text: 'How points work:  ',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        TextSpan(text: '50 pts watch ≥1 video  ·  '),
-                        TextSpan(text: '30 pts all videos done  ·  '),
-                        TextSpan(text: '10 pts × streak  ·  '),
-                        TextSpan(text: '25 pts steps goal reached'),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
