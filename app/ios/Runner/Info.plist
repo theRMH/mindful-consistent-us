@@ -56,21 +56,28 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
 	</array>
 	<key>NSMotionUsageDescription</key>
-	<string>We use your motion data to count your daily steps.</string>
+	<string>ConsistentUs uses motion data to count your daily steps and track activity.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>We read your step data from Apple Health to track your daily activity.</string>
+	<string>ConsistentUs reads your step count from Apple Health to track daily activity and award points.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>We write your step data to Apple Health.</string>
+	<string>ConsistentUs writes your workout and step data to Apple Health.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>ConsistentUs uses your camera to take a profile photo.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ConsistentUs accesses your photo library so you can choose a profile picture.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>ConsistentUs saves photos to your library.</string>
 </dict>
 </plist>

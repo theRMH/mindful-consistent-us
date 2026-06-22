@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "264263871036",
+    "project_id": "mindful-otp",
+    "storage_bucket": "mindful-otp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:264263871036:android:09103feb702db678d07139",
+        "android_client_info": {
+          "package_name": "com.consistentus.mindful"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA7TmR-5VhZomucXj7LUE7REuWitwlfp6E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

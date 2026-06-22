@@ -14,6 +14,7 @@ class CourseDetail {
   final String? instructorBio;
   final String? instructorPhotoUrl;
   final String? whatsappLink;
+  final DateTime? scheduledStartDate;
 
   CourseDetail({
     required this.title,
@@ -27,6 +28,7 @@ class CourseDetail {
     this.instructorBio,
     this.instructorPhotoUrl,
     this.whatsappLink,
+    this.scheduledStartDate,
   });
 
   factory CourseDetail.fromJson(Map<String, dynamic> json) {
@@ -46,6 +48,9 @@ class CourseDetail {
       instructorBio: json['instructorBio'] as String?,
       instructorPhotoUrl: json['instructorPhotoUrl'] as String?,
       whatsappLink: json['whatsappLink'] as String?,
+      scheduledStartDate: json['scheduledStartDate'] != null
+          ? DateTime.tryParse(json['scheduledStartDate'] as String)
+          : null,
     );
   }
 }
