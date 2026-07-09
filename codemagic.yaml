@@ -11,8 +11,6 @@ workflows:
         bundle_identifier: com.consistentus.mindful
       vars:
         BUNDLE_ID: com.consistentus.mindful
-      groups:
-        - appstore_credentials
     scripts:
       - name: Set iOS deployment target to 14.0
         script: |
