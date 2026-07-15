@@ -57,7 +57,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (didPop, result) => context.go('/unregistered'),
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/unregistered');
+        }
+      },
       child: Scaffold(
         backgroundColor: Colors.white,
         body: Stack(

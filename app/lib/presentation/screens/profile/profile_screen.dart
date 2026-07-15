@@ -95,10 +95,61 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final authState = ref.watch(authProvider);
 
     if (!authState.isAuthenticated) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) context.push('/login?redirect=${Uri.encodeComponent('/profile')}');
-      });
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE5F4ED),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.person_outline_rounded, size: 40, color: Color(0xFF019948)),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Your Profile',
+                    style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.bold, color: const Color(0xFF0E3C31)),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Log in to view your progress, streak, and personal details.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 28),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: () => context.push('/login?redirect=${Uri.encodeComponent('/profile')}'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF019948),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+                      ),
+                      child: Text('Log In', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: () => context.push('/signup'),
+                    child: Text('Create an account', style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF019948))),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
     }
     final bool isAuthenticated = authState.isAuthenticated;
 

@@ -81,6 +81,10 @@ class _StepsScreenState extends ConsumerState<StepsScreen> with WidgetsBindingOb
   // ─── Initialisation ────────────────────────────────────────────────────────
 
   Future<void> _initAll() async {
+    if (!ref.read(authProvider).isAuthenticated) {
+      if (mounted) setState(() => _isInitializing = false);
+      return;
+    }
     // Activity recognition is needed for both pedometer and Health Connect
     final arStatus = await Permission.activityRecognition.request();
     if (arStatus.isPermanentlyDenied) {
