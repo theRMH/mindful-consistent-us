@@ -1,17 +1,15 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/services/api_service.dart';
 
 class UserProfile {
   final String id;
-  final String email;
   final String phone;
   final String fullName;
   final String avatarUrl;
 
   UserProfile({
     required this.id,
-    required this.email,
     required this.phone,
     required this.fullName,
     required this.avatarUrl,
@@ -24,6 +22,8 @@ class AuthState {
   final bool isLoading;
   final UserProfile? user;
   final String? errorMessage;
+  final String? verificationId;
+  final int? resendToken;
 
   AuthState({
     this.isAuthenticated = false,
@@ -31,6 +31,8 @@ class AuthState {
     this.isLoading = false,
     this.user,
     this.errorMessage,
+    this.verificationId,
+    this.resendToken,
   });
 
   AuthState copyWith({
@@ -39,6 +41,8 @@ class AuthState {
     bool? isLoading,
     UserProfile? user,
     String? errorMessage,
+    String? verificationId,
+    int? resendToken,
   }) {
     return AuthState(
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
@@ -46,57 +50,37 @@ class AuthState {
       isLoading: isLoading ?? this.isLoading,
       user: user ?? this.user,
       errorMessage: errorMessage ?? this.errorMessage,
+      verificationId: verificationId ?? this.verificationId,
+      resendToken: resendToken ?? this.resendToken,
     );
   }
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier() : super(_buildInitialState()) {
-    // If app opened with an existing session, load the profile in background
     if (state.isAuthenticated) {
+      _refreshToken();
       _refreshProfileFromApi();
     }
-    // Keep ApiService token in sync with Supabase session refreshes
-    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
-      final session = data.session;
-      if (data.event == AuthChangeEvent.tokenRefreshed && session != null) {
-        ApiService().setToken(session.accessToken);
-      } else if (data.event == AuthChangeEvent.signedOut) {
+    FirebaseAuth.instance.idTokenChanges().listen((user) async {
+      if (user != null) {
+        final token = await user.getIdToken();
+        ApiService().setToken(token);
+      } else {
         ApiService().setToken(null);
       }
     });
   }
 
-  Future<void> _refreshProfileFromApi() async {
-    if (!state.isAuthenticated || state.user == null) return;
-    try {
-      final profile = await ApiService().getProfile();
-      String fullName = (profile['fullName'] as String? ?? '').trim();
-      final avatarUrl = (profile['avatarUrl'] as String? ?? '').trim();
-      if (fullName.isEmpty) fullName = state.user!.email.split('@').first;
-      state = state.copyWith(
-        user: UserProfile(
-          id: state.user!.id,
-          email: state.user!.email,
-          phone: state.user!.phone,
-          fullName: fullName,
-          avatarUrl: avatarUrl.isNotEmpty ? avatarUrl : state.user!.avatarUrl,
-        ),
-      );
-    } catch (_) {}
-  }
-
   static AuthState _buildInitialState() {
     try {
-      final session = Supabase.instance.client.auth.currentSession;
-      if (session != null) {
-        ApiService().setToken(session.accessToken);
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
         return AuthState(
           isAuthenticated: true,
           user: UserProfile(
-            id: session.user.id,
-            email: session.user.email ?? '',
-            phone: session.user.phone ?? '',
+            id: user.uid,
+            phone: user.phoneNumber ?? '',
             fullName: '',
             avatarUrl: '',
           ),
@@ -106,156 +90,148 @@ class AuthNotifier extends StateNotifier<AuthState> {
     return AuthState();
   }
 
+  Future<void> _refreshToken() async {
+    try {
+      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (token != null) ApiService().setToken(token);
+    } catch (_) {}
+  }
+
+  Future<void> _refreshProfileFromApi() async {
+    if (!state.isAuthenticated || state.user == null) return;
+    try {
+      final profile = await ApiService().getProfile();
+      final fullName = (profile['fullName'] as String? ?? '').trim();
+      final avatarUrl = (profile['avatarUrl'] as String? ?? '');
+      state = state.copyWith(
+        user: UserProfile(
+          id: state.user!.id,
+          phone: state.user!.phone,
+          fullName: fullName.isNotEmpty ? fullName : state.user!.phone,
+          avatarUrl: avatarUrl,
+        ),
+      );
+    } catch (_) {}
+  }
+
   void loginAsGuest() {
     state = AuthState(isGuest: true, isAuthenticated: false);
   }
 
-  Future<bool> login(String email, String password) async {
+  Future<void> sendOtp(String phone) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
-    try {
-      final response = await Supabase.instance.client.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
-      final session = response.session;
-      if (session == null) {
-        state = state.copyWith(isLoading: false, errorMessage: 'Login failed. Please try again.');
-        return false;
-      }
-      ApiService().setToken(session.accessToken);
-      String fullName = '';
-      String avatarUrl = '';
-      try {
-        final profile = await ApiService().getProfile();
-        fullName = (profile['fullName'] as String? ?? '').trim();
-        avatarUrl = profile['avatarUrl'] ?? '';
-      } catch (_) {}
-      if (fullName.isEmpty) fullName = email.split('@').first;
-      state = AuthState(
-        isAuthenticated: true,
-        user: UserProfile(
-          id: session.user.id,
-          email: session.user.email ?? email,
-          phone: session.user.phone ?? '',
-          fullName: fullName,
-          avatarUrl: avatarUrl,
-        ),
-      );
-      return true;
-    } on AuthException catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.message);
-      return false;
-    } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: 'Login failed. Check your credentials.');
-      return false;
-    }
-  }
-
-  Future<bool> register(String name, String email, String password) async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
-    try {
-      final response = await Supabase.instance.client.auth.signUp(
-        email: email,
-        password: password,
-      );
-      final session = response.session;
-      if (session == null) {
+    await FirebaseAuth.instance.verifyPhoneNumber(
+      phoneNumber: '+91$phone',
+      forceResendingToken: state.resendToken,
+      verificationCompleted: (PhoneAuthCredential credential) async {
+        // Auto-retrieval on Android — sign in automatically
+        await _signInWithCredential(credential);
+      },
+      verificationFailed: (FirebaseAuthException e) {
         state = state.copyWith(
           isLoading: false,
-          errorMessage: 'Please check your email to confirm your account.',
+          errorMessage: e.message ?? 'Failed to send OTP',
         );
-        return false;
-      }
-      ApiService().setToken(session.accessToken);
-      final displayName = name.isNotEmpty ? name : email.split('@').first;
-      try {
-        await ApiService().syncProfile(fullName: displayName);
-      } catch (_) {}
-      state = AuthState(
-        isAuthenticated: true,
-        user: UserProfile(
-          id: session.user.id,
-          email: email,
-          phone: '',
-          fullName: displayName,
-          avatarUrl: '',
-        ),
-      );
-      return true;
-    } on AuthException catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.message);
-      return false;
-    } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: 'Registration failed. Please try again.');
-      return false;
-    }
+      },
+      codeSent: (String verificationId, int? resendToken) {
+        state = state.copyWith(
+          isLoading: false,
+          verificationId: verificationId,
+          resendToken: resendToken,
+        );
+      },
+      codeAutoRetrievalTimeout: (String verificationId) {
+        state = state.copyWith(verificationId: verificationId);
+      },
+    );
   }
 
   static const String notRegisteredError = 'not_registered';
 
-  // Kept for future Firebase OTP integration
-  Future<bool> verifyOtpAndLogin(String phone, String otp, {bool isLoginAttempt = false}) async {
+  Future<bool> verifyOtpAndLogin(
+    String smsCode, {
+    bool isLoginAttempt = false,
+    String? name,
+  }) async {
+    if (state.verificationId == null) {
+      state = state.copyWith(errorMessage: 'Session expired. Please resend OTP.');
+      return false;
+    }
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      final response = await Supabase.instance.client.auth.verifyOTP(
-        phone: '+91$phone',
-        token: otp,
-        type: OtpType.sms,
+      final credential = PhoneAuthProvider.credential(
+        verificationId: state.verificationId!,
+        smsCode: smsCode,
       );
-      final session = response.session;
-      if (session == null) {
-        state = state.copyWith(isLoading: false, errorMessage: 'Verification failed. Try again.');
+      return await _signInWithCredential(
+        credential,
+        isLoginAttempt: isLoginAttempt,
+        name: name,
+      );
+    } on FirebaseAuthException catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.message ?? 'Verification failed',
+      );
+      return false;
+    }
+  }
+
+  Future<bool> _signInWithCredential(
+    PhoneAuthCredential credential, {
+    bool isLoginAttempt = false,
+    String? name,
+  }) async {
+    try {
+      final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+      final token = await userCred.user?.getIdToken();
+      if (token == null) {
+        state = state.copyWith(isLoading: false, errorMessage: 'Authentication failed');
         return false;
       }
-
-      ApiService().setToken(session.accessToken);
+      ApiService().setToken(token);
 
       if (isLoginAttempt) {
         try {
           await ApiService().getProfile();
         } catch (_) {
           ApiService().setToken(null);
-          await Supabase.instance.client.auth.signOut();
+          await FirebaseAuth.instance.signOut();
           state = state.copyWith(isLoading: false, errorMessage: notRegisteredError);
           return false;
         }
       }
 
-      // Ensure a profile row exists in the DB
       try {
-        await ApiService().syncProfile();
+        await ApiService().syncProfile(fullName: name);
       } catch (_) {}
 
-      String fullName = '';
+      String fullName = name ?? '';
       String avatarUrl = '';
       try {
         final profile = await ApiService().getProfile();
-        fullName = profile['fullName'] ?? '';
+        fullName = (profile['fullName'] as String? ?? fullName);
         avatarUrl = profile['avatarUrl'] ?? '';
       } catch (_) {}
 
       state = AuthState(
         isAuthenticated: true,
         user: UserProfile(
-          id: session.user.id,
-          email: session.user.email ?? '',
-          phone: session.user.phone ?? '',
+          id: userCred.user!.uid,
+          phone: userCred.user!.phoneNumber ?? '',
           fullName: fullName,
           avatarUrl: avatarUrl,
         ),
       );
       return true;
-    } on AuthException catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.message);
-      return false;
-    } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: 'Verification failed. Check OTP and retry.');
+    } on FirebaseAuthException catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.message ?? 'Sign in failed');
       return false;
     }
   }
 
-  void logout() {
-    Supabase.instance.client.auth.signOut();
+  void logout() async {
+    await FirebaseAuth.instance.signOut();
     ApiService().setToken(null);
     state = AuthState();
   }

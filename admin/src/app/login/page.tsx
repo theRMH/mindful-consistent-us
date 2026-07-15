@@ -16,13 +16,17 @@ export default function AdminLogin() {
     setError('');
     setLoading(true);
 
-    // Default admin test credentials for development/testing
-    if (email === 'admin@consistentus.com' && password === 'admin123') {
-      // Save session
-      localStorage.setItem('admin_token', 'consistent-us-admin-auth-token');
+    const res = await fetch('/api/auth/admin-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (res.ok) {
       router.push('/dashboard');
     } else {
-      setError('Invalid admin credentials. Hint: admin@consistentus.com / admin123');
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? 'Login failed');
       setLoading(false);
     }
   };
@@ -48,7 +52,7 @@ export default function AdminLogin() {
             Admin Dashboard
           </p>
         </div>
-        
+
         <form className="mt-8 space-y-6" onSubmit={handleLogin}>
           {error && (
             <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm font-medium border border-red-100">

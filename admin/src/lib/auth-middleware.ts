@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { supabaseAdmin } from './supabase';
+import { firebaseAuth } from './firebase-admin';
 
 export interface AuthenticatedUser {
   id: string;
@@ -10,24 +10,14 @@ export interface AuthenticatedUser {
 export async function verifyAuth(req: NextRequest): Promise<AuthenticatedUser | null> {
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return null;
-    }
-
+    if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
     const token = authHeader.split(' ')[1];
-    if (!token) {
-      return null;
-    }
-
-    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-    if (error || !user) {
-      return null;
-    }
-
+    if (!token) return null;
+    const decoded = await firebaseAuth.verifyIdToken(token);
     return {
-      id: user.id,
-      email: user.email,
-      phone: user.phone
+      id: decoded.uid,
+      phone: decoded.phone_number,
+      email: decoded.email,
     };
   } catch (err) {
     console.error('Error verifying auth token:', err);

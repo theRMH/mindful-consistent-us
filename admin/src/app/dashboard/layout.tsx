@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -8,33 +7,11 @@ import Image from 'next/image';
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [authorized, setAuthorized] = useState(false);
 
-  useEffect(() => {
-    const token = localStorage.getItem('admin_token');
-    if (!token) {
-      router.replace('/login');
-    } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setAuthorized(true);
-    }
-  }, [router]);
-
-  const handleLogout = () => {
-    localStorage.removeItem('admin_token');
+  const handleLogout = async () => {
+    await fetch('/api/auth/admin-logout', { method: 'POST' });
     router.replace('/login');
   };
-
-  if (!authorized) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#019948]"></div>
-          <p className="text-gray-500 font-medium text-sm">Authenticating Admin Session...</p>
-        </div>
-      </div>
-    );
-  }
 
   const navItems = [
     {
@@ -97,6 +74,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    },
+    {
+      name: 'Coupons',
+      path: '/dashboard/coupons',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
         </svg>
       ),
     },

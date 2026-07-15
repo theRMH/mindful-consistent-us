@@ -124,12 +124,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(
       {
-        _debug: {
-          activeEnrollmentId: activeEnrollment?.id ?? null,
-          activityFromStr,
-          weeklyProgressCount: weeklyProgress.length,
-          weeklyProgressRaw: weeklyProgress,
-        },
         stats: {
           currentStreak: stats.currentStreak,
           longestStreak: stats.longestStreak,

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/progress_provider.dart';
@@ -630,9 +631,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   if (pickedFile != null) {
                                     final bytes =
                                         await pickedFile!.readAsBytes();
-                                    final userId = Supabase
-                                            .instance.client.auth.currentUser
-                                            ?.id ??
+                                    final userId = FirebaseAuth
+                                            .instance.currentUser
+                                            ?.uid ??
                                         'unknown';
                                     final path =
                                         'user_${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';

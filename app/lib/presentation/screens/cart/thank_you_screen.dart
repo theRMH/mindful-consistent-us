@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/config/theme.dart';
+import '../../../core/services/analytics_service.dart';
 
 class ThankYouScreen extends StatefulWidget {
   final String? courseId;
@@ -32,6 +33,13 @@ class _ThankYouScreenState extends State<ThankYouScreen>
     _scaleAnim = CurvedAnimation(parent: _controller, curve: Curves.elasticOut);
     _fadeAnim = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
     _controller.forward();
+    if (widget.amountPaid != null) {
+      AnalyticsService().logPurchase(
+        courseId: widget.courseId ?? '',
+        courseTitle: widget.courseTitle ?? '',
+        amountPaid: widget.amountPaid!,
+      );
+    }
   }
 
   @override

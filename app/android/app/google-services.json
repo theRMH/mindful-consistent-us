@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "264263871036",
-    "project_id": "mindful-otp",
-    "storage_bucket": "mindful-otp.firebasestorage.app"
+    "project_number": "176309116354",
+    "project_id": "mindful-homediet",
+    "storage_bucket": "mindful-homediet.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:264263871036:android:09103feb702db678d07139",
+        "mobilesdk_app_id": "1:176309116354:android:2db9a0c38b6d566f828a5b",
         "android_client_info": {
           "package_name": "com.consistentus.mindful"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyA7TmR-5VhZomucXj7LUE7REuWitwlfp6E"
+          "current_key": "AIzaSyB06Sa3DgrmnjnmxJ-9F49Cz_emGADFgsg"
         }
       ],
       "services": {

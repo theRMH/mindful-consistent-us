@@ -4,7 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/config/theme.dart';
+import '../../../core/services/analytics_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/brand_logo.dart';
 import '../../widgets/background_leaves.dart';
@@ -13,12 +15,14 @@ class OTPScreen extends ConsumerStatefulWidget {
   final String phone;
   final String mode; // 'login' or 'register'
   final String? redirect;
+  final String? name;
 
   const OTPScreen({
     super.key,
     required this.phone,
     this.mode = 'register',
     this.redirect,
+    this.name,
   });
 
   @override
@@ -72,15 +76,20 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
     }
 
     final success = await ref.read(authProvider.notifier).verifyOtpAndLogin(
-      widget.phone,
       otp,
       isLoginAttempt: widget.mode == 'login',
+      name: widget.name,
     );
     if (success && mounted) {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) AnalyticsService().setUser(uid);
+      if (widget.mode == 'register') {
+        AnalyticsService().logSignUp();
+      } else {
+        AnalyticsService().logLogin();
+      }
       if (widget.redirect != null && widget.redirect!.isNotEmpty) {
         context.go(widget.redirect!);
-      } else if (widget.mode == 'register') {
-        context.go('/home');
       } else {
         context.go('/home');
       }
@@ -303,12 +312,11 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
                                     )
                                   : GestureDetector(
                                       onTap: () async {
-                                        final messenger = ScaffoldMessenger.of(context);
-                                        // OTP resend — wired to Firebase when ready
-                                        await Future.delayed(const Duration(seconds: 1));
+                                        await ref.read(authProvider.notifier).sendOtp(widget.phone);
                                         if (!mounted) return;
                                         setState(() => _startTimer());
-                                        messenger.showSnackBar(
+                                        // ignore: use_build_context_synchronously
+                                        ScaffoldMessenger.of(context).showSnackBar(
                                           const SnackBar(content: Text('OTP resent')),
                                         );
                                       },

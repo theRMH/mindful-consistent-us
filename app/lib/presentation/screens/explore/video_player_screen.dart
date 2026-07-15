@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,9 @@ import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../../providers/progress_provider.dart';
 import '../../../core/config/theme.dart';
+import '../../../core/services/analytics_service.dart';
+
+const _castChannel = MethodChannel('com.consistentus/cast');
 
 class VideoPlayerScreen extends ConsumerStatefulWidget {
   final String courseId;
@@ -50,6 +54,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
   void initState() {
     super.initState();
     _lockLandscape();
+    AnalyticsService().logVideoStart(widget.videoTitle);
 
     if (_isYoutube) {
       _ytController = YoutubePlayerController(
@@ -109,6 +114,8 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
       return;
     }
     _isCompletedLogged = true;
+    AnalyticsService().logVideoComplete(widget.videoTitle);
+    AnalyticsService().logSessionComplete(widget.courseId, widget.dayNumber);
     ref
         .read(progressProvider.notifier)
         .markDayComplete(
@@ -135,9 +142,43 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     }
   }
 
+  Future<void> _openCastSettings() async {
+    if (Platform.isAndroid) {
+      await _castChannel.invokeMethod('openCastSettings');
+    } else {
+      if (!mounted) return;
+      showModalBottomSheet(
+        context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (_) => Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Screen Mirroring',
+                  style: GoogleFonts.inter(
+                      fontSize: 17, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              Text(
+                '1. Swipe down from the top-right corner to open Control Center\n'
+                '2. Tap "Screen Mirroring"\n'
+                '3. Select your Apple TV or AirPlay device',
+                style: GoogleFonts.inter(fontSize: 14, height: 1.6),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   void deactivate() {
-    _ytController?.pause();
+    // Don't pause — video should keep playing when notification shade opens for screen mirroring
     super.deactivate();
   }
 
@@ -191,6 +232,13 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.cast, color: AppTheme.figmaGreen),
+              tooltip: 'Screen Mirror',
+              onPressed: _openCastSettings,
+            ),
+          ],
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(1),
             child: Container(height: 1, color: AppTheme.figmaLightBorder),

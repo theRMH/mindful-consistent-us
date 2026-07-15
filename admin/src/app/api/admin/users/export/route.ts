@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
         },
       },
       orderBy: { createdAt: 'desc' },
+      take: 1000,
     });
 
     const cell = (val: unknown) => `"${String(val ?? '').replace(/"/g, '""')}"`;

@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyAuth } from '@/lib/auth-middleware';
@@ -10,17 +11,10 @@ export async function GET(req: NextRequest) {
     }
 
     const enrollments = await prisma.enrollment.findMany({
-      where: {
-        userId: user.id,
-        isActive: true,
-      },
+      where: { userId: user.id, isActive: true },
       include: {
         course: {
-          include: {
-            _count: {
-              select: { courseDays: true }
-            }
-          }
+          include: { _count: { select: { courseDays: true } } },
         },
       },
     });
@@ -40,46 +34,65 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { courseId } = body;
+    const { courseId, razorpayOrderId, razorpayPaymentId, razorpaySignature, couponCode } = body;
 
     if (!courseId) {
       return NextResponse.json({ error: 'Missing courseId' }, { status: 400 });
     }
 
-    // Check if enrollment already exists
+    // Verify Razorpay payment signature
+    let verifiedPaymentId: string;
+    if (razorpayOrderId && razorpayPaymentId && razorpaySignature) {
+      const expectedSig = crypto
+        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
+        .update(`${razorpayOrderId}|${razorpayPaymentId}`)
+        .digest('hex');
+
+      if (expectedSig !== razorpaySignature) {
+        return NextResponse.json({ error: 'Payment verification failed' }, { status: 400 });
+      }
+      verifiedPaymentId = razorpayPaymentId;
+    } else {
+      // No payment details — admin-assigned enrollment path
+      verifiedPaymentId = `admin_${Math.random().toString(36).substring(2, 9)}`;
+    }
+
+    // Check for existing enrollment
     const existingEnrollment = await prisma.enrollment.findUnique({
-      where: {
-        userId_courseId: {
-          userId: user.id,
-          courseId: courseId,
-        },
-      },
+      where: { userId_courseId: { userId: user.id, courseId } },
     });
 
     if (existingEnrollment) {
-      // Re-activate if inactive
       if (!existingEnrollment.isActive) {
         const updated = await prisma.enrollment.update({
           where: { id: existingEnrollment.id },
-          data: { isActive: true },
+          data: { isActive: true, paymentId: verifiedPaymentId, paymentStatus: 'completed' },
         });
         return NextResponse.json(updated, { status: 200 });
       }
       return NextResponse.json(existingEnrollment, { status: 200 });
     }
 
-    // Create new enrollment
+    // Create enrollment
     const enrollment = await prisma.enrollment.create({
       data: {
         userId: user.id,
-        courseId: courseId,
-        paymentId: `pay_${Math.random().toString(36).substring(2, 9)}`,
+        courseId,
+        paymentId: verifiedPaymentId,
         paymentStatus: 'completed',
         isActive: true,
       },
     });
 
-    // Also ensure LeaderboardEntry exists
+    // Increment coupon usage if one was used
+    if (couponCode) {
+      await prisma.coupon.updateMany({
+        where: { code: (couponCode as string).toUpperCase(), isActive: true },
+        data: { usageCount: { increment: 1 } },
+      });
+    }
+
+    // Ensure LeaderboardEntry exists
     await prisma.leaderboardEntry.upsert({
       where: {
         userId_enrollmentId_snapshotDate: {
@@ -91,10 +104,10 @@ export async function POST(req: NextRequest) {
       update: {},
       create: {
         userId: user.id,
-        courseId: courseId,
+        courseId,
         enrollmentId: enrollment.id,
         daysCompleted: 0,
-        score: 0.00,
+        score: 0.0,
         snapshotDate: new Date(),
       },
     });

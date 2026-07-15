@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../../core/services/api_service.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/courses_provider.dart';
 import '../../../core/config/theme.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
@@ -16,28 +16,36 @@ class CartScreen extends ConsumerStatefulWidget {
 }
 
 class _CartScreenState extends ConsumerState<CartScreen> {
-  final TextEditingController _couponController = TextEditingController(
-    text: 'FIT20',
-  );
+  final TextEditingController _couponController = TextEditingController();
   bool _couponApplied = false;
+  double? _couponDiscount;
+  String? _couponError;
+  bool _isValidatingCoupon = false;
+  bool _isProcessing = false;
   int _selectedUpiIndex = 0;
   final int _quantity = 1;
+  late Razorpay _razorpay;
 
   Map<String, dynamic>? _courseData;
   bool _loadingCourse = true;
 
   double get _originalPrice =>
       (_courseData?['priceInr'] as num?)?.toDouble() ?? 999.0;
-  static const double _discount = 300;
 
   double get _unitPrice =>
-      _couponApplied ? (_originalPrice - _discount) : _originalPrice;
+      _couponApplied && _couponDiscount != null
+          ? (_originalPrice - _couponDiscount!).clamp(0, double.infinity)
+          : _originalPrice;
   double get _totalPayable => _unitPrice * _quantity;
 
   @override
   void initState() {
     super.initState();
     _loadCourse();
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
   }
 
   Future<void> _loadCourse() async {
@@ -52,6 +60,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   @override
   void dispose() {
     _couponController.dispose();
+    _razorpay.clear();
     super.dispose();
   }
 
@@ -369,6 +378,42 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 
   // ─── Coupon Section ──────────────────────────────────────────────────────
+  Future<void> _applyCoupon() async {
+    final code = _couponController.text.trim();
+    if (code.isEmpty) {
+      setState(() => _couponError = 'Enter a coupon code');
+      return;
+    }
+    setState(() { _isValidatingCoupon = true; _couponError = null; });
+    final result = await ApiService().validateCoupon(code);
+    if (!mounted) return;
+    if (result != null) {
+      setState(() {
+        _couponApplied = true;
+        _couponDiscount = (result['discountAmount'] as num).toDouble();
+        _isValidatingCoupon = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Coupon applied! ₹${_couponDiscount!.toInt()} off'),
+          backgroundColor: AppTheme.figmaGreen,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } else {
+      setState(() { _couponError = 'Invalid or expired coupon'; _isValidatingCoupon = false; });
+    }
+  }
+
+  void _removeCoupon() {
+    setState(() {
+      _couponApplied = false;
+      _couponDiscount = null;
+      _couponError = null;
+      _couponController.clear();
+    });
+  }
+
   Widget _buildCouponSection() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -378,78 +423,100 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           color: const Color(0xFFF7FBF8),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.asset(
-              'assets/icon_coupon.png',
-              width: 44,
-              height: 44,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) => Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE5F0E4),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.local_offer_outlined,
-                  color: AppTheme.figmaGreen,
-                  size: 22,
-                ),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Apply Code ${_couponController.text}',
-                    style: GoogleFonts.inter(
-                      fontSize: 15,
-                      fontWeight: AppFontWeights.semiBold,
-                      color: AppTheme.figmaCharcoal,
+            Row(
+              children: [
+                Image.asset(
+                  'assets/icon_coupon.png',
+                  width: 44,
+                  height: 44,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE5F0E4),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.local_offer_outlined,
+                      color: AppTheme.figmaGreen,
+                      size: 22,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Extra ₹${_discount.toInt()} off on this order',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: AppFontWeights.regular,
-                      color: AppTheme.coolGray,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  _couponApplied = !_couponApplied;
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      _couponApplied
-                          ? '🎉 Coupon FIT20 applied! ₹300 off'
-                          : 'Coupon removed',
-                    ),
-                    duration: const Duration(seconds: 2),
-                    backgroundColor: AppTheme.figmaGreen,
-                  ),
-                );
-              },
-              child: Text(
-                _couponApplied ? 'Remove' : 'Apply',
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  fontWeight: AppFontWeights.semiBold,
-                  color: AppTheme.figmaGreen,
                 ),
-              ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: _couponApplied
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Code ${_couponController.text.toUpperCase()} applied!',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: AppFontWeights.semiBold,
+                                color: AppTheme.figmaGreen,
+                              ),
+                            ),
+                            Text(
+                              '₹${_couponDiscount!.toInt()} off on this order',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: AppTheme.coolGray,
+                              ),
+                            ),
+                          ],
+                        )
+                      : TextField(
+                          controller: _couponController,
+                          textCapitalization: TextCapitalization.characters,
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            color: AppTheme.figmaCharcoal,
+                            fontWeight: AppFontWeights.semiBold,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: 'Enter coupon code',
+                            hintStyle: GoogleFonts.inter(
+                              color: AppTheme.coolGray,
+                              fontSize: 13,
+                            ),
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                ),
+                const SizedBox(width: 8),
+                _isValidatingCoupon
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.figmaGreen),
+                      )
+                    : GestureDetector(
+                        onTap: _couponApplied ? _removeCoupon : _applyCoupon,
+                        child: Text(
+                          _couponApplied ? 'Remove' : 'Apply',
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            fontWeight: AppFontWeights.semiBold,
+                            color: AppTheme.figmaGreen,
+                          ),
+                        ),
+                      ),
+              ],
             ),
+            if (_couponError != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                _couponError!,
+                style: GoogleFonts.inter(fontSize: 12, color: Colors.red),
+              ),
+            ],
           ],
         ),
       ),
@@ -668,7 +735,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               child: SizedBox(
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: _handleCheckout,
+                  onPressed: _isProcessing ? null : _handleCheckout,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.figmaGreen,
                     foregroundColor: Colors.white,
@@ -843,49 +910,48 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 
   Future<void> _processPayment() async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        content: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 8),
-              const CircularProgressIndicator(color: AppTheme.primaryGreen),
-              const SizedBox(height: 24),
-              Text(
-                'Processing Payment...',
-                style: GoogleFonts.inter(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                  color: AppTheme.darkTeal,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Please wait, locking in details',
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  color: AppTheme.coolGray,
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        ),
-      ),
-    );
+    if (_isProcessing) return;
+    setState(() => _isProcessing = true);
+    try {
+      final order = await ApiService().createPaymentOrder(
+        widget.courseId,
+        couponCode: _couponApplied ? _couponController.text.trim() : null,
+      );
+      final options = {
+        'key': order['keyId'] as String,
+        'amount': order['amount'],
+        'currency': order['currency'] ?? 'INR',
+        'order_id': order['orderId'] as String,
+        'name': 'ConsistentUs',
+        'description': _courseData?['title'] as String? ?? 'Course',
+        'prefill': {
+          'contact': ref.read(authProvider).user?.phone ?? '',
+        },
+        'theme': {'color': '#019948'},
+      };
+      _razorpay.open(options);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Payment failed: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
 
-    await Future.delayed(const Duration(seconds: 2));
-
-    ref.read(coursesProvider.notifier).enroll(widget.courseId);
-
+  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    try {
+      await ApiService().enrollInCourse(
+        widget.courseId,
+        razorpayOrderId: response.orderId,
+        razorpayPaymentId: response.paymentId,
+        razorpaySignature: response.signature,
+        couponCode: _couponApplied ? _couponController.text.trim() : null,
+      );
+    } catch (_) {}
     if (mounted) {
-      Navigator.pop(context); // close dialog
+      setState(() => _isProcessing = false);
       context.go('/thank-you', extra: {
         'courseId': widget.courseId,
         'courseTitle': _courseData?['title'] as String?,
@@ -893,5 +959,21 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         'whatsappLink': _courseData?['whatsappLink'] as String?,
       });
     }
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    if (mounted) {
+      setState(() => _isProcessing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(response.message ?? 'Payment cancelled'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    if (mounted) setState(() => _isProcessing = false);
   }
 }

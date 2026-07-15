@@ -28,7 +28,7 @@ class HomeScreen extends ConsumerWidget {
     final userProfile = authState.user;
     final userName = (userProfile?.fullName ?? '').isNotEmpty
         ? userProfile!.fullName
-        : userProfile?.email.split('@').first ?? 'Friend';
+        : userProfile?.phone ?? 'Friend';
 
     // Resolve active course: prefer the one matching activeCourseId, else first enrolled
     CourseModel? activeCourse;
@@ -1127,7 +1127,7 @@ class HomeScreen extends ConsumerWidget {
     final authUser = ref.read(authProvider).user;
     final authName = (authUser?.fullName ?? '').isNotEmpty
         ? authUser?.fullName ?? ''
-        : (authUser?.email ?? '').split('@')[0];
+        : authUser?.phone ?? '';
 
     final name1 = _resolveLeaderName(rank1, 0, authName);
     final name2 = _resolveLeaderName(rank2, 1, authName);

@@ -9,10 +9,10 @@ export async function GET(req: NextRequest) {
 
     const courseId = req.nextUrl.searchParams.get('courseId') ?? undefined;
 
-    // Fetch top entries ordered by score; fetch extra to deduplicate per user
-    const rawEntries = await prisma.leaderboardEntry.findMany({
+    const entries = await prisma.leaderboardEntry.findMany({
       where: courseId ? { courseId } : undefined,
       orderBy: { score: 'desc' },
+      distinct: ['userId'],
       take: 50,
       include: {
         user: {
@@ -26,15 +26,7 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // Keep only the highest-score entry per user
-    const seen = new Set<string>();
-    const deduped = rawEntries.filter(e => {
-      if (seen.has(e.userId)) return false;
-      seen.add(e.userId);
-      return true;
-    });
-
-    const top10 = deduped.slice(0, 10).map((e, i) => ({
+    const top10 = entries.slice(0, 10).map((e, i) => ({
       rank: i + 1,
       userId: e.userId,
       name: e.user.fullName || e.user.email?.split('@')[0] || 'User',
@@ -45,10 +37,9 @@ export async function GET(req: NextRequest) {
       isCurrentUser: e.userId === userId,
     }));
 
-    // Find current user's rank across all entries (not just top 10)
     let userRank: number | null = null;
     if (userId) {
-      const userPositionIndex = deduped.findIndex(e => e.userId === userId);
+      const userPositionIndex = entries.findIndex(e => e.userId === userId);
       userRank = userPositionIndex >= 0 ? userPositionIndex + 1 : null;
     }
 

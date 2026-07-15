@@ -112,16 +112,50 @@ class ApiService {
     return res as List<dynamic>;
   }
 
-  Future<Map<String, dynamic>> enrollInCourse(String courseId) async {
-    final res = await _post('/api/mobile/enrollments', {'courseId': courseId});
+  Future<Map<String, dynamic>> enrollInCourse(
+    String courseId, {
+    String? razorpayOrderId,
+    String? razorpayPaymentId,
+    String? razorpaySignature,
+    String? couponCode,
+  }) async {
+    final body = <String, dynamic>{'courseId': courseId};
+    if (razorpayOrderId != null) body['razorpayOrderId'] = razorpayOrderId;
+    if (razorpayPaymentId != null) body['razorpayPaymentId'] = razorpayPaymentId;
+    if (razorpaySignature != null) body['razorpaySignature'] = razorpaySignature;
+    if (couponCode != null && couponCode.isNotEmpty) body['couponCode'] = couponCode;
+    final res = await _post('/api/mobile/enrollments', body);
     return res as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> createPaymentOrder(
+    String courseId, {
+    String? couponCode,
+  }) async {
+    final body = <String, dynamic>{'courseId': courseId};
+    if (couponCode != null && couponCode.isNotEmpty) body['couponCode'] = couponCode;
+    final res = await _post('/api/mobile/payment/create-order', body);
+    return res as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>?> validateCoupon(String code) async {
+    try {
+      final res = await _post('/api/mobile/coupons/validate', {'code': code});
+      return res as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> appOpen() async {
+    try {
+      await _post('/api/mobile/app-open', {});
+    } catch (_) {}
   }
 
   Future<Map<String, dynamic>> getProgress() async {
     final res = await _get('/api/mobile/progress');
     final map = res as Map<String, dynamic>;
-    // ignore: avoid_print
-    print('[DEBUG progress] ${map['_debug']}');
     return map;
   }
 

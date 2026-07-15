@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'theme.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../services/analytics_service.dart';
 import '../../presentation/providers/auth_provider.dart';
 import '../../presentation/providers/courses_provider.dart';
 import '../../presentation/screens/auth/login_screen.dart';
@@ -40,8 +41,7 @@ final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(
 class AppRouter {
   static String _initialLocation() {
     try {
-      final session = Supabase.instance.client.auth.currentSession;
-      if (session != null) return '/home';
+      if (FirebaseAuth.instance.currentUser != null) return '/home';
     } catch (_) {}
     return '/unregistered';
   }
@@ -49,6 +49,7 @@ class AppRouter {
   static final GoRouter router = GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: _initialLocation(),
+    observers: [AnalyticsService().observer],
     routes: [
       // 1. Authentication Flow
       GoRoute(
@@ -71,7 +72,8 @@ class AppRouter {
           final phone = state.uri.queryParameters['phone'] ?? '';
           final mode = state.uri.queryParameters['mode'] ?? 'register';
           final redirect = state.uri.queryParameters['redirect'];
-          return OTPScreen(phone: phone, mode: mode, redirect: redirect);
+          final name = state.uri.queryParameters['name'];
+          return OTPScreen(phone: phone, mode: mode, redirect: redirect, name: name);
         },
       ),
 
@@ -176,7 +178,7 @@ class AppRouter {
         path: '/cart',
         builder: (context, state) {
           final courseId =
-              state.uri.queryParameters['courseId'] ?? '30-days-yoga';
+              state.uri.queryParameters['courseId'] ?? '';
           return CartScreen(courseId: courseId);
         },
       ),

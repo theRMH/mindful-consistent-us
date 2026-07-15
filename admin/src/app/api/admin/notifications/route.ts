@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getFirebaseAdmin } from '@/lib/firebase-admin';
+import '@/lib/firebase-admin'; // ensures Firebase app is initialized
+import { getMessaging } from 'firebase-admin/messaging';
 
 export async function GET() {
   const notifications = await prisma.appNotification.findMany({
@@ -49,9 +50,8 @@ export async function POST(req: NextRequest) {
     const firebaseResult: { successCount: number; failureCount: number } = { successCount: 0, failureCount: 0 };
     if (tokens.length > 0) {
       try {
-        const admin = getFirebaseAdmin();
-        if (admin) {
-          const messaging = admin.messaging();
+        const messaging = getMessaging();
+          if (messaging) {
           const CHUNK = 500; // FCM multicast limit
           for (let i = 0; i < tokens.length; i += CHUNK) {
             const chunk = tokens.slice(i, i + CHUNK);

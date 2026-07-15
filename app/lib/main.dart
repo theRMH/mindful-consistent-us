@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'core/config/app_config.dart';
@@ -41,23 +44,30 @@ void main() async {
     anonKey: AppConfig.supabaseAnonKey, // ignore: deprecated_member_use
   );
 
-  // Firebase init — graceful if google-services.json not yet present
-  try {
-    await Firebase.initializeApp();
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  } catch (_) {}
+  await Firebase.initializeApp();
+  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
 
-  // Restore token for ApiService if a valid session already exists
-  final session = Supabase.instance.client.auth.currentSession;
-  if (session != null) {
-    ApiService().setToken(session.accessToken);
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // If a Firebase session exists, restore API token and register FCM
+  final firebaseUser = FirebaseAuth.instance.currentUser;
+  if (firebaseUser != null) {
+    try {
+      final token = await firebaseUser.getIdToken();
+      ApiService().setToken(token);
+    } catch (_) {}
     _registerFcmToken();
+    ApiService().appOpen();
   }
 
-  runApp(
-    const ProviderScope(
-      child: MyApp(),
-    ),
+  runZonedGuarded(
+    () => runApp(const ProviderScope(child: MyApp())),
+    (error, stack) =>
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true),
   );
 }
 

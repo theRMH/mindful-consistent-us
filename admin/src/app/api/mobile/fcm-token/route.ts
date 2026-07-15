@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   await prisma.profile.upsert({
     where: { id: user.id },
     update: { fcmToken: token },
-    create: { id: user.id, email: user.email ?? '', fcmToken: token },
+    create: { id: user.id, email: user.email ?? null, fcmToken: token },
   });
 
   return NextResponse.json({ success: true });

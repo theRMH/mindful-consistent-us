@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     const profile = await prisma.profile.upsert({
       where: { id: user.id },
       update: {
-        email: user.email ?? '',
+        email: user.email,
         phone: user.phone ?? null,
         fullName: fullName ?? undefined,
         avatarUrl: avatarUrl ?? undefined,
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       },
       create: {
         id: user.id,
-        email: user.email ?? '',
+        email: user.email ?? null,
         phone: user.phone ?? null,
         fullName: fullName ?? '',
         avatarUrl: avatarUrl ?? '',

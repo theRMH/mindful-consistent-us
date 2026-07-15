@@ -12,8 +12,8 @@ datasource db {
 
 // 1. Profiles
 model Profile {
-  id                 String               @id @db.Uuid
-  email              String               @unique
+  id                 String               @id
+  email              String?              @unique
   fullName           String?              @map("full_name")
   avatarUrl          String?              @map("avatar_url")
   phone              String?
@@ -124,7 +124,7 @@ model FreeVideo {
 // 6. Enrollments
 model Enrollment {
   id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId             String               @map("user_id") @db.Uuid
+  userId             String               @map("user_id")
   courseId           String               @map("course_id") @db.Uuid
   purchaseDate       DateTime             @default(now()) @map("purchase_date") @db.Date
   paymentId          String?              @map("payment_id")
@@ -144,7 +144,7 @@ model Enrollment {
 // 7. Video Progress
 model VideoProgress {
   id                    String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId                String      @map("user_id") @db.Uuid
+  userId                String      @map("user_id")
   videoId               String      @map("video_id") @db.Uuid
   enrollmentId          String?     @map("enrollment_id") @db.Uuid
   watchDurationSeconds  Int         @default(0) @map("watch_duration_seconds")
@@ -162,7 +162,7 @@ model VideoProgress {
 // 8. Daily Progress
 model DailyProgress {
   id                 String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId             String     @map("user_id") @db.Uuid
+  userId             String     @map("user_id")
   enrollmentId       String     @map("enrollment_id") @db.Uuid
   courseDayId        String     @map("course_day_id") @db.Uuid
   dayDate            DateTime   @default(now()) @map("day_date") @db.Date
@@ -182,7 +182,7 @@ model DailyProgress {
 
 // 9. User Stats
 model UserStats {
-  userId            String   @id @map("user_id") @db.Uuid
+  userId            String   @id @map("user_id")
   totalWatchSeconds Int      @default(0) @map("total_watch_seconds")
   totalSessions     Int      @default(0) @map("total_sessions")
   totalCalories     Decimal  @default(0.00) @map("total_calories") @db.Decimal(8, 2)
@@ -198,7 +198,7 @@ model UserStats {
 // 10. Daily Step History
 model DailyStepHistory {
   id      String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId  String  @map("user_id") @db.Uuid
+  userId  String  @map("user_id")
   dateStr String  @map("date_str")
   steps   Int     @default(0)
   user    Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -210,7 +210,7 @@ model DailyStepHistory {
 // 11. Leaderboard Entries
 model LeaderboardEntry {
   id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId        String     @map("user_id") @db.Uuid
+  userId        String     @map("user_id")
   courseId      String     @map("course_id") @db.Uuid
   enrollmentId  String     @map("enrollment_id") @db.Uuid
   daysCompleted Int        @default(0) @map("days_completed")
@@ -222,6 +222,7 @@ model LeaderboardEntry {
   enrollment    Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
 
   @@unique([userId, enrollmentId, snapshotDate])
+  @@index([courseId, score(sort: Desc)])
   @@map("leaderboard_entries")
 }
 
@@ -243,7 +244,7 @@ model CommunityMoment {
 // 12. Body Metrics (time-series fitness snapshots)
 model BodyMetrics {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId     String   @map("user_id") @db.Uuid
+  userId     String   @map("user_id")
   courseId   String?  @map("course_id") @db.Uuid
   recordedAt DateTime @default(now()) @map("recorded_at") @db.Timestamptz
   name       String?
@@ -261,7 +262,7 @@ model BodyMetrics {
 // 13. Feedback
 model Feedback {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId     String   @map("user_id") @db.Uuid
+  userId     String   @map("user_id")
   targetType String   @map("target_type") // Check constraint (course, video, app) handled by Postgres
   targetId   String?  @map("target_id") @db.Uuid
   rating     Int      // Check constraint (1-5) handled by Postgres
@@ -291,7 +292,7 @@ model AppNotification {
 // 15. Per-user notification read receipts
 model NotificationRead {
   id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId         String          @map("user_id") @db.Uuid
+  userId         String          @map("user_id")
   notificationId String          @map("notification_id") @db.Uuid
   readAt         DateTime?       @map("read_at") @db.Timestamptz
   user           Profile         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -310,7 +311,21 @@ model HelpContent {
   @@map("help_content")
 }
 
-// 17. Global app settings (key-value store)
+// 17. Coupons
+model Coupon {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code           String    @unique
+  discountAmount Decimal   @map("discount_amount") @db.Decimal(10, 2)
+  isActive       Boolean   @default(true) @map("is_active")
+  expiresAt      DateTime? @map("expires_at") @db.Timestamptz
+  usageLimit     Int?      @map("usage_limit")
+  usageCount     Int       @default(0) @map("usage_count")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("coupons")
+}
+
+// 18. Global app settings (key-value store)
 model AppSetting {
   key       String   @id
   value     String
