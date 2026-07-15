@@ -93,6 +93,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final profileAsync = ref.watch(_profileDataProvider);
     final progressState = ref.watch(progressProvider);
     final authState = ref.watch(authProvider);
+
+    if (!authState.isAuthenticated) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.push('/login?redirect=${Uri.encodeComponent('/profile')}');
+      });
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     final bool isAuthenticated = authState.isAuthenticated;
 
     final String fullName = profileAsync.when(

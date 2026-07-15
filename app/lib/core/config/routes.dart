@@ -324,7 +324,11 @@ class AppNavigationShell extends ConsumerWidget {
               context.go('/steps');
               break;
             case 4:
-              context.go('/profile');
+              if (!authState.isAuthenticated) {
+                context.push('/login?redirect=${Uri.encodeComponent('/profile')}');
+              } else {
+                context.go('/profile');
+              }
               break;
           }
         },
