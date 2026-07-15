@@ -113,19 +113,7 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
-        final redirectParam = widget.redirect != null ? '?redirect=${Uri.encodeComponent(widget.redirect!)}' : '';
-        if (widget.mode == 'login') {
-          context.go('/login$redirectParam');
-        } else {
-          final signRedirect = widget.redirect != null ? '&redirect=${Uri.encodeComponent(widget.redirect!)}' : '';
-          context.go('/signup?phone=${widget.phone}$signRedirect');
-        }
-      },
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: AppTheme.backgroundCream,
         body: Stack(
           children: [
@@ -312,13 +300,16 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
                                     )
                                   : GestureDetector(
                                       onTap: () async {
+                                        final messenger = ScaffoldMessenger.of(context);
                                         await ref.read(authProvider.notifier).sendOtp(widget.phone);
                                         if (!mounted) return;
+                                        final error = ref.read(authProvider).errorMessage;
+                                        if (error != null) {
+                                          messenger.showSnackBar(SnackBar(content: Text(error)));
+                                          return;
+                                        }
                                         setState(() => _startTimer());
-                                        // ignore: use_build_context_synchronously
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('OTP resent')),
-                                        );
+                                        messenger.showSnackBar(const SnackBar(content: Text('OTP resent')));
                                       },
                                       child: Text(
                                         'Resend Code',
@@ -341,7 +332,6 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 }

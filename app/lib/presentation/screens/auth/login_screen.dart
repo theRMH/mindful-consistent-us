@@ -35,6 +35,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
     await ref.read(authProvider.notifier).sendOtp(phone);
     if (!mounted) return;
+    // verificationCompleted fired — user is already signed in
+    if (ref.read(authProvider).isAuthenticated) {
+      context.go(widget.redirect ?? '/home');
+      return;
+    }
     final error = ref.read(authProvider).errorMessage;
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
@@ -43,7 +48,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final redirectParam = widget.redirect != null
         ? '&redirect=${Uri.encodeComponent(widget.redirect!)}'
         : '';
-    context.go('/otp?phone=${Uri.encodeComponent(phone)}&mode=login$redirectParam');
+    context.push('/otp?phone=${Uri.encodeComponent(phone)}&mode=login$redirectParam');
   }
 
   @override
