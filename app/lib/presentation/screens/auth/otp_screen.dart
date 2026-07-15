@@ -111,6 +111,26 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // If verificationCompleted fires while on this screen (Android auto-read),
+    // navigate away as if the user had manually verified successfully.
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      if (!mounted) return;
+      if (next.isAuthenticated && !(previous?.isAuthenticated ?? false)) {
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid != null) AnalyticsService().setUser(uid);
+        if (widget.mode == 'register') {
+          AnalyticsService().logSignUp();
+        } else {
+          AnalyticsService().logLogin();
+        }
+        if (widget.redirect != null && widget.redirect!.isNotEmpty) {
+          context.go(widget.redirect!);
+        } else {
+          context.go('/home');
+        }
+      }
+    });
+
     final authState = ref.watch(authProvider);
 
     return Scaffold(

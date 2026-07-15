@@ -43,10 +43,17 @@ workflows:
       - name: Flutter pub get
         script: flutter pub get
 
+      - name: Update iOS pods
+        script: |
+          cd ios
+          pod update FirebaseCore FirebaseAuth FirebaseMessaging FirebaseCrashlytics
+          pod install --repo-update
+          cd ..
+
       - name: Build IPA
         script: |
           flutter build ipa --release \
-            --build-name=1.0.0 \
+            --build-name=1.1.2 \
             --build-number=$(($(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID") + 1))
     artifacts:
       - build/ios/ipa/*.ipa

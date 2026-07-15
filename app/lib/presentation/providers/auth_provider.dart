@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/api_service.dart';
@@ -120,18 +121,23 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> sendOtp(String phone) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
+    // verifyPhoneNumber's Future resolves before any callback fires.
+    // Use a Completer so callers can await the actual outcome (codeSent /
+    // verificationFailed / verificationCompleted) instead of just the kick-off.
+    final completer = Completer<void>();
     await FirebaseAuth.instance.verifyPhoneNumber(
       phoneNumber: '+91$phone',
       forceResendingToken: state.resendToken,
       verificationCompleted: (PhoneAuthCredential credential) async {
-        // Auto-retrieval on Android — sign in automatically
         await _signInWithCredential(credential);
+        if (!completer.isCompleted) completer.complete();
       },
       verificationFailed: (FirebaseAuthException e) {
         state = state.copyWith(
           isLoading: false,
           errorMessage: e.message ?? 'Failed to send OTP',
         );
+        if (!completer.isCompleted) completer.complete();
       },
       codeSent: (String verificationId, int? resendToken) {
         state = state.copyWith(
@@ -139,11 +145,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
           verificationId: verificationId,
           resendToken: resendToken,
         );
+        if (!completer.isCompleted) completer.complete();
       },
       codeAutoRetrievalTimeout: (String verificationId) {
         state = state.copyWith(verificationId: verificationId);
+        if (!completer.isCompleted) completer.complete();
       },
     );
+    return completer.future;
   }
 
   static const String notRegisteredError = 'not_registered';
