@@ -14,32 +14,6 @@ workflows:
       groups:
         - apple
     scripts:
-      - name: Set iOS deployment target to 14.0
-        script: |
-          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = 13\.0/IPHONEOS_DEPLOYMENT_TARGET = 14.0/g' \
-            ios/Runner.xcodeproj/project.pbxproj
-          sed -i '' 's/# platform :ios.*/platform :ios, '"'"'14.0'"'"'/' ios/Podfile
-
-      - name: Fix entitlements for App Store
-        script: |
-          cat > ios/Runner/Runner.entitlements << 'PLIST'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>com.apple.developer.healthkit</key>
-            <true/>
-            <key>aps-environment</key>
-            <string>production</string>
-          </dict>
-          </plist>
-          PLIST
-
-      - name: Fix iPad orientation in Info.plist
-        script: |
-          /usr/libexec/PlistBuddy -c "Set :UIRequiresFullScreen true" ios/Runner/Info.plist 2>/dev/null || \
-          /usr/libexec/PlistBuddy -c "Add :UIRequiresFullScreen bool true" ios/Runner/Info.plist
-
       - name: Flutter pub get
         script: flutter pub get
 
