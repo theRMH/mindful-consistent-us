@@ -39,6 +39,18 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
   void initState() {
     super.initState();
     _startTimer();
+    // If verificationCompleted already fired before this screen was built, fill now.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final code = ref.read(authProvider).autoFilledCode;
+      if (code != null) _autoFill(code);
+    });
+  }
+
+  void _autoFill(String code) {
+    for (int i = 0; i < 6 && i < code.length; i++) {
+      _controllers[i].text = code[i];
+    }
+    if (code.length >= 6) _focusNodes.last.unfocus();
   }
 
   @override
@@ -111,23 +123,11 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // If verificationCompleted fires while on this screen (Android auto-read),
-    // navigate away as if the user had manually verified successfully.
     ref.listen<AuthState>(authProvider, (previous, next) {
       if (!mounted) return;
-      if (next.isAuthenticated && !(previous?.isAuthenticated ?? false)) {
-        final uid = FirebaseAuth.instance.currentUser?.uid;
-        if (uid != null) AnalyticsService().setUser(uid);
-        if (widget.mode == 'register') {
-          AnalyticsService().logSignUp();
-        } else {
-          AnalyticsService().logLogin();
-        }
-        if (widget.redirect != null && widget.redirect!.isNotEmpty) {
-          context.go(widget.redirect!);
-        } else {
-          context.go('/home');
-        }
+      // Auto-fill OTP boxes when Android reads the SMS code.
+      if (next.autoFilledCode != null && next.autoFilledCode != previous?.autoFilledCode) {
+        _autoFill(next.autoFilledCode!);
       }
     });
 

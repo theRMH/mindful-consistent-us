@@ -3,12 +3,11 @@ import Razorpay from 'razorpay';
 import prisma from '@/lib/prisma';
 import { verifyAuth } from '@/lib/auth-middleware';
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
-});
-
 export async function POST(req: NextRequest) {
+  const razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID!,
+    key_secret: process.env.RAZORPAY_KEY_SECRET!,
+  });
   try {
     const user = await verifyAuth(req);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

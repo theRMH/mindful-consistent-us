@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/config/app_config.dart';
 import '../../providers/auth_provider.dart';
 import '../../../core/config/theme.dart';
 
@@ -22,15 +23,18 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   String? _couponError;
   bool _isValidatingCoupon = false;
   bool _isProcessing = false;
-  int _selectedUpiIndex = 0;
   final int _quantity = 1;
   late Razorpay _razorpay;
 
   Map<String, dynamic>? _courseData;
   bool _loadingCourse = true;
 
-  double get _originalPrice =>
-      (_courseData?['priceInr'] as num?)?.toDouble() ?? 999.0;
+  double get _originalPrice {
+    final raw = _courseData?['priceInr'];
+    if (raw == null) return 999.0;
+    if (raw is num) return raw.toDouble();
+    return double.tryParse(raw.toString()) ?? 999.0;
+  }
 
   double get _unitPrice =>
       _couponApplied && _couponDiscount != null
@@ -88,7 +92,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Text(
-                      'Pay with UPI',
+                      'Payment option',
                       style: GoogleFonts.inter(
                         fontSize: 15,
                         fontWeight: AppFontWeights.semiBold,
@@ -97,38 +101,68 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _buildUpiOption(
-                    index: 0,
-                    icon: Image.asset(
-                      'assets/icon_payment_logos.png',
-                      width: 40,
-                      height: 40,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) =>
-                          _buildUpiLogo(),
-                    ),
-                    title: 'Google pay / Phonepe',
-                    subtitle: 'Pay instantly via your UPI',
-                  ),
-                  const SizedBox(height: 10),
-                  _buildUpiOption(
-                    index: 1,
-                    icon: Container(
-                      width: 40,
-                      height: 40,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFE2F0E8)),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.figmaGreen, width: 1.5),
+                        boxShadow: const [
+                          BoxShadow(color: Color(0x02000000), blurRadius: 10, offset: Offset(0, 4)),
+                        ],
                       ),
-                      child: const Icon(
-                        Icons.grid_view_rounded,
-                        color: AppTheme.figmaCharcoal,
-                        size: 20,
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF072654),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'R',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Razorpay',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 15,
+                                    fontWeight: AppFontWeights.semiBold,
+                                    color: AppTheme.figmaCharcoal,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Cards, UPI, Net Banking & more',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: AppFontWeights.regular,
+                                    color: AppTheme.coolGray,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right_rounded, color: AppTheme.figmaGreen, size: 24),
+                        ],
                       ),
                     ),
-                    title: 'More UPI Apps',
-                    subtitle: '',
                   ),
                   const SizedBox(height: 28),
                   _buildTotalRow(),
@@ -235,39 +269,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   Widget _buildSectionHeader() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Programs in Cart',
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.figmaGreen,
-            ),
-          ),
-          GestureDetector(
-            onTap: () => context.go('/programs?tab=explore'),
-            child: Row(
-              children: [
-                Text(
-                  'Add More',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.figmaGreen,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                const Icon(
-                  Icons.add_circle_rounded,
-                  size: 16,
-                  color: AppTheme.figmaGreen,
-                ),
-              ],
-            ),
-          ),
-        ],
+      child: Text(
+        'Programs in Cart',
+        style: GoogleFonts.inter(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: AppTheme.figmaGreen,
+        ),
       ),
     );
   }
@@ -523,138 +531,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  // ─── UPI Option Row ──────────────────────────────────────────────────────
-  Widget _buildUpiOption({
-    required int index,
-    required Widget icon,
-    required String title,
-    required String subtitle,
-  }) {
-    final isSelected = _selectedUpiIndex == index;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _selectedUpiIndex = index;
-          });
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isSelected ? AppTheme.figmaGreen : const Color(0xFFE2F0E8),
-              width: isSelected ? 1.5 : 1.0,
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x02000000),
-                blurRadius: 10,
-                offset: Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              icon,
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      title,
-                      style: GoogleFonts.inter(
-                        fontSize: 15,
-                        fontWeight: AppFontWeights.semiBold,
-                        color: AppTheme.figmaCharcoal,
-                      ),
-                    ),
-                    if (subtitle.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: AppFontWeights.regular,
-                          color: AppTheme.coolGray,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppTheme.figmaGreen,
-                size: 24,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ─── Google Pay / PhonePe logo ────────────────────────────────────────────
-  Widget _buildUpiLogo() {
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: const Color(0xFFEEF7F2),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Center(
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 16,
-              height: 16,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: Color(0xFF4285F4),
-              ),
-              child: Center(
-                child: Text(
-                  'G',
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 4),
-            Container(
-              width: 16,
-              height: 16,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: Color(0xFF5F259F),
-              ),
-              child: Center(
-                child: Text(
-                  'P',
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   // ─── Total Payable ────────────────────────────────────────────────────────
   Widget _buildTotalRow() {
     return Padding(
@@ -707,28 +583,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         ),
         child: Row(
           children: [
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Pay Using UPI',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: AppFontWeights.semiBold,
-                    color: AppTheme.figmaCharcoal,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '₹${_totalPayable.toInt()}',
-                  style: GoogleFonts.inter(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.figmaCharcoal,
-                  ),
-                ),
-              ],
+            Text(
+              '₹${_totalPayable.toInt()}',
+              style: GoogleFonts.inter(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.figmaCharcoal,
+              ),
             ),
             const SizedBox(width: 24),
             Expanded(
@@ -913,15 +774,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     if (_isProcessing) return;
     setState(() => _isProcessing = true);
     try {
-      final order = await ApiService().createPaymentOrder(
-        widget.courseId,
-        couponCode: _couponApplied ? _couponController.text.trim() : null,
-      );
       final options = {
-        'key': order['keyId'] as String,
-        'amount': order['amount'],
-        'currency': order['currency'] ?? 'INR',
-        'order_id': order['orderId'] as String,
+        'key': AppConfig.razorpayKeyId,
+        'amount': (_totalPayable * 100).round(), // paise
+        'currency': 'INR',
         'name': 'ConsistentUs',
         'description': _courseData?['title'] as String? ?? 'Course',
         'prefill': {

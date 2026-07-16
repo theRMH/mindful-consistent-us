@@ -94,7 +94,7 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                           if (isGuest) {
                             showLoginPrompt(context);
                           } else {
-                            context.push('/cart?courseId=$courseId');
+                            context.go('/cart?courseId=$courseId');
                           }
                         },
                   style: ElevatedButton.styleFrom(

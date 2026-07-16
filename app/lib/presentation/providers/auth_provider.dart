@@ -25,6 +25,7 @@ class AuthState {
   final String? errorMessage;
   final String? verificationId;
   final int? resendToken;
+  final String? autoFilledCode;
 
   AuthState({
     this.isAuthenticated = false,
@@ -34,6 +35,7 @@ class AuthState {
     this.errorMessage,
     this.verificationId,
     this.resendToken,
+    this.autoFilledCode,
   });
 
   AuthState copyWith({
@@ -44,6 +46,8 @@ class AuthState {
     String? errorMessage,
     String? verificationId,
     int? resendToken,
+    String? autoFilledCode,
+    bool clearAutoFilledCode = false,
   }) {
     return AuthState(
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
@@ -53,6 +57,7 @@ class AuthState {
       errorMessage: errorMessage ?? this.errorMessage,
       verificationId: verificationId ?? this.verificationId,
       resendToken: resendToken ?? this.resendToken,
+      autoFilledCode: clearAutoFilledCode ? null : (autoFilledCode ?? this.autoFilledCode),
     );
   }
 }
@@ -120,7 +125,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> sendOtp(String phone) async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    state = state.copyWith(isLoading: true, errorMessage: null, clearAutoFilledCode: true);
     // verifyPhoneNumber's Future resolves before any callback fires.
     // Use a Completer so callers can await the actual outcome (codeSent /
     // verificationFailed / verificationCompleted) instead of just the kick-off.
@@ -128,8 +133,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await FirebaseAuth.instance.verifyPhoneNumber(
       phoneNumber: '+91$phone',
       forceResendingToken: state.resendToken,
-      verificationCompleted: (PhoneAuthCredential credential) async {
-        await _signInWithCredential(credential);
+      verificationCompleted: (PhoneAuthCredential credential) {
+        // Android auto-read the SMS — store the code for OTP screen to auto-fill.
+        // Never sign in automatically; the user must still tap Verify.
+        state = state.copyWith(
+          isLoading: false,
+          autoFilledCode: credential.smsCode,
+          verificationId: credential.verificationId ?? state.verificationId,
+        );
         if (!completer.isCompleted) completer.complete();
       },
       verificationFailed: (FirebaseAuthException e) {

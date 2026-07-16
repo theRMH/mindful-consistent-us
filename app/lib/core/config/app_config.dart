@@ -14,6 +14,9 @@ class AppConfig {
     defaultValue: 'https://mindful-consistent-us.vercel.app',
   );
 
+  // Razorpay public key — safe to ship in the app (key_secret stays on the backend)
+  static const String razorpayKeyId = 'rzp_live_bwAd15SKh2A6Ji';
+
   // Set to false — app now runs against real backend. Re-enable only for UI-only work without backend.
   static const bool useMockData = false;
 }

@@ -35,11 +35,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
     await ref.read(authProvider.notifier).sendOtp(phone);
     if (!mounted) return;
-    // verificationCompleted fired — user is already signed in
-    if (ref.read(authProvider).isAuthenticated) {
-      context.go(widget.redirect ?? '/home');
-      return;
-    }
     final error = ref.read(authProvider).errorMessage;
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
