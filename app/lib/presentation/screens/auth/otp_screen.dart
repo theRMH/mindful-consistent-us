@@ -258,6 +258,8 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
                                           } else {
                                             _focusNodes[index].unfocus();
                                           }
+                                        } else if (index > 0) {
+                                          _focusNodes[index - 1].requestFocus();
                                         }
                                       },
                                     ),

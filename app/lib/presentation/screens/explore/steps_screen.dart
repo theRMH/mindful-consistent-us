@@ -276,11 +276,27 @@ class _StepsScreenState extends ConsumerState<StepsScreen> with WidgetsBindingOb
 
   Future<void> _connectHealth() async {
     final granted = await _tryInitHealth();
-    if (!granted) {
-      // Permission permanently blocked — open the app's system settings page.
-      // On Android 13+ this shows Health Connect permissions; on iOS, it shows
-      // the Health privacy toggle the user must enable manually.
-      openAppSettings();
+    if (!granted && mounted) {
+      final label = Platform.isIOS ? 'Apple Health' : 'Health Connect';
+      final steps = Platform.isIOS
+          ? 'Settings → Privacy & Security → Health → Mindful → allow Steps'
+          : 'Health Connect app → App permissions → Mindful → Steps → Allow';
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Allow $label Access'),
+          content: Text(
+            'To sync your steps, please allow access manually:\n\n$steps',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
     }
   }
 
