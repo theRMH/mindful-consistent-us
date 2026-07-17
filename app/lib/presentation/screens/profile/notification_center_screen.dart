@@ -41,10 +41,8 @@ class NotificationCenterScreen extends ConsumerWidget {
         ),
         error: (e, _) => _buildEmpty(
           context,
-          icon: Icons.wifi_off_rounded,
-          message: 'Could not load notifications.\nCheck your connection and try again.',
-          showRetry: true,
-          onRetry: () => ref.invalidate(_notificationsProvider),
+          icon: Icons.notifications_none_rounded,
+          message: 'No notifications yet.\nCheck back later for updates!',
         ),
         data: (notifications) {
           if (notifications.isEmpty) {
