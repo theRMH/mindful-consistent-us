@@ -151,7 +151,7 @@ class _CertificateScreenState extends ConsumerState<CertificateScreen> {
                             // Course name
                             Positioned(
                               left: w * 0.34,
-                              top: h * 0.65,
+                              top: h * 0.665,
                               width: w * 0.42,
                               child: Text(
                                 widget.courseTitle,
