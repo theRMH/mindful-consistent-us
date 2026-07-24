@@ -80,8 +80,8 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundCream,
 
-      // Floating Action Button for guests (Login) and logged-in users (Enroll only)
-      floatingActionButton: (!isGuest && isEnrolled)
+      // FAB: hidden for active enrollments; visible for guests, non-enrolled, and expired enrollees
+      floatingActionButton: (!isGuest && isEnrolled && !courseExpired)
           ? null
           : Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -132,7 +132,7 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                             ),
                             const Spacer(),
                             Text(
-                              'Enroll Now',
+                              courseExpired ? 'Enroll Again' : 'Enroll Now',
                               style: GoogleFonts.inter(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -157,7 +157,7 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
           // 1. Scrollable Page Content
           SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            padding: EdgeInsets.only(bottom: isGuest ? 90 : 20),
+            padding: EdgeInsets.only(bottom: (isGuest || courseExpired) ? 90 : 20),
             child: Stack(
               children: [
                 // Top Image
@@ -450,6 +450,67 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                                       ),
                                     ),
                                     const Icon(Icons.chevron_right_rounded, color: Color(0xFF25D366)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+
+                          // Certificate download — shown when course is expired/completed
+                          if (courseExpired && isEnrolled) ...[
+                            const SizedBox(height: 16),
+                            GestureDetector(
+                              onTap: () {
+                                final completionDate = enrolledDate
+                                    .add(Duration(days: totalDays - 1));
+                                context.push('/certificate', extra: {
+                                  'courseTitle': title,
+                                  'totalDays': totalDays,
+                                  'completionDate':
+                                      completionDate.toIso8601String(),
+                                });
+                              },
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 20, vertical: 14),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF8E1),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                      color: const Color(0xFFFFD700)
+                                          .withAlpha(100)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Text('🏆',
+                                        style: TextStyle(fontSize: 22)),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Download Certificate',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w700,
+                                              color: const Color(0xFF7B5800),
+                                            ),
+                                          ),
+                                          Text(
+                                            'Save your completion certificate',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 11,
+                                              color: const Color(0xFFAA7C00),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(Icons.download_rounded,
+                                        color: Color(0xFFD4A017)),
                                   ],
                                 ),
                               ),

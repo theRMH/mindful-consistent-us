@@ -41,6 +41,24 @@ class HomeScreen extends ConsumerWidget {
         ? coursesState.activeCourses.first
         : null;
 
+    // Expiry check — used to swap progress banner for completion banner
+    bool courseExpired = false;
+    int daysSinceCompletion = 0;
+    if (activeCourse != null) {
+      final enrollment = coursesState.enrollmentForCourse(activeCourse.id);
+      if (enrollment != null) {
+        final enrolledAt = enrollment.enrolledAt.toLocal();
+        final enrolledDate = DateTime(enrolledAt.year, enrolledAt.month, enrolledAt.day);
+        final now = DateTime.now();
+        final todayDate = DateTime(now.year, now.month, now.day);
+        final calendarDayNumber = todayDate.difference(enrolledDate).inDays + 1;
+        courseExpired = calendarDayNumber > activeCourse.totalDays;
+        if (courseExpired) {
+          daysSinceCompletion = calendarDayNumber - activeCourse.totalDays;
+        }
+      }
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -64,10 +82,12 @@ class HomeScreen extends ConsumerWidget {
               _buildHeader(context, ref, userName, progressState.currentStreak),
               const SizedBox(height: AppSpacing.lg),
 
-              // ── 2. Active Course Progress Banner ──────────────────
+              // ── 2. Active Course Progress / Completion Banner ─────
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                child: _buildActiveCourseBanner(context, ref, progressState, activeCourse),
+                child: courseExpired && activeCourse != null
+                    ? _buildCompletedCourseBanner(context, activeCourse, daysSinceCompletion)
+                    : _buildActiveCourseBanner(context, ref, progressState, activeCourse),
               ),
 
               const SizedBox(height: AppSpacing.lg),
@@ -473,6 +493,103 @@ class HomeScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // ─── Course Completion Banner (shown when enrolled course has expired) ────────
+
+  Widget _buildCompletedCourseBanner(
+      BuildContext context, CourseModel course, int daysSinceCompletion) {
+    final daysAgoText = daysSinceCompletion <= 1
+        ? 'just now'
+        : '$daysSinceCompletion days ago';
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1B6B3B), Color(0xFF2A8050)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('🏆', style: TextStyle(fontSize: 28)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Congratulations!',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFD0DF5A),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'You completed ${course.title}!',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0E3C31),
+                  borderRadius: BorderRadius.circular(100),
+                  border: Border.all(color: const Color(0xFF2F552B), width: 1),
+                ),
+                child: Text(
+                  daysAgoText,
+                  style: GoogleFonts.inter(
+                    color: Colors.white.withAlpha(200),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => context.go('/programs?tab=explore'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppTheme.figmaGreen,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(100)),
+                padding: const EdgeInsets.symmetric(vertical: 11),
+              ),
+              child: Text(
+                'Browse Next Program',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.figmaGreen,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

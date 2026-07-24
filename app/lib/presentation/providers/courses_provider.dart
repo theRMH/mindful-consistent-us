@@ -23,8 +23,21 @@ class CoursesState {
   List<CourseModel> get activeCourses =>
       allCourses.where((c) => enrolledCourseIds.contains(c.id)).toList();
 
-  List<CourseModel> get exploreCourses =>
-      allCourses.where((c) => !enrolledCourseIds.contains(c.id)).toList();
+  List<CourseModel> get exploreCourses {
+    final now = DateTime.now();
+    final todayDate = DateTime(now.year, now.month, now.day);
+    return allCourses.where((c) {
+      if (!enrolledCourseIds.contains(c.id)) return true;
+      // Include expired enrollments so users can re-purchase the same course
+      final enrollment = enrollmentForCourse(c.id);
+      if (enrollment == null) return false;
+      final enrolledAt = enrollment.enrolledAt.toLocal();
+      final enrolledDate =
+          DateTime(enrolledAt.year, enrolledAt.month, enrolledAt.day);
+      final calendarDay = todayDate.difference(enrolledDate).inDays + 1;
+      return calendarDay > c.totalDays;
+    }).toList();
+  }
 
   EnrollmentModel? enrollmentForCourse(String courseId) {
     final matches = enrollments.where((e) => e.courseId == courseId);

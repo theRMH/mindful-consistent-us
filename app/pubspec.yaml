@@ -75,6 +75,9 @@ dependencies:
   # HTML rendering (Help & Support content)
   flutter_html: ^3.0.0
 
+  # Certificate download
+  image_gallery_saver: ^2.0.3
+
   # Typography
   google_fonts: ^6.1.0
 

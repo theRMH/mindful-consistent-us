@@ -29,6 +29,7 @@ import '../../presentation/screens/profile/help_support_screen.dart';
 import '../../presentation/screens/profile/subscription_screen.dart';
 import '../../presentation/screens/cart/cart_screen.dart';
 import '../../presentation/screens/cart/thank_you_screen.dart';
+import '../../presentation/screens/certificate_screen.dart';
 
 // Root navigation key
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(
@@ -256,6 +257,25 @@ class AppRouter {
       GoRoute(
         path: '/help',
         builder: (context, state) => const HelpSupportScreen(),
+      ),
+
+      // 18. Certificate download screen
+      GoRoute(
+        path: '/certificate',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final courseTitle = extra?['courseTitle'] as String? ?? '';
+          final totalDays = extra?['totalDays'] as int? ?? 30;
+          final dateStr = extra?['completionDate'] as String?;
+          final completionDate = dateStr != null
+              ? DateTime.tryParse(dateStr) ?? DateTime.now()
+              : DateTime.now();
+          return CertificateScreen(
+            courseTitle: courseTitle,
+            totalDays: totalDays,
+            completionDate: completionDate,
+          );
+        },
       ),
     ],
   );

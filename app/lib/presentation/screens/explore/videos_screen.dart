@@ -429,6 +429,10 @@ class VideosScreen extends ConsumerWidget {
                   .toList();
 
         if (todayDay == null) {
+          final totalCourseDays = courseDetail.days.length;
+          if (totalCourseDays > 0 && todayDayNumber > totalCourseDays) {
+            return _buildCourseCompletedState(context);
+          }
           return Center(
             child: Text(
               'No sessions unlocked for today.',
@@ -1151,6 +1155,63 @@ class VideosScreen extends ConsumerWidget {
                 Icons.play_arrow_rounded,
                 color: AppTheme.figmaGreen,
                 size: 18,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCourseCompletedState(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('🏆', style: TextStyle(fontSize: 56)),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              'Program Completed!',
+              style: GoogleFonts.inter(
+                fontSize: AppFontSizes.bodyLarge,
+                fontWeight: AppFontWeights.bold,
+                color: AppTheme.figmaCharcoal,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Amazing work! Browse your next program to keep the momentum going.',
+              style: GoogleFonts.inter(
+                fontSize: AppFontSizes.bodyMedium,
+                color: AppTheme.figmaMutedGray,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: () => context.go('/programs?tab=explore'),
+                icon: const Icon(Icons.explore_rounded, size: 20),
+                label: Text(
+                  'Browse Programs',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: AppFontWeights.semiBold,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.figmaGreen,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadii.pill),
+                  ),
+                ),
               ),
             ),
           ],

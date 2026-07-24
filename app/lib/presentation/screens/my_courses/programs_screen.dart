@@ -456,6 +456,8 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
           completed: comp,
           total: course.totalDays,
           progress: prog,
+          isCompleted: isCompleted,
+          courseId: course.id,
           onTap: () => context.push('/program_details', extra: {
             'courseId': course.id,
             'title': course.title,
@@ -474,6 +476,8 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
     required int total,
     required double progress,
     required VoidCallback onTap,
+    bool isCompleted = false,
+    String? courseId,
   }) {
     final String pct = '${(progress * 100).round()}%';
     const double pinW = 12;
@@ -585,11 +589,13 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 6),
                         decoration: BoxDecoration(
-                          color: AppTheme.figmaGreen,
+                          color: isCompleted
+                              ? const Color(0xFF2E7D52)
+                              : AppTheme.figmaGreen,
                           borderRadius: BorderRadius.circular(AppRadii.md),
                         ),
                         child: Text(
-                          'In Progress',
+                          isCompleted ? 'Completed' : 'In Progress',
                           style: GoogleFonts.inter(
                             color: Colors.white,
                             fontSize: 11.0,
@@ -619,6 +625,30 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
                       ),
                     ],
                   ),
+                  if (isCompleted && courseId != null) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 38,
+                      child: ElevatedButton(
+                        onPressed: () =>
+                            context.go('/cart?courseId=$courseId'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.figmaGreen,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24)),
+                        ),
+                        child: Text(
+                          'Enroll Again',
+                          style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: AppFontWeights.bold),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
