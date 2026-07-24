@@ -114,10 +114,10 @@ class _CertificateScreenState extends ConsumerState<CertificateScreen> {
                               ),
                             ),
 
-                            // Days number (left ribbon area)
+                            // Days number
                             Positioned(
-                              left: w * 0.02,
-                              top: h * 0.50,
+                              left: w * 0.05,
+                              top: h * 0.52,
                               width: w * 0.15,
                               child: Text(
                                 '${widget.totalDays}',
@@ -130,11 +130,11 @@ class _CertificateScreenState extends ConsumerState<CertificateScreen> {
                               ),
                             ),
 
-                            // User name (cursive, center)
+                            // User name (cursive)
                             Positioned(
-                              left: w * 0.24,
-                              top: h * 0.49,
-                              width: w * 0.52,
+                              left: w * 0.32,
+                              top: h * 0.54,
+                              width: w * 0.44,
                               child: Text(
                                 userName,
                                 textAlign: TextAlign.center,
@@ -150,9 +150,9 @@ class _CertificateScreenState extends ConsumerState<CertificateScreen> {
 
                             // Course name
                             Positioned(
-                              left: w * 0.26,
-                              top: h * 0.635,
-                              width: w * 0.48,
+                              left: w * 0.34,
+                              top: h * 0.65,
+                              width: w * 0.42,
                               child: Text(
                                 widget.courseTitle,
                                 textAlign: TextAlign.center,
@@ -168,8 +168,8 @@ class _CertificateScreenState extends ConsumerState<CertificateScreen> {
 
                             // Date
                             Positioned(
-                              left: w * 0.12,
-                              top: h * 0.81,
+                              left: w * 0.20,
+                              top: h * 0.83,
                               width: w * 0.20,
                               child: Text(
                                 dateStr,
