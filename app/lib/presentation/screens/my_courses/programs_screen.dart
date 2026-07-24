@@ -145,13 +145,21 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(
-            'Daily discipline. Lasting transformation.',
-            style: GoogleFonts.inter(
-              color: AppTheme.figmaMutedGray,
-              fontSize: 9.5,
-              fontWeight: AppFontWeights.regular,
+          const SizedBox(height: AppSpacing.sm),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppTheme.figmaGreen,
+              borderRadius: BorderRadius.circular(AppRadii.pill),
+            ),
+            child: Text(
+              '✦  Daily discipline. Lasting transformation.',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: AppFontWeights.semiBold,
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ),
         ],
@@ -639,10 +647,10 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
     );
     if (path.startsWith('http')) {
       return Image.network(path, width: width, height: height, fit: fit,
-          errorBuilder: (_, _, _) => fallback);
+          errorBuilder: (ctx, err, st) => fallback);
     }
     return Image.asset(path, width: width, height: height, fit: fit,
-        errorBuilder: (_, _, _) => fallback);
+        errorBuilder: (ctx, err, st) => fallback);
   }
 
   // ─── Explore list ──────────────────────────────────────────────────────────
@@ -687,6 +695,32 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
           }),
         );
       },
+    );
+  }
+
+  Widget _buildStatPill(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppTheme.figmaGreen.withAlpha(22),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
+        border: Border.all(color: AppTheme.figmaGreen.withAlpha(50), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: AppTheme.figmaGreen),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: AppTheme.figmaGreen,
+              fontSize: AppFontSizes.bodyMedium,
+              fontWeight: AppFontWeights.semiBold,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -781,72 +815,15 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
                   ),
                   const SizedBox(height: AppSpacing.sm),
 
-                  // Stats row: days | difficulty | Xm/day
-                  IntrinsicHeight(
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Icon(Icons.calendar_today_outlined,
-                                  size: 13, color: AppTheme.coolGray),
-                              const SizedBox(width: AppSpacing.xs),
-                              Text(
-                                '$days days',
-                                style: GoogleFonts.inter(
-                                  color: AppTheme.coolGray,
-                                  fontSize: AppFontSizes.bodyMedium,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        VerticalDivider(
-                          width: 1,
-                          thickness: 1,
-                          color: AppTheme.coolGray.withAlpha(60),
-                        ),
-                        Expanded(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.bar_chart_rounded,
-                                  size: 15, color: AppTheme.coolGray),
-                              const SizedBox(width: AppSpacing.xs),
-                              Text(
-                                difficulty,
-                                style: GoogleFonts.inter(
-                                  color: AppTheme.coolGray,
-                                  fontSize: AppFontSizes.bodyMedium,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        VerticalDivider(
-                          width: 1,
-                          thickness: 1,
-                          color: AppTheme.coolGray.withAlpha(60),
-                        ),
-                        Expanded(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              Icon(Icons.access_time_rounded,
-                                  size: 13, color: AppTheme.coolGray),
-                              const SizedBox(width: AppSpacing.xs),
-                              Text(
-                                '${avgDailyMins}m /day',
-                                style: GoogleFonts.inter(
-                                  color: AppTheme.coolGray,
-                                  fontSize: AppFontSizes.bodyMedium,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                  // Stats row: days | difficulty | Xm/day — green pill badges
+                  Row(
+                    children: [
+                      _buildStatPill(Icons.calendar_today_outlined, '$days Days'),
+                      const SizedBox(width: AppSpacing.sm),
+                      _buildStatPill(Icons.bar_chart_rounded, difficulty),
+                      const SizedBox(width: AppSpacing.sm),
+                      _buildStatPill(Icons.access_time_rounded, '${avgDailyMins}m / day'),
+                    ],
                   ),
 
                   const SizedBox(height: AppSpacing.md),

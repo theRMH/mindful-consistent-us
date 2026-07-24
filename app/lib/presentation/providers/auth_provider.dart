@@ -48,16 +48,21 @@ class AuthState {
     int? resendToken,
     String? autoFilledCode,
     bool clearAutoFilledCode = false,
+    bool clearErrorMessage = false,
   }) {
     return AuthState(
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
       isGuest: isGuest ?? this.isGuest,
       isLoading: isLoading ?? this.isLoading,
       user: user ?? this.user,
-      errorMessage: errorMessage ?? this.errorMessage,
+      errorMessage: clearErrorMessage
+          ? null
+          : (errorMessage ?? this.errorMessage),
       verificationId: verificationId ?? this.verificationId,
       resendToken: resendToken ?? this.resendToken,
-      autoFilledCode: clearAutoFilledCode ? null : (autoFilledCode ?? this.autoFilledCode),
+      autoFilledCode: clearAutoFilledCode
+          ? null
+          : (autoFilledCode ?? this.autoFilledCode),
     );
   }
 }
@@ -125,7 +130,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> sendOtp(String phone) async {
-    state = state.copyWith(isLoading: true, errorMessage: null, clearAutoFilledCode: true);
+    state = state.copyWith(
+      isLoading: true,
+      clearErrorMessage: true,
+      clearAutoFilledCode: true,
+    );
     // verifyPhoneNumber's Future resolves before any callback fires.
     // Use a Completer so callers can await the actual outcome (codeSent /
     // verificationFailed / verificationCompleted) instead of just the kick-off.
@@ -167,14 +176,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   static const String notRegisteredError = 'not_registered';
+  static const String alreadyRegisteredError = 'already_registered';
 
-  Future<bool> verifyOtpAndLogin(
-    String smsCode, {
-    bool isLoginAttempt = false,
-    String? name,
-  }) async {
+  Future<bool> verifyOtpAndLogin(String smsCode, {String? name}) async {
     if (state.verificationId == null) {
-      state = state.copyWith(errorMessage: 'Session expired. Please resend OTP.');
+      state = state.copyWith(
+        errorMessage: 'Session expired. Please resend OTP.',
+      );
       return false;
     }
     state = state.copyWith(isLoading: true, errorMessage: null);
@@ -183,11 +191,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         verificationId: state.verificationId!,
         smsCode: smsCode,
       );
-      return await _signInWithCredential(
-        credential,
-        isLoginAttempt: isLoginAttempt,
-        name: name,
-      );
+      return await _signInWithCredential(credential, name: name);
     } on FirebaseAuthException catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -199,53 +203,104 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<bool> _signInWithCredential(
     PhoneAuthCredential credential, {
-    bool isLoginAttempt = false,
     String? name,
   }) async {
     try {
-      final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+      final userCred = await FirebaseAuth.instance.signInWithCredential(
+        credential,
+      );
       final token = await userCred.user?.getIdToken();
       if (token == null) {
-        state = state.copyWith(isLoading: false, errorMessage: 'Authentication failed');
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: 'Authentication failed',
+        );
         return false;
       }
       ApiService().setToken(token);
 
-      if (isLoginAttempt) {
+      // Login path: confirm the profile exists before touching the DB.
+      // Signup path (name != null): create profile via syncProfile.
+      Map<String, dynamic>? existingProfile;
+      if (name == null) {
+        // Login — profile must already exist.
         try {
-          await ApiService().getProfile();
+          existingProfile = await ApiService().getProfile();
         } catch (_) {
           ApiService().setToken(null);
           await FirebaseAuth.instance.signOut();
-          state = state.copyWith(isLoading: false, errorMessage: notRegisteredError);
+          state = state.copyWith(
+            isLoading: false,
+            errorMessage: notRegisteredError,
+          );
+          return false;
+        }
+      } else {
+        // Signup — create/update profile and detect if account already existed.
+        bool alreadyExisted = false;
+        try {
+          alreadyExisted = await ApiService().syncProfile(fullName: name);
+        } catch (_) {
+          ApiService().setToken(null);
+          await FirebaseAuth.instance.signOut();
+          state = state.copyWith(
+            isLoading: false,
+            errorMessage:
+                'Could not finish setting up your account. Please try again.',
+          );
+          return false;
+        }
+        if (alreadyExisted) {
+          ApiService().setToken(null);
+          await FirebaseAuth.instance.signOut();
+          state = state.copyWith(
+            isLoading: false,
+            errorMessage: alreadyRegisteredError,
+          );
           return false;
         }
       }
 
-      try {
-        await ApiService().syncProfile(fullName: name);
-      } catch (_) {}
+      // Login path: sync still needed to refresh phone/email on the profile.
+      if (name == null) {
+        try {
+          await ApiService().syncProfile();
+        } catch (_) {
+          // Non-fatal on login — profile already confirmed to exist above.
+        }
+      }
 
-      String fullName = name ?? '';
+      String resolvedName = name ?? '';
       String avatarUrl = '';
       try {
-        final profile = await ApiService().getProfile();
-        fullName = (profile['fullName'] as String? ?? fullName);
-        avatarUrl = profile['avatarUrl'] ?? '';
-      } catch (_) {}
+        final profile = existingProfile ?? await ApiService().getProfile();
+        resolvedName = (profile['fullName'] as String? ?? resolvedName);
+        avatarUrl = profile['avatarUrl'] as String? ?? '';
+      } catch (_) {
+        ApiService().setToken(null);
+        await FirebaseAuth.instance.signOut();
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: 'Could not load your account. Please try again.',
+        );
+        return false;
+      }
 
       state = AuthState(
         isAuthenticated: true,
         user: UserProfile(
           id: userCred.user!.uid,
           phone: userCred.user!.phoneNumber ?? '',
-          fullName: fullName,
+          fullName: resolvedName,
           avatarUrl: avatarUrl,
         ),
       );
       return true;
     } on FirebaseAuthException catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.message ?? 'Sign in failed');
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.message ?? 'Sign in failed',
+      );
       return false;
     }
   }

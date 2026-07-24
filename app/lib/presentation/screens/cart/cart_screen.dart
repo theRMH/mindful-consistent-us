@@ -25,6 +25,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   bool _isProcessing = false;
   final int _quantity = 1;
   late Razorpay _razorpay;
+  String? _pendingOrderId;
 
   Map<String, dynamic>? _courseData;
   bool _loadingCourse = true;
@@ -36,10 +37,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     return double.tryParse(raw.toString()) ?? 999.0;
   }
 
-  double get _unitPrice =>
-      _couponApplied && _couponDiscount != null
-          ? (_originalPrice - _couponDiscount!).clamp(0, double.infinity)
-          : _originalPrice;
+  double get _unitPrice => _couponApplied && _couponDiscount != null
+      ? (_originalPrice - _couponDiscount!).clamp(0, double.infinity)
+      : _originalPrice;
   double get _totalPayable => _unitPrice * _quantity;
 
   @override
@@ -55,7 +55,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   Future<void> _loadCourse() async {
     try {
       final data = await ApiService().getCourseDetails(widget.courseId);
-      if (mounted) setState(() { _courseData = data; _loadingCourse = false; });
+      if (mounted) {
+        setState(() {
+          _courseData = data;
+          _loadingCourse = false;
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _loadingCourse = false);
     }
@@ -104,13 +109,23 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppTheme.figmaGreen, width: 1.5),
+                        border: Border.all(
+                          color: AppTheme.figmaGreen,
+                          width: 1.5,
+                        ),
                         boxShadow: const [
-                          BoxShadow(color: Color(0x02000000), blurRadius: 10, offset: Offset(0, 4)),
+                          BoxShadow(
+                            color: Color(0x02000000),
+                            blurRadius: 10,
+                            offset: Offset(0, 4),
+                          ),
                         ],
                       ),
                       child: Row(
@@ -159,7 +174,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               ],
                             ),
                           ),
-                          const Icon(Icons.chevron_right_rounded, color: AppTheme.figmaGreen, size: 24),
+                          const Icon(
+                            Icons.chevron_right_rounded,
+                            color: AppTheme.figmaGreen,
+                            size: 24,
+                          ),
                         ],
                       ),
                     ),
@@ -285,7 +304,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     if (_loadingCourse) {
       return const Padding(
         padding: EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        child: Center(child: CircularProgressIndicator(color: AppTheme.figmaGreen, strokeWidth: 2)),
+        child: Center(
+          child: CircularProgressIndicator(
+            color: AppTheme.figmaGreen,
+            strokeWidth: 2,
+          ),
+        ),
       );
     }
 
@@ -344,7 +368,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   ),
                   const SizedBox(height: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppTheme.figmaGreen,
                       borderRadius: BorderRadius.circular(6),
@@ -381,7 +408,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       width: 80,
       height: 80,
       color: const Color(0xFFE8F5E9),
-      child: const Icon(Icons.self_improvement, color: AppTheme.figmaGreen, size: 36),
+      child: const Icon(
+        Icons.self_improvement,
+        color: AppTheme.figmaGreen,
+        size: 36,
+      ),
     );
   }
 
@@ -392,7 +423,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       setState(() => _couponError = 'Enter a coupon code');
       return;
     }
-    setState(() { _isValidatingCoupon = true; _couponError = null; });
+    setState(() {
+      _isValidatingCoupon = true;
+      _couponError = null;
+    });
     final result = await ApiService().validateCoupon(code);
     if (!mounted) return;
     if (result != null) {
@@ -409,7 +443,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         ),
       );
     } else {
-      setState(() { _couponError = 'Invalid or expired coupon'; _isValidatingCoupon = false; });
+      setState(() {
+        _couponError = 'Invalid or expired coupon';
+        _isValidatingCoupon = false;
+      });
     }
   }
 
@@ -503,7 +540,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     ? const SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.figmaGreen),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppTheme.figmaGreen,
+                        ),
                       )
                     : GestureDetector(
                         onTap: _couponApplied ? _removeCoupon : _applyCoupon,
@@ -606,23 +646,23 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     ),
                   ),
                   child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Checkout',
-                              style: GoogleFonts.inter(
-                                fontSize: 15,
-                                fontWeight: AppFontWeights.semiBold,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(
-                              Icons.arrow_forward_rounded,
-                              color: Colors.white,
-                              size: 18,
-                            ),
-                          ],
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Checkout',
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: AppFontWeights.semiBold,
                         ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(
+                        Icons.arrow_forward_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -634,7 +674,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
   // ─── Checkout Logic ───────────────────────────────────────────────────────
   void _handleCheckout() {
-    final isLoggedIn = ref.read(authProvider).user != null;
+    final isLoggedIn = ref.read(authProvider).isAuthenticated;
     if (!isLoggedIn) {
       _showAuthSheet();
     } else {
@@ -713,7 +753,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(ctx);
-                    final cartPath = Uri.encodeComponent('/cart?courseId=${widget.courseId}');
+                    final cartPath = Uri.encodeComponent(
+                      '/cart?courseId=${widget.courseId}',
+                    );
                     context.push('/signup?redirect=$cartPath');
                   },
                   style: ElevatedButton.styleFrom(
@@ -741,7 +783,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 child: OutlinedButton(
                   onPressed: () {
                     Navigator.pop(ctx);
-                    final cartPath = Uri.encodeComponent('/cart?courseId=${widget.courseId}');
+                    final cartPath = Uri.encodeComponent(
+                      '/cart?courseId=${widget.courseId}',
+                    );
                     context.push('/login?redirect=$cartPath');
                   },
                   style: OutlinedButton.styleFrom(
@@ -774,15 +818,36 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     if (_isProcessing) return;
     setState(() => _isProcessing = true);
     try {
+      final couponCode = _couponApplied ? _couponController.text.trim() : null;
+      final order = await ApiService().createPaymentOrder(
+        widget.courseId,
+        couponCode: couponCode,
+      );
+
+      if (order['free'] == true || (order['amount'] as num? ?? 0) <= 0) {
+        await ApiService().enrollInCourse(
+          widget.courseId,
+          couponCode: couponCode,
+        );
+        if (!mounted) return;
+        setState(() => _isProcessing = false);
+        _goToThankYou(amountPaid: 0);
+        return;
+      }
+
+      _pendingOrderId = order['orderId'] as String?;
+      if (_pendingOrderId == null || _pendingOrderId!.isEmpty) {
+        throw Exception('Payment order could not be created');
+      }
+
       final options = {
-        'key': AppConfig.razorpayKeyId,
-        'amount': (_totalPayable * 100).round(), // paise
-        'currency': 'INR',
+        'key': order['keyId'] as String? ?? AppConfig.razorpayKeyId,
+        'order_id': _pendingOrderId,
+        'amount': order['amount'],
+        'currency': order['currency'] as String? ?? 'INR',
         'name': 'ConsistentUs',
         'description': _courseData?['title'] as String? ?? 'Course',
-        'prefill': {
-          'contact': ref.read(authProvider).user?.phone ?? '',
-        },
+        'prefill': {'contact': ref.read(authProvider).user?.phone ?? ''},
         'theme': {'color': '#019948'},
       };
       _razorpay.open(options);
@@ -790,7 +855,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       if (mounted) {
         setState(() => _isProcessing = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Payment failed: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Payment failed: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -798,23 +866,45 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
   void _handlePaymentSuccess(PaymentSuccessResponse response) async {
     try {
+      final orderId = response.orderId ?? _pendingOrderId;
+      if (orderId == null ||
+          response.paymentId == null ||
+          response.signature == null) {
+        throw Exception('Payment verification details were missing');
+      }
       await ApiService().enrollInCourse(
         widget.courseId,
-        razorpayOrderId: response.orderId,
+        razorpayOrderId: orderId,
         razorpayPaymentId: response.paymentId,
         razorpaySignature: response.signature,
         couponCode: _couponApplied ? _couponController.text.trim() : null,
       );
-    } catch (_) {}
-    if (mounted) {
+      if (!mounted) return;
       setState(() => _isProcessing = false);
-      context.go('/thank-you', extra: {
+      _goToThankYou(amountPaid: _totalPayable.toInt());
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Payment verified, but enrollment failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _goToThankYou({required int amountPaid}) {
+    context.go(
+      '/thank-you',
+      extra: {
         'courseId': widget.courseId,
         'courseTitle': _courseData?['title'] as String?,
-        'amountPaid': _totalPayable.toInt(),
+        'amountPaid': amountPaid,
         'whatsappLink': _courseData?['whatsappLink'] as String?,
-      });
-    }
+      },
+    );
   }
 
   void _handlePaymentError(PaymentFailureResponse response) {

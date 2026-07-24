@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/config/theme.dart';
 import '../../providers/free_videos_provider.dart';
+import '../../widgets/video_preview_sheet.dart';
 
 class FreeVideosScreen extends ConsumerWidget {
   const FreeVideosScreen({super.key});
@@ -81,7 +82,7 @@ class FreeVideosScreen extends ConsumerWidget {
     return GestureDetector(
       onTap: () {
         if (youtubeVideoId != null && youtubeVideoId.isNotEmpty) {
-          context.push('/play', extra: {
+          showVideoPreview(context, {
             'courseId': 'free',
             'dayNumber': 1,
             'youtubeVideoId': youtubeVideoId,

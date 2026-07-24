@@ -12,6 +12,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const { fullName, avatarUrl } = body;
 
+    const existing = await prisma.profile.findUnique({ where: { id: user.id }, select: { id: true } });
+
     // Upsert Profile
     const profile = await prisma.profile.upsert({
       where: { id: user.id },
@@ -40,7 +42,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ success: true, profile, stats }, { status: 200 });
+    return NextResponse.json({ success: true, profile, stats, alreadyExisted: existing !== null }, { status: 200 });
   } catch (error) {
     console.error('Error syncing auth profile:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

@@ -8,6 +8,7 @@ import '../../../core/config/theme.dart';
 import '../../../data/models/course_model.dart';
 
 import '../../providers/course_detail_provider.dart';
+import '../../widgets/video_preview_sheet.dart';
 
 class DayListScreen extends ConsumerStatefulWidget {
   final String courseId;
@@ -206,6 +207,7 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
                     return _buildDayCard(
                       context,
                       day: day,
+                      totalDays: totalDays,
                       isPlayable: isPlayable,
                       isCompleted: isCompleted,
                       isToday: isToday,
@@ -223,6 +225,7 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
   Widget _buildDayCard(
     BuildContext context, {
     required CourseDayModel day,
+    required int totalDays,
     required bool isPlayable,
     required bool isCompleted,
     required bool isToday,
@@ -361,7 +364,7 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
 
           // Expanded video list
           if (isExpanded && day.videos.isNotEmpty)
-            _buildVideoList(context, day, progress),
+            _buildVideoList(context, day, progress, totalDays),
         ],
       ),
     );
@@ -407,6 +410,7 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
     BuildContext context,
     CourseDayModel day,
     ProgressState progress,
+    int totalDays,
   ) {
     return Column(
       children: [
@@ -419,6 +423,7 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
             context,
             video,
             day,
+            totalDays: totalDays,
             isLast: isLast,
             isCompleted: progress.completedVideoIds.contains(video.id),
           );
@@ -431,6 +436,7 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
     BuildContext context,
     VideoModel video,
     CourseDayModel day, {
+    required int totalDays,
     required bool isLast,
     required bool isCompleted,
   }) {
@@ -440,7 +446,7 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
         : '';
 
     return InkWell(
-      onTap: () => _playVideo(context, video, day),
+      onTap: () => _playVideo(context, video, day, totalDays),
       borderRadius: isLast
           ? const BorderRadius.only(
               bottomLeft: Radius.circular(20),
@@ -520,19 +526,17 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
     );
   }
 
-  void _playVideo(BuildContext context, VideoModel video, CourseDayModel day) {
-    context.push(
-      '/play',
-      extra: {
-        'courseId': widget.courseId,
-        'dayNumber': day.dayNumber,
-        'videoId': video.id,
-        'videoSource': video.videoSource,
-        'youtubeVideoId': video.youtubeVideoId ?? '',
-        'bunnyVideoId': video.bunnyVideoId,
-        'bunnyLibraryId': video.bunnyLibraryId,
-        'videoTitle': video.title,
-      },
-    );
+  void _playVideo(BuildContext context, VideoModel video, CourseDayModel day, int totalDays) {
+    showVideoPreview(context, {
+      'courseId': widget.courseId,
+      'dayNumber': day.dayNumber,
+      'totalDays': totalDays,
+      'videoId': video.id,
+      'videoSource': video.videoSource,
+      'youtubeVideoId': video.youtubeVideoId ?? '',
+      'bunnyVideoId': video.bunnyVideoId,
+      'bunnyLibraryId': video.bunnyLibraryId,
+      'videoTitle': video.title,
+    });
   }
 }

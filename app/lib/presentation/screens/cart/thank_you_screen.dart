@@ -152,8 +152,6 @@ class _ThankYouScreenState extends State<ThankYouScreen>
                         const Divider(height: 24, color: AppTheme.lightGray),
                         _orderRow('Amount Paid', amount),
                         const Divider(height: 24, color: AppTheme.lightGray),
-                        _orderRow('Payment Method', 'UPI'),
-                        const Divider(height: 24, color: AppTheme.lightGray),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [

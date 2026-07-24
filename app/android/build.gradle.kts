@@ -16,7 +16,10 @@ subprojects {
     project.layout.buildDirectory.value(newSubprojectBuildDir)
     afterEvaluate {
         if (extensions.findByName("android") != null) {
-            extensions.getByType(com.android.build.gradle.BaseExtension::class).compileSdkVersion(36)
+            extensions.getByType(com.android.build.gradle.BaseExtension::class).apply {
+                compileSdkVersion(36)
+                ndkVersion = "27.0.12077973"
+            }
         }
     }
 }

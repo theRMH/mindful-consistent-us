@@ -65,26 +65,24 @@ class CoursesNotifier extends StateNotifier<CoursesState> {
     state = state.copyWith(isLoading: true, error: null);
     debugPrint('[Courses] Loading from ${AppConfig.apiBaseUrl}');
     try {
-      final coursesData = await _apiService
-          .getCourses()
-          .timeout(const Duration(seconds: 10));
+      final coursesData = await _apiService.getCourses().timeout(
+        const Duration(seconds: 10),
+      );
 
       debugPrint('[Courses] Loaded ${coursesData.length} courses');
 
       List<dynamic> enrollmentsData = [];
       if (_ref.read(authProvider).isAuthenticated) {
         try {
-          enrollmentsData = await _apiService
-              .getEnrollments()
-              .timeout(const Duration(seconds: 10));
+          enrollmentsData = await _apiService.getEnrollments().timeout(
+            const Duration(seconds: 10),
+          );
         } catch (e) {
           debugPrint('[Courses] Enrollments skipped (no auth): $e');
         }
       }
 
-      final courses = coursesData
-          .map((e) => CourseModel.fromJson(e))
-          .toList();
+      final courses = coursesData.map((e) => CourseModel.fromJson(e)).toList();
 
       final enrollmentList = enrollmentsData
           .map((e) => EnrollmentModel.fromJson(e))
@@ -104,20 +102,11 @@ class CoursesNotifier extends StateNotifier<CoursesState> {
     }
   }
 
-  Future<void> enroll(String courseId) async {
-    state = state.copyWith(isLoading: true, error: null);
-    try {
-      await _apiService.enrollInCourse(courseId);
-      await _load();
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
-    }
-  }
-
   Future<void> refresh() => _load();
 }
 
-final coursesProvider =
-    StateNotifierProvider<CoursesNotifier, CoursesState>((ref) {
+final coursesProvider = StateNotifierProvider<CoursesNotifier, CoursesState>((
+  ref,
+) {
   return CoursesNotifier(ref);
 });

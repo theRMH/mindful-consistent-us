@@ -1,22 +1,39 @@
 class AppConfig {
-  static const String supabaseUrl = String.fromEnvironment(
+  static const String _supabaseUrl = String.fromEnvironment(
     'NEXT_PUBLIC_SUPABASE_URL',
-    defaultValue: 'https://eqescqsxjrrmjzbdtzbt.supabase.co',
   );
 
-  static const String supabaseAnonKey = String.fromEnvironment(
+  static const String _supabaseAnonKey = String.fromEnvironment(
     'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-    defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVxZXNjcXN4anJybWp6YmR0emJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MzM3OTQsImV4cCI6MjA5NjIwOTc5NH0.kgmOFf_Q8Gn_30qSiuCxhfaeWGe7yMyWIUF0jT67bxk',
   );
 
-  static const String apiBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'https://mindful-consistent-us.vercel.app',
+  static const String _apiBaseUrl = String.fromEnvironment('API_BASE_URL');
+
+  static const String _razorpayKeyId = String.fromEnvironment(
+    'RAZORPAY_KEY_ID',
   );
 
-  // Razorpay public key — safe to ship in the app (key_secret stays on the backend)
-  static const String razorpayKeyId = 'rzp_live_bwAd15SKh2A6Ji';
+  static String get supabaseUrl =>
+      _required(_supabaseUrl, 'NEXT_PUBLIC_SUPABASE_URL');
 
-  // Set to false — app now runs against real backend. Re-enable only for UI-only work without backend.
-  static const bool useMockData = false;
+  static String get supabaseAnonKey =>
+      _required(_supabaseAnonKey, 'NEXT_PUBLIC_SUPABASE_ANON_KEY');
+
+  static String get apiBaseUrl => _required(_apiBaseUrl, 'API_BASE_URL');
+
+  // Razorpay key id is public, but it is still environment-specific.
+  static String get razorpayKeyId =>
+      _required(_razorpayKeyId, 'RAZORPAY_KEY_ID');
+
+  static const bool useMockData = bool.fromEnvironment(
+    'USE_MOCK_DATA',
+    defaultValue: false,
+  );
+
+  static String _required(String value, String name) {
+    if (value.trim().isEmpty) {
+      throw StateError('$name must be provided with --dart-define');
+    }
+    return value;
+  }
 }

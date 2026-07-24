@@ -187,13 +187,14 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
       final compVideoIds = List<String>.from(
         progressData['completedVideoIds'] ?? [],
       );
-      final weeklyRaw =
-          progressData['weeklyActivity'] as List<dynamic>? ?? [];
+      final weeklyRaw = progressData['weeklyActivity'] as List<dynamic>? ?? [];
       final weeklyActivity = weeklyRaw
-          .map((e) => {
-                'label': (e as Map<String, dynamic>)['label'] as String,
-                'val': (e['val'] as num).toInt(),
-              })
+          .map(
+            (e) => {
+              'label': (e as Map<String, dynamic>)['label'] as String,
+              'val': (e['val'] as num).toInt(),
+            },
+          )
           .toList();
 
       final leaderboardEntries =
@@ -291,21 +292,12 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
     } else {
       state = state.copyWith(isLoading: true);
       try {
-        await _apiService.completeDay(courseId, dayNumber, videoId: videoId, todaySteps: todaySteps);
-        await refreshFromApi();
-      } catch (e) {
-        state = state.copyWith(isLoading: false, error: e.toString());
-      }
-    }
-  }
-
-  Future<void> enrollCourse(String courseId) async {
-    if (AppConfig.useMockData) {
-      await Future.delayed(const Duration(milliseconds: 500));
-    } else {
-      state = state.copyWith(isLoading: true);
-      try {
-        await _apiService.enrollInCourse(courseId);
+        await _apiService.completeDay(
+          courseId,
+          dayNumber,
+          videoId: videoId,
+          todaySteps: todaySteps,
+        );
         await refreshFromApi();
       } catch (e) {
         state = state.copyWith(isLoading: false, error: e.toString());
@@ -476,12 +468,16 @@ final progressProvider = StateNotifierProvider<ProgressNotifier, ProgressState>(
 
 // Leaderboard fetched independently so home screen always shows fresh data.
 // Watches authProvider so it re-runs after login (token is set before this fires).
-final homeLeaderboardProvider = FutureProvider<List<LeaderboardUser>>((ref) async {
+final homeLeaderboardProvider = FutureProvider<List<LeaderboardUser>>((
+  ref,
+) async {
   ref.watch(authProvider); // re-run when auth state changes
   final api = ApiService();
   final data = await api.getLeaderboard();
   final entries = data['entries'] as List<dynamic>? ?? [];
-  return entries.map((e) => LeaderboardUser.fromJson(e as Map<String, dynamic>)).toList();
+  return entries
+      .map((e) => LeaderboardUser.fromJson(e as Map<String, dynamic>))
+      .toList();
 });
 
 // Live today's step count from the local pedometer (written by StepsScreen).

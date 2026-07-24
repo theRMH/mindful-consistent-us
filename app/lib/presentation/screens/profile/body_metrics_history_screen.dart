@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -14,6 +15,7 @@ class BodyMetricsHistoryScreen extends StatefulWidget {
 
 class _BodyMetricsHistoryScreenState extends State<BodyMetricsHistoryScreen> {
   late Future<List<dynamic>> _future;
+  String _chartMetric = 'weightKg'; // which metric the chart shows
 
   @override
   void initState() {
@@ -70,7 +72,8 @@ class _BodyMetricsHistoryScreenState extends State<BodyMetricsHistoryScreen> {
                     ),
                     GestureDetector(
                       onTap: () async {
-                        await context.push('/body-metrics?skip=true&redirect=/body-metrics-history');
+                        await context.push(
+                            '/body-metrics?skip=true&redirect=/body-metrics-history');
                         _refresh();
                       },
                       child: Container(
@@ -140,11 +143,28 @@ class _BodyMetricsHistoryScreenState extends State<BodyMetricsHistoryScreen> {
                 if (records.isEmpty) {
                   return _buildEmptyState();
                 }
-                return ListView.builder(
+
+                final typed = records
+                    .map((r) => r as Map<String, dynamic>)
+                    .toList();
+
+                return ListView(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-                  itemCount: records.length,
-                  itemBuilder: (context, index) =>
-                      _buildCard(records[index] as Map<String, dynamic>, index == 0),
+                  children: [
+                    // Progress chart (only if ≥ 2 entries with data)
+                    if (_hasChartData(typed, _chartMetric)) ...[
+                      _buildChart(typed),
+                      const SizedBox(height: 20),
+                    ],
+
+                    // History cards
+                    ...typed.asMap().entries.map((e) {
+                      final prev = e.key < typed.length - 1
+                          ? typed[e.key + 1]
+                          : null;
+                      return _buildCard(e.value, e.key == 0, prev);
+                    }),
+                  ],
                 );
               },
             ),
@@ -153,6 +173,131 @@ class _BodyMetricsHistoryScreenState extends State<BodyMetricsHistoryScreen> {
       ),
     );
   }
+
+  // ─── Chart ───────────────────────────────────────────────────────────────
+
+  static const _chartOptions = [
+    ('weightKg', 'Weight', 'kg'),
+    ('heightCm', 'Height', 'cm'),
+    ('waistIn', 'Waist', 'in'),
+    ('hipIn', 'Hip', 'in'),
+  ];
+
+  bool _hasChartData(List<Map<String, dynamic>> records, String key) {
+    final vals = records
+        .map((r) => _toDouble(r[key]))
+        .where((v) => v != null)
+        .toList();
+    return vals.length >= 2;
+  }
+
+  Widget _buildChart(List<Map<String, dynamic>> records) {
+    // Pick the label/unit for the active metric
+    final opt = _chartOptions.firstWhere((o) => o.$1 == _chartMetric,
+        orElse: () => _chartOptions[0]);
+
+    // Records are newest-first; chart shows oldest→newest
+    final chronological = records.reversed.toList();
+    final values = chronological
+        .map((r) => _toDouble(r[_chartMetric]))
+        .toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(8),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${opt.$2} Progress',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.figmaCharcoal,
+                ),
+              ),
+              // Metric selector chips
+              Row(
+                children: _chartOptions.map((o) {
+                  final active = o.$1 == _chartMetric;
+                  // Only show chip if there are ≥2 data points for that metric
+                  if (!_hasChartData(records, o.$1)) return const SizedBox();
+                  return GestureDetector(
+                    onTap: () => setState(() => _chartMetric = o.$1),
+                    child: Container(
+                      margin: const EdgeInsets.only(left: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: active
+                            ? AppTheme.figmaGreen
+                            : AppTheme.figmaGreen.withAlpha(20),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        o.$2,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: active ? Colors.white : AppTheme.figmaGreen,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 120,
+            child: CustomPaint(
+              painter: _LinechartPainter(values: values),
+              size: const Size(double.infinity, 120),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // X-axis date labels (first and last)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _shortDate(chronological.first['recordedAt'] as String?),
+                style: GoogleFonts.inter(
+                    fontSize: 10, color: AppTheme.coolGray),
+              ),
+              if (chronological.length > 2)
+                Text(
+                  '${chronological.length} entries',
+                  style: GoogleFonts.inter(
+                      fontSize: 10, color: AppTheme.coolGray),
+                ),
+              Text(
+                _shortDate(chronological.last['recordedAt'] as String?),
+                style: GoogleFonts.inter(
+                    fontSize: 10, color: AppTheme.coolGray),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Empty State ─────────────────────────────────────────────────────────
 
   Widget _buildEmptyState() {
     return Center(
@@ -183,7 +328,7 @@ class _BodyMetricsHistoryScreenState extends State<BodyMetricsHistoryScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Add your first body metrics snapshot\nto start tracking progress.',
+            'Tap "+ Add Entry" above to record\nyour first body metrics snapshot.',
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               fontSize: 13,
@@ -191,38 +336,28 @@ class _BodyMetricsHistoryScreenState extends State<BodyMetricsHistoryScreen> {
               height: 1.5,
             ),
           ),
-          const SizedBox(height: 28),
-          ElevatedButton.icon(
-            onPressed: () async {
-              await context.push('/body-metrics?skip=true&redirect=/body-metrics-history');
-              _refresh();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.figmaGreen,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
-            ),
-            icon: const Icon(Icons.add_rounded, size: 18),
-            label: Text(
-              'Add First Entry',
-              style: GoogleFonts.inter(
-                  fontWeight: FontWeight.bold, fontSize: 14),
-            ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildCard(Map<String, dynamic> record, bool isLatest) {
+  // ─── History Card ─────────────────────────────────────────────────────────
+
+  Widget _buildCard(
+    Map<String, dynamic> record,
+    bool isLatest,
+    Map<String, dynamic>? previous,
+  ) {
     final date = DateTime.tryParse(record['recordedAt'] as String? ?? '');
     final dateLabel = date != null ? _formatDate(date) : '—';
     final courseTitle = record['courseTitle'] as String?;
+
+    // Count filled fields (excluding name, courseId, id, recordedAt)
+    final metricKeys = ['age', 'heightCm', 'weightKg', 'waistIn', 'hipIn'];
+    final filledCount =
+        metricKeys.where((k) => record[k] != null).length;
+    final totalCount = metricKeys.length;
+    final isPartial = filledCount > 0 && filledCount < totalCount;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -244,6 +379,7 @@ class _BodyMetricsHistoryScreenState extends State<BodyMetricsHistoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Date row + Latest badge
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -255,23 +391,45 @@ class _BodyMetricsHistoryScreenState extends State<BodyMetricsHistoryScreen> {
                   color: AppTheme.figmaCharcoal,
                 ),
               ),
-              if (isLatest)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.figmaGreen.withAlpha(20),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    'Latest',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.figmaGreen,
+              Row(
+                children: [
+                  if (isPartial)
+                    Container(
+                      margin: const EdgeInsets.only(right: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF3E0),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '$filledCount/$totalCount fields',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFFE65100),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+                  if (isLatest)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.figmaGreen.withAlpha(20),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Latest',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.figmaGreen,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ],
           ),
           if (courseTitle != null) ...[
@@ -288,31 +446,40 @@ class _BodyMetricsHistoryScreenState extends State<BodyMetricsHistoryScreen> {
           const SizedBox(height: 14),
           const Divider(height: 1, color: Color(0xFFEEEEEE)),
           const SizedBox(height: 14),
-          _buildMetricsGrid(record),
+          _buildMetricsGrid(record, previous),
         ],
       ),
     );
   }
 
-  Widget _buildMetricsGrid(Map<String, dynamic> r) {
+  Widget _buildMetricsGrid(
+    Map<String, dynamic> r,
+    Map<String, dynamic>? prev,
+  ) {
     return GridView.count(
       crossAxisCount: 3,
       crossAxisSpacing: 12,
       mainAxisSpacing: 12,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.8,
+      childAspectRatio: 1.6,
       children: [
-        _metric('Age', r['age']?.toString(), 'yrs'),
-        _metric('Height', _num(r['heightCm']), 'cm'),
-        _metric('Weight', _num(r['weightKg']), 'kg'),
-        _metric('Waist', _num(r['waistIn']), 'in'),
-        _metric('Hip', _num(r['hipIn']), 'in'),
+        _metric('Age', r['age']?.toString(), 'yrs',
+            delta: _intDelta(r['age'], prev?['age'])),
+        _metric('Height', _num(r['heightCm']), 'cm',
+            delta: _numDelta(r['heightCm'], prev?['heightCm'])),
+        _metric('Weight', _num(r['weightKg']), 'kg',
+            delta: _numDelta(r['weightKg'], prev?['weightKg'])),
+        _metric('Waist', _num(r['waistIn']), 'in',
+            delta: _numDelta(r['waistIn'], prev?['waistIn'])),
+        _metric('Hip', _num(r['hipIn']), 'in',
+            delta: _numDelta(r['hipIn'], prev?['hipIn'])),
       ],
     );
   }
 
-  Widget _metric(String label, String? value, String unit) {
+  Widget _metric(String label, String? value, String unit,
+      {_Delta? delta}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -333,7 +500,7 @@ class _BodyMetricsHistoryScreenState extends State<BodyMetricsHistoryScreen> {
             Text(
               value ?? '—',
               style: GoogleFonts.inter(
-                fontSize: 18,
+                fontSize: 17,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.figmaCharcoal,
               ),
@@ -350,15 +517,72 @@ class _BodyMetricsHistoryScreenState extends State<BodyMetricsHistoryScreen> {
             ],
           ],
         ),
+        if (delta != null && value != null)
+          Row(
+            children: [
+              Icon(
+                delta.isDown ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+                size: 10,
+                color: delta.color,
+              ),
+              const SizedBox(width: 1),
+              Text(
+                delta.label,
+                style: GoogleFonts.inter(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: delta.color,
+                ),
+              ),
+            ],
+          ),
       ],
     );
   }
+
+  // ─── Delta helpers ────────────────────────────────────────────────────────
+
+  _Delta? _numDelta(dynamic curr, dynamic prev) {
+    final c = _toDouble(curr);
+    final p = _toDouble(prev);
+    if (c == null || p == null) return null;
+    final diff = c - p;
+    if (diff == 0) return null;
+    return _Delta(
+      label: '${diff.abs().toStringAsFixed(1)}',
+      isDown: diff < 0,
+      // weight/waist going down = good (green); height going down = neutral
+      color: diff < 0 ? AppTheme.figmaGreen : const Color(0xFFE65100),
+    );
+  }
+
+  _Delta? _intDelta(dynamic curr, dynamic prev) {
+    if (curr == null || prev == null) return null;
+    final c = curr is int ? curr : int.tryParse(curr.toString());
+    final p = prev is int ? prev : int.tryParse(prev.toString());
+    if (c == null || p == null) return null;
+    final diff = c - p;
+    if (diff == 0) return null;
+    return _Delta(
+      label: '${diff.abs()}',
+      isDown: diff < 0,
+      color: AppTheme.coolGray,
+    );
+  }
+
+  // ─── Utility ─────────────────────────────────────────────────────────────
 
   String? _num(dynamic val) {
     if (val == null) return null;
     final n = val is num ? val.toDouble() : double.tryParse(val.toString());
     if (n == null) return null;
-    return n == n.truncateToDouble() ? n.toInt().toString() : n.toString();
+    return n == n.truncateToDouble() ? n.toInt().toString() : n.toStringAsFixed(1);
+  }
+
+  double? _toDouble(dynamic val) {
+    if (val == null) return null;
+    if (val is num) return val.toDouble();
+    return double.tryParse(val.toString());
   }
 
   String _formatDate(DateTime d) {
@@ -368,4 +592,149 @@ class _BodyMetricsHistoryScreenState extends State<BodyMetricsHistoryScreen> {
     ];
     return '${d.day} ${months[d.month - 1]} ${d.year}';
   }
+
+  String _shortDate(String? iso) {
+    final d = iso != null ? DateTime.tryParse(iso) : null;
+    if (d == null) return '';
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${d.day} ${months[d.month - 1]}';
+  }
+}
+
+// ─── Delta model ─────────────────────────────────────────────────────────────
+
+class _Delta {
+  final String label;
+  final bool isDown;
+  final Color color;
+  const _Delta({required this.label, required this.isDown, required this.color});
+}
+
+// ─── Chart painter ───────────────────────────────────────────────────────────
+
+class _LinechartPainter extends CustomPainter {
+  final List<double?> values;
+
+  const _LinechartPainter({required this.values});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final points = <Offset>[];
+    final nonNull = values.whereType<double>().toList();
+    if (nonNull.length < 2) return;
+
+    final minV = nonNull.reduce(min);
+    final maxV = nonNull.reduce(max);
+    final range = (maxV - minV).abs();
+    final padV = range < 0.01 ? 1.0 : range * 0.15;
+    final lo = minV - padV;
+    final hi = maxV + padV;
+
+    // Build point list; skip nulls by breaking the line
+    final segments = <List<Offset>>[];
+    var current = <Offset>[];
+
+    for (int i = 0; i < values.length; i++) {
+      final v = values[i];
+      if (v == null) {
+        if (current.length >= 2) segments.add(current);
+        current = [];
+      } else {
+        final x = size.width * i / (values.length - 1);
+        final y = size.height - (size.height * (v - lo) / (hi - lo));
+        current.add(Offset(x, y.clamp(0.0, size.height)));
+      }
+    }
+    if (current.length >= 2) segments.add(current);
+
+    // Gradient fill under first segment
+    if (segments.isNotEmpty) {
+      final seg = segments.first;
+      final fillPath = Path()..moveTo(seg.first.dx, size.height);
+      for (final p in seg) {
+        fillPath.lineTo(p.dx, p.dy);
+      }
+      fillPath.lineTo(seg.last.dx, size.height);
+      fillPath.close();
+
+      canvas.drawPath(
+        fillPath,
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppTheme.figmaGreen.withAlpha(60),
+              AppTheme.figmaGreen.withAlpha(0),
+            ],
+          ).createShader(Rect.fromLTWH(0, 0, size.width, size.height)),
+      );
+    }
+
+    // Draw lines
+    final linePaint = Paint()
+      ..color = AppTheme.figmaGreen
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    for (final seg in segments) {
+      final path = Path()..moveTo(seg.first.dx, seg.first.dy);
+      for (int i = 1; i < seg.length; i++) {
+        // Smooth cubic bezier
+        final prev = seg[i - 1];
+        final curr = seg[i];
+        final cpx = (prev.dx + curr.dx) / 2;
+        path.cubicTo(cpx, prev.dy, cpx, curr.dy, curr.dx, curr.dy);
+      }
+      canvas.drawPath(path, linePaint);
+    }
+
+    // Draw dots
+    final dotPaint = Paint()..color = AppTheme.figmaGreen;
+    final dotBg = Paint()..color = Colors.white;
+    for (final seg in segments) {
+      for (final p in seg) {
+        canvas.drawCircle(p, 5, dotBg);
+        canvas.drawCircle(p, 3.5, dotPaint);
+      }
+    }
+
+    // Value labels on first and last dot of first segment
+    if (segments.isNotEmpty) {
+      final seg = segments.first;
+      _drawLabel(canvas, seg.first, nonNull.first, size);
+      if (seg.length > 1) _drawLabel(canvas, seg.last, nonNull.last, size);
+    }
+  }
+
+  void _drawLabel(Canvas canvas, Offset p, double value, Size size) {
+    final text = value == value.truncateToDouble()
+        ? value.toInt().toString()
+        : value.toStringAsFixed(1);
+    final tp = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: AppTheme.figmaGreen,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    // Position above the dot, clamped to canvas bounds
+    double dx = p.dx - tp.width / 2;
+    double dy = p.dy - 18;
+    dx = dx.clamp(0, size.width - tp.width);
+    dy = dy.clamp(0, size.height - tp.height);
+    tp.paint(canvas, Offset(dx, dy));
+  }
+
+  @override
+  bool shouldRepaint(_LinechartPainter old) => old.values != values;
 }

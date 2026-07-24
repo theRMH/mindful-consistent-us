@@ -120,10 +120,18 @@ class ApiService {
     String? couponCode,
   }) async {
     final body = <String, dynamic>{'courseId': courseId};
-    if (razorpayOrderId != null) body['razorpayOrderId'] = razorpayOrderId;
-    if (razorpayPaymentId != null) body['razorpayPaymentId'] = razorpayPaymentId;
-    if (razorpaySignature != null) body['razorpaySignature'] = razorpaySignature;
-    if (couponCode != null && couponCode.isNotEmpty) body['couponCode'] = couponCode;
+    if (razorpayOrderId != null) {
+      body['razorpayOrderId'] = razorpayOrderId;
+    }
+    if (razorpayPaymentId != null) {
+      body['razorpayPaymentId'] = razorpayPaymentId;
+    }
+    if (razorpaySignature != null) {
+      body['razorpaySignature'] = razorpaySignature;
+    }
+    if (couponCode != null && couponCode.isNotEmpty) {
+      body['couponCode'] = couponCode;
+    }
     final res = await _post('/api/mobile/enrollments', body);
     return res as Map<String, dynamic>;
   }
@@ -133,7 +141,9 @@ class ApiService {
     String? couponCode,
   }) async {
     final body = <String, dynamic>{'courseId': courseId};
-    if (couponCode != null && couponCode.isNotEmpty) body['couponCode'] = couponCode;
+    if (couponCode != null && couponCode.isNotEmpty) {
+      body['couponCode'] = couponCode;
+    }
     final res = await _post('/api/mobile/payment/create-order', body);
     return res as Map<String, dynamic>;
   }
@@ -182,7 +192,12 @@ class ApiService {
     int? todaySteps,
   }) async {
     if (videoId != null) {
-      return completeSession(courseId, dayNumber, videoId: videoId, todaySteps: todaySteps);
+      return completeSession(
+        courseId,
+        dayNumber,
+        videoId: videoId,
+        todaySteps: todaySteps,
+      );
     }
     final res = await _post('/api/mobile/progress/complete-day', {
       'courseId': courseId,
@@ -216,7 +231,10 @@ class ApiService {
   }
 
   Future<void> saveDailySteps(String dateStr, int steps) async {
-    await _post('/api/mobile/steps/history', {'dateStr': dateStr, 'steps': steps});
+    await _post('/api/mobile/steps/history', {
+      'dateStr': dateStr,
+      'steps': steps,
+    });
   }
 
   Future<List<Map<String, dynamic>>> getDailyStepHistory() async {
@@ -224,11 +242,12 @@ class ApiService {
     return (res as List<dynamic>).cast<Map<String, dynamic>>();
   }
 
-  Future<void> syncProfile({String? fullName, String? avatarUrl}) async {
+  Future<bool> syncProfile({String? fullName, String? avatarUrl}) async {
     final body = <String, dynamic>{};
     if (fullName != null) body['fullName'] = fullName;
     if (avatarUrl != null) body['avatarUrl'] = avatarUrl;
-    await _post('/api/auth/sync', body);
+    final res = await _post('/api/auth/sync', body);
+    return (res as Map<String, dynamic>)['alreadyExisted'] == true;
   }
 
   Future<List<dynamic>> getBodyMetrics() async {
@@ -263,10 +282,18 @@ class ApiService {
     String? notificationTime,
   }) async {
     final body = <String, dynamic>{};
-    if (fullName != null) body['fullName'] = fullName;
-    if (avatarUrl != null) body['avatarUrl'] = avatarUrl;
-    if (notificationsEnabled != null) body['notificationsEnabled'] = notificationsEnabled;
-    if (notificationTime != null) body['notificationTime'] = notificationTime;
+    if (fullName != null) {
+      body['fullName'] = fullName;
+    }
+    if (avatarUrl != null) {
+      body['avatarUrl'] = avatarUrl;
+    }
+    if (notificationsEnabled != null) {
+      body['notificationsEnabled'] = notificationsEnabled;
+    }
+    if (notificationTime != null) {
+      body['notificationTime'] = notificationTime;
+    }
     await _put('/api/mobile/profile', body);
   }
 

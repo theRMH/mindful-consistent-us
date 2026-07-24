@@ -177,12 +177,12 @@ class HomeScreen extends ConsumerWidget {
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    'Flexibility • Mobility • Mind ',
+                                    'Flexibility · Mobility · Strength',
                                     textAlign: TextAlign.center,
                                     style: GoogleFonts.inter(
                                       color: AppTheme.figmaMutedGray,
-                                      fontSize: 7.5,
-                                      fontWeight: FontWeight.normal,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -274,12 +274,12 @@ class HomeScreen extends ConsumerWidget {
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    'Strength • Energy • Vitality',
+                                    'Strength · Energy · Vitality',
                                     textAlign: TextAlign.center,
                                     style: GoogleFonts.inter(
                                       color: AppTheme.figmaMutedGray,
-                                      fontSize: 7.5,
-                                      fontWeight: FontWeight.normal,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -454,14 +454,21 @@ class HomeScreen extends ConsumerWidget {
 
             const SizedBox(height: AppSpacing.sm),
 
-            // Subtitle
-            Text(
-              'Daily discipline. Lasting transformation.',
-              style: GoogleFonts.inter(
+            // Subtitle — highlighted motivational pill
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
                 color: AppTheme.figmaGreen,
-                fontSize: 9.5,
-                fontWeight: AppFontWeights.semiBold,
-                fontStyle: FontStyle.italic,
+                borderRadius: BorderRadius.circular(AppRadii.pill),
+              ),
+              child: Text(
+                '✦  Daily discipline. Lasting transformation.',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: AppFontWeights.semiBold,
+                  fontStyle: FontStyle.italic,
+                ),
               ),
             ),
           ],
@@ -628,7 +635,7 @@ class HomeScreen extends ConsumerWidget {
         ? ((ps.completedDays.length + ps.stepsGoalDays) / (activeCourse.totalDays * 2) * 100).toInt().clamp(0, 100)
         : 0;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -665,16 +672,6 @@ class HomeScreen extends ConsumerWidget {
           _buildStatDivider(),
           Expanded(
             child: _buildStatItem(
-              icon: Icons.local_fire_department_rounded,
-              value: (todaySteps * 0.04).toStringAsFixed(0),
-              label: 'Calories',
-              bgColor: const Color(0xFFFFECE5),
-              iconColor: const Color(0xFFFF6D00),
-            ),
-          ),
-          _buildStatDivider(),
-          Expanded(
-            child: _buildStatItem(
               icon: Icons.track_changes_rounded,
               value: '$goalPct%',
               label: 'Goal',
@@ -694,44 +691,32 @@ class HomeScreen extends ConsumerWidget {
     required Color bgColor,
     required Color iconColor,
   }) {
-    return Row(
+    return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Container(
-          width: 22,
-          height: 22,
+          width: 32,
+          height: 32,
           decoration: BoxDecoration(color: bgColor, shape: BoxShape.circle),
-          child: Icon(icon, color: iconColor, size: 11),
+          child: Icon(icon, color: iconColor, size: 17),
         ),
-        const SizedBox(width: 6),
-        Flexible(
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  value,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.figmaCharcoal,
-                    height: 1.1,
-                  ),
-                ),
-                Text(
-                  label,
-                  style: GoogleFonts.inter(
-                    fontSize: 9,
-                    color: AppTheme.figmaMutedGray,
-                    fontWeight: FontWeight.normal,
-                    height: 1.2,
-                  ),
-                ),
-              ],
-            ),
+        const SizedBox(height: 6),
+        Text(
+          value,
+          style: GoogleFonts.inter(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.figmaCharcoal,
+            height: 1.1,
+          ),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            color: AppTheme.figmaMutedGray,
+            fontWeight: FontWeight.normal,
+            height: 1.2,
           ),
         ),
       ],
@@ -741,7 +726,7 @@ class HomeScreen extends ConsumerWidget {
   Widget _buildStatDivider() {
     return Container(
       width: 1,
-      height: 30,
+      height: 50,
       color: const Color(0xFFE2EBE5),
     );
   }
@@ -1341,7 +1326,7 @@ class HomeScreen extends ConsumerWidget {
                     ? Image.network(
                         avatarUrl,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => Center(child: avatarChild),
+                        errorBuilder: (ctx, err, st) => Center(child: avatarChild),
                       )
                     : Center(child: avatarChild),
               ),

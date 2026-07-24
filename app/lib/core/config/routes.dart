@@ -154,6 +154,7 @@ class AppRouter {
           final extra = state.extra as Map<String, dynamic>?;
           final courseId = extra?['courseId'] as String? ?? '';
           final dayNumber = extra?['dayNumber'] as int? ?? 1;
+          final totalDays = extra?['totalDays'] as int? ?? 30;
           final videoId = extra?['videoId'] as String?;
           final videoSource = extra?['videoSource'] as String? ?? 'youtube';
           final youtubeVideoId = extra?['youtubeVideoId'] as String? ?? '';
@@ -163,6 +164,7 @@ class AppRouter {
           return VideoPlayerScreen(
             courseId: courseId,
             dayNumber: dayNumber,
+            totalDays: totalDays,
             videoId: videoId,
             videoSource: videoSource,
             youtubeVideoId: youtubeVideoId,
@@ -224,15 +226,6 @@ class AppRouter {
       GoRoute(
         path: '/body-metrics-history',
         builder: (context, state) => const BodyMetricsHistoryScreen(),
-      ),
-
-      // Course detail by path param — used after purchase so body-metrics can redirect here
-      GoRoute(
-        path: '/course/:courseId',
-        builder: (context, state) {
-          final courseId = state.pathParameters['courseId'];
-          return ProgramDetailsScreen(courseId: courseId, showBackButton: true);
-        },
       ),
 
       // 13. Community Leaderboard

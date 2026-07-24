@@ -15,6 +15,7 @@ const _castChannel = MethodChannel('com.consistentus/cast');
 class VideoPlayerScreen extends ConsumerStatefulWidget {
   final String courseId;
   final int dayNumber;
+  final int totalDays;
   final String? videoId;
   final String videoSource; // 'youtube' | 'bunny'
   final String youtubeVideoId;
@@ -26,6 +27,7 @@ class VideoPlayerScreen extends ConsumerStatefulWidget {
     super.key,
     required this.courseId,
     required this.dayNumber,
+    this.totalDays = 30,
     this.videoId,
     this.videoSource = 'youtube',
     required this.youtubeVideoId,
@@ -135,7 +137,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
   void _markCompleteAndBack() {
     _completeSession();
     _restorePortrait();
-    if (widget.dayNumber == 30) {
+    if (widget.dayNumber >= widget.totalDays) {
       context.go('/course_completed?courseId=${widget.courseId}');
     } else {
       context.pop();

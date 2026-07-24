@@ -223,7 +223,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     ? Image.network(
                                         avatarUrl,
                                         fit: BoxFit.cover,
-                                        errorBuilder: (_, _, _) =>
+                                        errorBuilder: (ctx, err, st) =>
                                             _buildInitialsCircle(fullName),
                                       )
                                     : _buildInitialsCircle(fullName),

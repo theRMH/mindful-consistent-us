@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/config/theme.dart';
@@ -8,6 +9,7 @@ import '../../providers/free_videos_provider.dart';
 import '../../providers/community_moments_provider.dart';
 import '../../providers/progress_provider.dart';
 import '../../widgets/login_prompt.dart';
+import '../../widgets/video_preview_sheet.dart';
 
 class UnregisteredHomeScreen extends ConsumerStatefulWidget {
   const UnregisteredHomeScreen({super.key});
@@ -21,6 +23,7 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulse;
   late final Animation<double> _scale;
+  DateTime? _lastBackPressed;
 
   @override
   void initState() {
@@ -29,9 +32,10 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     )..repeat(reverse: true);
-    _scale = Tween<double>(begin: 0.85, end: 1.15).animate(
-      CurvedAnimation(parent: _pulse, curve: Curves.easeInOut),
-    );
+    _scale = Tween<double>(
+      begin: 0.85,
+      end: 1.15,
+    ).animate(CurvedAnimation(parent: _pulse, curve: Curves.easeInOut));
   }
 
   @override
@@ -46,197 +50,244 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
     final fvState = ref.watch(freeVideosProvider);
     final cmState = ref.watch(communityMomentsProvider);
 
-    final isLoading = coursesState.isLoading || fvState.isLoading || cmState.isLoading;
+    final isLoading =
+        coursesState.isLoading || fvState.isLoading || cmState.isLoading;
 
     if (isLoading) {
-      return Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(
-          child: ScaleTransition(
-            scale: _scale,
-            child: Image.asset('assets/logo.png', width: 96, height: 96),
+      return _withExitGuard(
+        Scaffold(
+          backgroundColor: Colors.white,
+          body: Center(
+            child: ScaleTransition(
+              scale: _scale,
+              child: Image.asset('assets/logo.png', width: 96, height: 96),
+            ),
           ),
         ),
       );
     }
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── 1. Header Banner ─────────────────────────────────
-              _buildHeader(context),
+    return _withExitGuard(
+      Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── 1. Header Banner ─────────────────────────────────
+                _buildHeader(context),
 
-              const SizedBox(height: AppSpacing.xxl),
+                const SizedBox(height: AppSpacing.xxl),
 
-              // ── 2. Explore Programs ───────────────────────────────
-              _buildSectionHeader(context, 'Explore Programs'),
-              const SizedBox(height: AppSpacing.md),
+                // ── 2. Explore Programs ───────────────────────────────
+                _buildSectionHeader(context, 'Explore Programs'),
+                const SizedBox(height: AppSpacing.md),
 
-              if (coursesState.error != null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Could not load courses',
-                        style: GoogleFonts.inter(
-                          color: AppTheme.figmaCharcoal,
-                          fontWeight: AppFontWeights.bold,
-                          fontSize: AppFontSizes.bodyLarge,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        coursesState.error!,
-                        style: GoogleFonts.inter(
-                          color: Colors.red.shade700,
-                          fontSize: AppFontSizes.bodySmall,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      GestureDetector(
-                        onTap: () => ref.read(coursesProvider.notifier).refresh(),
-                        child: Text(
-                          'Tap to retry',
+                if (coursesState.error != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xl,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Could not load courses',
                           style: GoogleFonts.inter(
-                            color: AppTheme.figmaGreen,
+                            color: AppTheme.figmaCharcoal,
                             fontWeight: AppFontWeights.bold,
-                            fontSize: AppFontSizes.bodyMedium,
+                            fontSize: AppFontSizes.bodyLarge,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                )
-              else if (coursesState.allCourses.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                  child: Text(
-                    'No courses available yet.',
-                    style: GoogleFonts.inter(
-                      color: AppTheme.figmaMutedGray,
-                      fontSize: AppFontSizes.bodyMedium,
-                    ),
-                  ),
-                )
-              else
-                ...coursesState.allCourses.take(3).map((course) {
-                  final imagePath = course.thumbnailUrl?.isNotEmpty == true
-                      ? course.thumbnailUrl!
-                      : (course.category == 'yoga'
-                          ? 'assets/course_30_days.png'
-                          : 'assets/course_48_days.png');
-                  final price = '₹${course.priceInr.toStringAsFixed(0)}';
-                  final days = '${course.totalDays} days';
-                  final level = course.category == 'yoga' ? 'Yoga' : 'Workout';
-                  final duration = '${course.totalDays}d course';
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-                    child: _buildCourseCard(
-                      context,
-                      courseId: course.id,
-                      title: course.title,
-                      price: price,
-                      days: days,
-                      level: level,
-                      duration: duration,
-                      imagePath: imagePath,
-                    ),
-                  );
-                }),
-
-              const SizedBox(height: AppSpacing.xxl),
-
-              // ── 3. Free Videos ────────────────────────────────────
-              _buildSectionHeader(context, 'Free Videos'),
-              const SizedBox(height: AppSpacing.md),
-
-              Builder(builder: (context) {
-                final videos = fvState.videos.take(2).toList();
-                if (videos.isEmpty) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                  child: Row(
-                    children: [
-                      for (int i = 0; i < videos.length; i++) ...[
-                        if (i > 0) const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: _buildFreeVideoItem(
-                            context,
-                            title: videos[i].title,
-                            category: videos[i].category ?? '',
-                            duration: videos[i].durationLabel,
-                            imagePath: videos[i].thumbnailUrl?.isNotEmpty == true
-                                ? videos[i].thumbnailUrl!
-                                : 'assets/video_morning_flow.png',
-                            youtubeVideoId: videos[i].youtubeVideoId,
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          coursesState.error!,
+                          style: GoogleFonts.inter(
+                            color: Colors.red.shade700,
+                            fontSize: AppFontSizes.bodySmall,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        GestureDetector(
+                          onTap: () =>
+                              ref.read(coursesProvider.notifier).refresh(),
+                          child: Text(
+                            'Tap to retry',
+                            style: GoogleFonts.inter(
+                              color: AppTheme.figmaGreen,
+                              fontWeight: AppFontWeights.bold,
+                              fontSize: AppFontSizes.bodyMedium,
+                            ),
                           ),
                         ),
                       ],
-                    ],
-                  ),
-                );
-              }),
-              const SizedBox(height: AppSpacing.xxl),
-
-              // ── 4. Community Moments ──────────────────────────────
-              Builder(builder: (context) {
-                final moments = cmState.moments;
-                if (moments.isEmpty) return const SizedBox.shrink();
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Community Moments',
-                            style: GoogleFonts.inter(
-                              color: AppTheme.figmaGreen,
-                              fontSize: AppFontSizes.h3,
-                              fontWeight: AppFontWeights.bold,
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            'Real people. Real Progress. Real Inspiration.',
-                            style: GoogleFonts.inter(
-                              color: AppTheme.coolGray,
-                              fontSize: AppFontSizes.bodyMedium,
-                              fontWeight: AppFontWeights.regular,
-                            ),
-                          ),
-                        ],
+                    ),
+                  )
+                else if (coursesState.allCourses.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xl,
+                    ),
+                    child: Text(
+                      'No courses available yet.',
+                      style: GoogleFonts.inter(
+                        color: AppTheme.figmaMutedGray,
+                        fontSize: AppFontSizes.bodyMedium,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.lg),
-                    ...moments.map((m) => Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                      child: _buildQuoteCard(
+                  )
+                else
+                  ...coursesState.allCourses.take(3).map((course) {
+                    final imagePath = course.thumbnailUrl?.isNotEmpty == true
+                        ? course.thumbnailUrl!
+                        : (course.category == 'yoga'
+                              ? 'assets/course_30_days.png'
+                              : 'assets/course_48_days.png');
+                    final price = '₹${course.priceInr.toStringAsFixed(0)}';
+                    final days = '${course.totalDays} days';
+                    final level = course.category == 'yoga'
+                        ? 'Yoga'
+                        : 'Workout';
+                    final duration = '${course.totalDays}d course';
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                      child: _buildCourseCard(
                         context,
-                        quote: m.quote,
-                        name: m.name,
-                        photoPath: m.photoUrl ?? 'assets/community_priya.png',
-                        avatarPath: m.avatarUrl ?? 'assets/avatar_priya.png',
-                        streakDays: m.streakDays,
+                        courseId: course.id,
+                        title: course.title,
+                        price: price,
+                        days: days,
+                        level: level,
+                        duration: duration,
+                        imagePath: imagePath,
                       ),
-                    )),
-                  ],
-                );
-              }),
-              const SizedBox(height: AppSpacing.xxxl),
-            ],
+                    );
+                  }),
+
+                const SizedBox(height: AppSpacing.xxl),
+
+                // ── 3. Free Videos ────────────────────────────────────
+                _buildSectionHeader(context, 'Free Videos'),
+                const SizedBox(height: AppSpacing.md),
+
+                Builder(
+                  builder: (context) {
+                    final videos = fvState.videos.take(2).toList();
+                    if (videos.isEmpty) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xl,
+                      ),
+                      child: Row(
+                        children: [
+                          for (int i = 0; i < videos.length; i++) ...[
+                            if (i > 0) const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: _buildFreeVideoItem(
+                                context,
+                                title: videos[i].title,
+                                category: videos[i].category ?? '',
+                                duration: videos[i].durationLabel,
+                                imagePath:
+                                    videos[i].thumbnailUrl?.isNotEmpty == true
+                                    ? videos[i].thumbnailUrl!
+                                    : 'assets/video_morning_flow.png',
+                                youtubeVideoId: videos[i].youtubeVideoId,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: AppSpacing.xxl),
+
+                // ── 4. Community Moments ──────────────────────────────
+                Builder(
+                  builder: (context) {
+                    final moments = cmState.moments;
+                    if (moments.isEmpty) return const SizedBox.shrink();
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.xl,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Community Moments',
+                                style: GoogleFonts.inter(
+                                  color: AppTheme.figmaGreen,
+                                  fontSize: AppFontSizes.h3,
+                                  fontWeight: AppFontWeights.bold,
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.xs),
+                              Text(
+                                'Real people. Real Progress. Real Inspiration.',
+                                style: GoogleFonts.inter(
+                                  color: AppTheme.coolGray,
+                                  fontSize: AppFontSizes.bodyMedium,
+                                  fontWeight: AppFontWeights.regular,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        ...moments.map(
+                          (m) => Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: AppSpacing.md,
+                            ),
+                            child: _buildQuoteCard(
+                              context,
+                              quote: m.quote,
+                              name: m.name,
+                              photoPath:
+                                  m.photoUrl ?? 'assets/community_priya.png',
+                              avatarPath:
+                                  m.avatarUrl ?? 'assets/avatar_priya.png',
+                              streakDays: m.streakDays,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: AppSpacing.xxxl),
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _withExitGuard(Widget child) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        final now = DateTime.now();
+        if (_lastBackPressed == null ||
+            now.difference(_lastBackPressed!) > const Duration(seconds: 2)) {
+          _lastBackPressed = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Press back again to exit')),
+          );
+          return;
+        }
+        SystemNavigator.pop();
+      },
+      child: child,
     );
   }
 
@@ -255,7 +306,10 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
-          AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.lg,
+          AppSpacing.xl,
+          AppSpacing.lg,
+          AppSpacing.xl,
+          AppSpacing.lg,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -292,7 +346,9 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
                 // Streak badge — fire + number stacked with "Day Streak" label
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(AppRadii.xl),
@@ -330,7 +386,6 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
                     ],
                   ),
                 ),
-
               ],
             ),
 
@@ -351,7 +406,6 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
       ),
     );
   }
-
 
   // ─── Section Header ───────────────────────────────────────────────────────
 
@@ -398,11 +452,10 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
     required String imagePath,
   }) {
     return GestureDetector(
-      onTap: () => context.push('/program_details', extra: {
-        'courseId': courseId,
-        'title': title,
-        'imagePath': imagePath,
-      }),
+      onTap: () => context.push(
+        '/program_details',
+        extra: {'courseId': courseId, 'title': title, 'imagePath': imagePath},
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
         child: Container(
@@ -433,13 +486,15 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
                         height: 185,
                         width: double.infinity,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            Container(
+                        errorBuilder: (context, error, stackTrace) => Container(
                           height: 185,
                           color: AppTheme.lightGray,
                           child: const Center(
-                            child: Icon(Icons.image_outlined,
-                                size: 48, color: AppTheme.coolGray),
+                            child: Icon(
+                              Icons.image_outlined,
+                              size: 48,
+                              color: AppTheme.coolGray,
+                            ),
                           ),
                         ),
                       ),
@@ -454,8 +509,7 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
                           ),
                           decoration: BoxDecoration(
                             color: AppTheme.figmaGreen,
-                            borderRadius:
-                                BorderRadius.circular(AppRadii.xl),
+                            borderRadius: BorderRadius.circular(AppRadii.xl),
                           ),
                           child: Text(
                             price,
@@ -475,7 +529,10 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
               // Card body
               Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg, AppSpacing.xs, AppSpacing.lg, AppSpacing.md,
+                  AppSpacing.lg,
+                  AppSpacing.xs,
+                  AppSpacing.lg,
+                  AppSpacing.md,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -499,8 +556,11 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
                           Expanded(
                             child: Row(
                               children: [
-                                Icon(Icons.calendar_today_outlined,
-                                    size: 13, color: AppTheme.coolGray),
+                                Icon(
+                                  Icons.calendar_today_outlined,
+                                  size: 13,
+                                  color: AppTheme.coolGray,
+                                ),
                                 const SizedBox(width: AppSpacing.xs),
                                 Text(
                                   days,
@@ -523,8 +583,11 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.bar_chart_rounded,
-                                    size: 15, color: AppTheme.coolGray),
+                                Icon(
+                                  Icons.bar_chart_rounded,
+                                  size: 15,
+                                  color: AppTheme.coolGray,
+                                ),
                                 const SizedBox(width: AppSpacing.xs),
                                 Text(
                                   level,
@@ -547,8 +610,11 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                Icon(Icons.access_time_rounded,
-                                    size: 13, color: AppTheme.coolGray),
+                                Icon(
+                                  Icons.access_time_rounded,
+                                  size: 13,
+                                  color: AppTheme.coolGray,
+                                ),
                                 const SizedBox(width: AppSpacing.xs),
                                 Text(
                                   duration,
@@ -610,7 +676,7 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
     return GestureDetector(
       onTap: () {
         if (youtubeVideoId != null && youtubeVideoId.isNotEmpty) {
-          context.push('/play', extra: {
+          showVideoPreview(context, {
             'courseId': 'free',
             'dayNumber': 1,
             'youtubeVideoId': youtubeVideoId,
@@ -632,12 +698,14 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
                   Image.asset(
                     imagePath,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        Container(
+                    errorBuilder: (context, error, stackTrace) => Container(
                       color: AppTheme.lightGray,
                       child: const Center(
-                        child: Icon(Icons.play_circle_outline,
-                            size: 32, color: AppTheme.coolGray),
+                        child: Icon(
+                          Icons.play_circle_outline,
+                          size: 32,
+                          color: AppTheme.coolGray,
+                        ),
                       ),
                     ),
                   ),
@@ -663,12 +731,12 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
                     bottom: AppSpacing.xs,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.xs,
-                          vertical: AppSpacing.xxs),
+                        horizontal: AppSpacing.xs,
+                        vertical: AppSpacing.xxs,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.black.withAlpha(153),
-                        borderRadius:
-                            BorderRadius.circular(AppRadii.sm),
+                        borderRadius: BorderRadius.circular(AppRadii.sm),
                       ),
                       child: Text(
                         duration,
@@ -750,13 +818,14 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
                       width: 100,
                       height: 110,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          Container(
+                      errorBuilder: (context, error, stackTrace) => Container(
                         width: 100,
                         height: 110,
                         color: AppTheme.lightGray,
-                        child: const Icon(Icons.person_outline,
-                            color: AppTheme.coolGray),
+                        child: const Icon(
+                          Icons.person_outline,
+                          color: AppTheme.coolGray,
+                        ),
                       ),
                     ),
                   ),
@@ -765,7 +834,9 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.xs, AppSpacing.md, AppSpacing.md,
+                      AppSpacing.xs,
+                      AppSpacing.md,
+                      AppSpacing.md,
                       AppSpacing.md,
                     ),
                     child: Column(
@@ -799,7 +870,9 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
             // Bottom: avatar + name + streak
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md, AppSpacing.sm, AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.sm,
+                AppSpacing.md,
                 AppSpacing.md,
               ),
               child: Row(
@@ -821,20 +894,18 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
                   const Spacer(),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.sm,
-                        vertical: AppSpacing.xxs + 1),
+                      horizontal: AppSpacing.sm,
+                      vertical: AppSpacing.xxs + 1,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFE8F5EE),
-                      borderRadius:
-                          BorderRadius.circular(AppRadii.xl),
-                      border: Border.all(
-                          color: const Color(0xFFC2E0CE)),
+                      borderRadius: BorderRadius.circular(AppRadii.xl),
+                      border: Border.all(color: const Color(0xFFC2E0CE)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('🔥',
-                            style: TextStyle(fontSize: 11)),
+                        const Text('🔥', style: TextStyle(fontSize: 11)),
                         const SizedBox(width: AppSpacing.xxs),
                         Text(
                           '$streakDays Days Streak',

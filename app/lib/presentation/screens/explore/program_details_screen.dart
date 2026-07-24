@@ -8,6 +8,7 @@ import '../../providers/courses_provider.dart';
 import '../../providers/progress_provider.dart';
 import '../../providers/course_detail_provider.dart';
 import '../../widgets/login_prompt.dart';
+import '../../widgets/video_preview_sheet.dart';
 import '../../../core/config/theme.dart';
 import '../../../data/models/course_model.dart';
 
@@ -704,7 +705,7 @@ class _SessionDayTileState extends State<SessionDayTile> {
                 width: 28,
                 height: 28,
                 fit: BoxFit.contain,
-                errorBuilder: (_, _, _) => const Icon(
+                errorBuilder: (ctx, err, st) => const Icon(
                   Icons.self_improvement_rounded,
                   color: AppTheme.figmaGreen,
                   size: 24,
@@ -715,7 +716,7 @@ class _SessionDayTileState extends State<SessionDayTile> {
                 width: 28,
                 height: 28,
                 fit: BoxFit.contain,
-                errorBuilder: (_, _, _) => const Icon(
+                errorBuilder: (ctx, err, st) => const Icon(
                   Icons.self_improvement_rounded,
                   color: AppTheme.figmaGreen,
                   size: 24,
@@ -975,19 +976,16 @@ class _SessionDayTileState extends State<SessionDayTile> {
                                 const SnackBar(content: Text('This session is locked today')),
                               );
                             } else {
-                              context.push(
-                                '/play',
-                                extra: {
-                                  'courseId': widget.courseId,
-                                  'dayNumber': int.tryParse(widget.index) ?? 1,
-                                  'videoId': video.id,
-                                  'videoSource': video.videoSource,
-                                  'youtubeVideoId': video.youtubeVideoId ?? '',
-                                  'bunnyVideoId': video.bunnyVideoId,
-                                  'bunnyLibraryId': video.bunnyLibraryId,
-                                  'videoTitle': video.title,
-                                },
-                              );
+                              showVideoPreview(context, {
+                                'courseId': widget.courseId,
+                                'dayNumber': int.tryParse(widget.index) ?? 1,
+                                'videoId': video.id,
+                                'videoSource': video.videoSource,
+                                'youtubeVideoId': video.youtubeVideoId ?? '',
+                                'bunnyVideoId': video.bunnyVideoId,
+                                'bunnyLibraryId': video.bunnyLibraryId,
+                                'videoTitle': video.title,
+                              });
                             }
                           },
                           child: Padding(
@@ -1090,14 +1088,11 @@ class _SessionDayTileState extends State<SessionDayTile> {
                                 ),
                               );
                             } else {
-                              context.push(
-                                '/play',
-                                extra: {
-                                  'courseId': widget.courseId,
-                                  'dayNumber': int.tryParse(widget.index) ?? 1,
-                                  'videoTitle': session['title'],
-                                },
-                              );
+                              showVideoPreview(context, {
+                                'courseId': widget.courseId,
+                                'dayNumber': int.tryParse(widget.index) ?? 1,
+                                'videoTitle': session['title'],
+                              });
                             }
                           },
                           child: Padding(

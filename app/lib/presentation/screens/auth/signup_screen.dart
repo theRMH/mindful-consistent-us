@@ -48,7 +48,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     if (!mounted) return;
     final error = ref.read(authProvider).errorMessage;
     if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
       return;
     }
     final redirectParam = widget.redirect != null
@@ -67,11 +69,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        if (context.canPop()) {
-          context.pop();
-        } else {
-          context.go('/unregistered');
-        }
+        context.go('/unregistered');
       },
       child: Scaffold(
         backgroundColor: Colors.white,
@@ -113,7 +111,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
                         // Form card
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.xxl,
+                          ),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: AppSpacing.sm,
@@ -122,7 +122,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(AppRadii.xxl),
-                              border: Border.all(color: AppTheme.figmaLightBorder, width: 1.0),
+                              border: Border.all(
+                                color: AppTheme.figmaLightBorder,
+                                width: 1.0,
+                              ),
                               boxShadow: const [
                                 BoxShadow(
                                   color: Color(0x0F000000),
@@ -136,13 +139,17 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                               children: [
                                 // Header row
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.md,
+                                  ),
                                   child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               'Register Now!',
@@ -152,14 +159,18 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                                 fontWeight: AppFontWeights.bold,
                                               ),
                                             ),
-                                            const SizedBox(height: AppSpacing.xs),
+                                            const SizedBox(
+                                              height: AppSpacing.xs,
+                                            ),
                                             Text(
                                               'Register to start your wellness journey',
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                               style: GoogleFonts.inter(
                                                 color: AppTheme.figmaMutedGray,
-                                                fontSize: AppFontSizes.bodySmall + 1.0,
+                                                fontSize:
+                                                    AppFontSizes.bodySmall +
+                                                    1.0,
                                               ),
                                             ),
                                           ],
@@ -191,9 +202,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
                                 // Name field
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.md,
+                                  ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Full Name',
@@ -208,7 +222,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                         height: 52,
                                         decoration: BoxDecoration(
                                           color: AppTheme.figmaBgGray,
-                                          borderRadius: BorderRadius.circular(AppRadii.xxl),
+                                          borderRadius: BorderRadius.circular(
+                                            AppRadii.xxl,
+                                          ),
                                           border: Border.all(
                                             color: AppTheme.figmaLightBorder,
                                             width: 1.0,
@@ -217,7 +233,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                         child: TextField(
                                           controller: _nameController,
                                           keyboardType: TextInputType.name,
-                                          textCapitalization: TextCapitalization.words,
+                                          textCapitalization:
+                                              TextCapitalization.words,
                                           style: GoogleFonts.inter(
                                             fontSize: 14,
                                             color: AppTheme.figmaCharcoal,
@@ -234,10 +251,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                               color: AppTheme.figmaGreen,
                                               size: 20,
                                             ),
-                                            contentPadding: const EdgeInsets.symmetric(
-                                              horizontal: AppSpacing.md,
-                                              vertical: AppSpacing.md,
-                                            ),
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                  horizontal: AppSpacing.md,
+                                                  vertical: AppSpacing.md,
+                                                ),
                                           ),
                                         ),
                                       ),
@@ -249,9 +267,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
                                 // Phone field
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.md,
+                                  ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Mobile Number',
@@ -266,7 +287,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                         height: 52,
                                         decoration: BoxDecoration(
                                           color: AppTheme.figmaBgGray,
-                                          borderRadius: BorderRadius.circular(AppRadii.xxl),
+                                          borderRadius: BorderRadius.circular(
+                                            AppRadii.xxl,
+                                          ),
                                           border: Border.all(
                                             color: AppTheme.figmaLightBorder,
                                             width: 1.0,
@@ -275,41 +298,55 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                         child: Row(
                                           children: [
                                             Padding(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: AppSpacing.md,
-                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: AppSpacing.md,
+                                                  ),
                                               child: Text(
                                                 '+91',
                                                 style: GoogleFonts.inter(
                                                   fontSize: 14,
-                                                  fontWeight: AppFontWeights.semiBold,
+                                                  fontWeight:
+                                                      AppFontWeights.semiBold,
                                                   color: AppTheme.figmaGreen,
                                                 ),
                                               ),
                                             ),
-                                            Container(width: 1, height: 24, color: AppTheme.figmaLightBorder),
+                                            Container(
+                                              width: 1,
+                                              height: 24,
+                                              color: AppTheme.figmaLightBorder,
+                                            ),
                                             Expanded(
                                               child: TextField(
                                                 controller: _phoneController,
-                                                keyboardType: TextInputType.phone,
+                                                keyboardType:
+                                                    TextInputType.phone,
                                                 maxLength: 10,
-                                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                                inputFormatters: [
+                                                  FilteringTextInputFormatter
+                                                      .digitsOnly,
+                                                ],
                                                 style: GoogleFonts.inter(
                                                   fontSize: 14,
                                                   color: AppTheme.figmaCharcoal,
                                                 ),
                                                 decoration: InputDecoration(
-                                                  hintText: '10-digit mobile number',
+                                                  hintText:
+                                                      '10-digit mobile number',
                                                   hintStyle: GoogleFonts.inter(
-                                                    color: AppTheme.figmaMutedGray,
+                                                    color:
+                                                        AppTheme.figmaMutedGray,
                                                     fontSize: 12,
                                                   ),
                                                   border: InputBorder.none,
                                                   counterText: '',
-                                                  contentPadding: const EdgeInsets.symmetric(
-                                                    horizontal: AppSpacing.md,
-                                                    vertical: AppSpacing.md,
-                                                  ),
+                                                  contentPadding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal:
+                                                            AppSpacing.md,
+                                                        vertical: AppSpacing.md,
+                                                      ),
                                                 ),
                                               ),
                                             ),
@@ -324,17 +361,23 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
                                 // Register button
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.md,
+                                  ),
                                   child: SizedBox(
                                     width: double.infinity,
                                     height: 52,
                                     child: ElevatedButton(
-                                      onPressed: authState.isLoading ? null : _handleSendOtp,
+                                      onPressed: authState.isLoading
+                                          ? null
+                                          : _handleSendOtp,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: AppTheme.figmaGreen,
                                         foregroundColor: Colors.white,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(AppRadii.pill),
+                                          borderRadius: BorderRadius.circular(
+                                            AppRadii.pill,
+                                          ),
                                         ),
                                         elevation: 0,
                                       ),
@@ -348,16 +391,20 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                               ),
                                             )
                                           : Row(
-                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
                                               children: [
                                                 Text(
                                                   'Send OTP',
                                                   style: GoogleFonts.inter(
                                                     fontSize: 14,
-                                                    fontWeight: AppFontWeights.semiBold,
+                                                    fontWeight:
+                                                        AppFontWeights.semiBold,
                                                   ),
                                                 ),
-                                                const SizedBox(width: AppSpacing.sm),
+                                                const SizedBox(
+                                                  width: AppSpacing.sm,
+                                                ),
                                                 const Icon(
                                                   Icons.arrow_forward_rounded,
                                                   size: AppSpacing.xl,

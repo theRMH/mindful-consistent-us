@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/free_videos_provider.dart';
 import '../../providers/progress_provider.dart';
 import '../../widgets/login_prompt.dart';
+import '../../widgets/video_preview_sheet.dart';
 import '../../providers/course_detail_provider.dart';
 import '../../providers/courses_provider.dart';
 
@@ -213,13 +214,20 @@ class VideosScreen extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(
-            'Show up for yourself, Every single day.',
-            style: GoogleFonts.inter(
-              color: AppTheme.figmaMutedGray,
-              fontSize: 9.5,
-              fontWeight: AppFontWeights.regular,
+          const SizedBox(height: AppSpacing.sm),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppTheme.figmaGreen,
+              borderRadius: BorderRadius.circular(AppRadii.pill),
+            ),
+            child: Text(
+              'Show up for yourself, Every single day.',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: AppFontWeights.semiBold,
+              ),
             ),
           ),
           if (!isGuest && activeCourses.isNotEmpty) ...[
@@ -730,20 +738,16 @@ class VideosScreen extends ConsumerWidget {
               child: GestureDetector(
                 onTap: () {
                   final video = day.videos.isNotEmpty ? day.videos.first : null;
-                  context.push(
-                    '/play',
-                    extra: {
-                      'courseId': courseId,
-                      'dayNumber': day.dayNumber,
-                      'videoId': video?.id,
-                      'videoSource': video?.videoSource ?? 'youtube',
-                      'youtubeVideoId':
-                          video?.youtubeVideoId ?? fallbackVideoId,
-                      'bunnyVideoId': video?.bunnyVideoId,
-                      'bunnyLibraryId': video?.bunnyLibraryId,
-                      'videoTitle': video?.title ?? day.title,
-                    },
-                  );
+                  showVideoPreview(context, {
+                    'courseId': courseId,
+                    'dayNumber': day.dayNumber,
+                    'videoId': video?.id,
+                    'videoSource': video?.videoSource ?? 'youtube',
+                    'youtubeVideoId': video?.youtubeVideoId ?? fallbackVideoId,
+                    'bunnyVideoId': video?.bunnyVideoId,
+                    'bunnyLibraryId': video?.bunnyLibraryId,
+                    'videoTitle': video?.title ?? day.title,
+                  });
                 },
                 child: Row(
                   children: [
@@ -776,7 +780,7 @@ class VideosScreen extends ConsumerWidget {
                             child: Image.asset(
                               imagePath,
                               fit: BoxFit.contain,
-                              errorBuilder: (_, _, _) => const Icon(
+                              errorBuilder: (ctx, err, st) => const Icon(
                                 Icons.self_improvement_rounded,
                                 color: AppTheme.figmaGreen,
                                 size: 24,
@@ -960,7 +964,7 @@ class VideosScreen extends ConsumerWidget {
                               child: Image.asset(
                                 imagePath,
                                 fit: BoxFit.contain,
-                                errorBuilder: (_, _, _) => const Icon(
+                                errorBuilder: (ctx, err, st) => const Icon(
                                   Icons.self_improvement_rounded,
                                   color: AppTheme.figmaGreen,
                                   size: 22,
@@ -1095,7 +1099,7 @@ class VideosScreen extends ConsumerWidget {
                     ? Image.network(
                         imagePath,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => const Icon(
+                        errorBuilder: (ctx, err, st) => const Icon(
                           Icons.self_improvement_rounded,
                           color: AppTheme.figmaGreen,
                           size: 24,
@@ -1104,7 +1108,7 @@ class VideosScreen extends ConsumerWidget {
                     : Image.asset(
                         imagePath,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => const Icon(
+                        errorBuilder: (ctx, err, st) => const Icon(
                           Icons.self_improvement_rounded,
                           color: AppTheme.figmaGreen,
                           size: 24,
@@ -1289,18 +1293,15 @@ class VideosScreen extends ConsumerWidget {
                         : ((video.bunnyVideoId?.isNotEmpty ?? false) &&
                               (video.bunnyLibraryId?.isNotEmpty ?? false));
                     if (hasPlayableSource) {
-                      context.push(
-                        '/play',
-                        extra: {
-                          'courseId': 'free',
-                          'dayNumber': 1,
-                          'videoSource': video.videoSource,
-                          'youtubeVideoId': video.youtubeVideoId ?? '',
-                          'bunnyVideoId': video.bunnyVideoId,
-                          'bunnyLibraryId': video.bunnyLibraryId,
-                          'videoTitle': video.title,
-                        },
-                      );
+                      showVideoPreview(context, {
+                        'courseId': 'free',
+                        'dayNumber': 1,
+                        'videoSource': video.videoSource,
+                        'youtubeVideoId': video.youtubeVideoId ?? '',
+                        'bunnyVideoId': video.bunnyVideoId,
+                        'bunnyLibraryId': video.bunnyLibraryId,
+                        'videoTitle': video.title,
+                      });
                     }
                   },
                 ),
@@ -1419,7 +1420,7 @@ class VideosScreen extends ConsumerWidget {
                       ? Image.network(
                           imagePath,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => Container(
+                          errorBuilder: (ctx, err, st) => Container(
                             color: AppTheme.lightGray,
                             child: const Icon(
                               Icons.play_circle_outline,
@@ -1431,7 +1432,7 @@ class VideosScreen extends ConsumerWidget {
                       : Image.asset(
                           imagePath,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => Container(
+                          errorBuilder: (ctx, err, st) => Container(
                             color: AppTheme.lightGray,
                             child: const Icon(
                               Icons.play_circle_outline,
