@@ -5,14 +5,19 @@
 	<key>method</key>
 	<string>app-store</string>
 	<key>teamID</key>
-	<string>M4HRY5GQLY</string>
+	<string>SRKWF76Z2C</string>
 	<key>uploadBitcode</key>
 	<false/>
 	<key>uploadSymbols</key>
 	<true/>
 	<key>signingStyle</key>
-	<string>automatic</string>
-	<key>destination</key>
-	<string>export</string>
+	<string>manual</string>
+	<key>signingCertificate</key>
+	<string>Apple Distribution: Vidya P (SRKWF76Z2C)</string>
+	<key>provisioningProfiles</key>
+	<dict>
+		<key>com.consistentus.mindful</key>
+		<string>ConsistentUs AppStore</string>
+	</dict>
 </dict>
 </plist>
