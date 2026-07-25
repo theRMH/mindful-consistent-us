@@ -223,6 +223,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(existingEnrollment, { status: 200 });
     }
 
+    if (!enrollment) {
+      return NextResponse.json({ error: 'Enrollment creation failed' }, { status: 500 });
+    }
+
     await prisma.leaderboardEntry.upsert({
       where: {
         userId_enrollmentId_snapshotDate: {
