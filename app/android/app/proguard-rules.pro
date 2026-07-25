@@ -23,6 +23,9 @@
 -dontwarn okhttp3.**
 -dontwarn okio.**
 
+# Razorpay
+-keep class com.razorpay.** { *; }
+
 # WebView
 -keep class android.webkit.** { *; }
 

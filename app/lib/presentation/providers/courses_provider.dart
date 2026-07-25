@@ -1,6 +1,4 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/config/app_config.dart';
 import '../../core/services/api_service.dart';
 import '../../data/models/course_model.dart';
 import 'auth_provider.dart';
@@ -76,13 +74,10 @@ class CoursesNotifier extends StateNotifier<CoursesState> {
 
   Future<void> _load() async {
     state = state.copyWith(isLoading: true, error: null);
-    debugPrint('[Courses] Loading from ${AppConfig.apiBaseUrl}');
     try {
       final coursesData = await _apiService.getCourses().timeout(
         const Duration(seconds: 10),
       );
-
-      debugPrint('[Courses] Loaded ${coursesData.length} courses');
 
       List<dynamic> enrollmentsData = [];
       if (_ref.read(authProvider).isAuthenticated) {
@@ -90,9 +85,7 @@ class CoursesNotifier extends StateNotifier<CoursesState> {
           enrollmentsData = await _apiService.getEnrollments().timeout(
             const Duration(seconds: 10),
           );
-        } catch (e) {
-          debugPrint('[Courses] Enrollments skipped (no auth): $e');
-        }
+        } catch (_) {}
       }
 
       final courses = coursesData.map((e) => CourseModel.fromJson(e)).toList();
@@ -110,7 +103,6 @@ class CoursesNotifier extends StateNotifier<CoursesState> {
         isLoading: false,
       );
     } catch (e) {
-      debugPrint('[Courses] ERROR: $e');
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
