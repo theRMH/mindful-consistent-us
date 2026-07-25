@@ -2,6 +2,7 @@ workflows:
   ios-appstore:
     name: ConsistentUs iOS App Store
     max_build_duration: 60
+    working_directory: app
     environment:
       flutter: 3.44.3
       xcode: latest
@@ -34,7 +35,7 @@ workflows:
             --dart-define=NEXT_PUBLIC_SUPABASE_ANON_KEY="$NEXT_PUBLIC_SUPABASE_ANON_KEY" \
             --dart-define=RAZORPAY_KEY_ID="$RAZORPAY_KEY_ID"
     artifacts:
-      - build/ios/ipa/*.ipa
+      - app/build/ios/ipa/*.ipa
     publishing:
       app_store_connect:
         apple_id: $APPLE_ID
