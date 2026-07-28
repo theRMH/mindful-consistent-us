@@ -26,9 +26,9 @@ class HomeScreen extends ConsumerWidget {
     final progressState = ref.watch(progressProvider);
     final coursesState = ref.watch(coursesProvider);
     final userProfile = authState.user;
-    final userName = (userProfile?.fullName ?? '').isNotEmpty
-        ? userProfile!.fullName
-        : userProfile?.phone ?? 'Friend';
+    final userName = (userProfile?.fullName ?? '').trim().isNotEmpty
+        ? userProfile!.fullName.trim()
+        : 'User';
 
     // Resolve active course: prefer the one matching activeCourseId, else first enrolled
     CourseModel? activeCourse;
