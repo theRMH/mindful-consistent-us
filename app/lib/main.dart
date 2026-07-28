@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -65,11 +64,7 @@ void main() async {
     ApiService().appOpen();
   }
 
-  runZonedGuarded(
-    () => runApp(const ProviderScope(child: MyApp())),
-    (error, stack) =>
-        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true),
-  );
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 Future<void> _registerFcmToken() async {
