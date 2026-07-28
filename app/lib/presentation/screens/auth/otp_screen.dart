@@ -42,7 +42,20 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
   void initState() {
     super.initState();
     _startTimer();
-    // If verificationCompleted already fired before this screen was built, fill now.
+    for (int i = 0; i < 6; i++) {
+      final idx = i;
+      _focusNodes[idx].onKeyEvent = (node, event) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.backspace &&
+            _controllers[idx].text.isEmpty &&
+            idx > 0) {
+          _controllers[idx - 1].clear();
+          _focusNodes[idx - 1].requestFocus();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      };
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final code = ref.read(authProvider).autoFilledCode;
       if (code != null) _autoFill(code);
@@ -227,19 +240,7 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
                               return SizedBox(
                                 width: 42,
                                 height: 50,
-                                child: CallbackShortcuts(
-                                  bindings: {
-                                    const SingleActivator(
-                                      LogicalKeyboardKey.backspace,
-                                    ): () {
-                                      if (_controllers[index].text.isEmpty &&
-                                          index > 0) {
-                                        _focusNodes[index - 1].requestFocus();
-                                        _controllers[index - 1].clear();
-                                      }
-                                    },
-                                  },
-                                  child: TextField(
+                                child: TextField(
                                     controller: _controllers[index],
                                     focusNode: _focusNodes[index],
                                     textAlign: TextAlign.center,
@@ -290,7 +291,6 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
                                       }
                                     },
                                   ),
-                                ),
                               );
                             }),
                           ),
