@@ -26,7 +26,6 @@ class BodyMetricsFormScreen extends ConsumerStatefulWidget {
 
 class _BodyMetricsFormScreenState
     extends ConsumerState<BodyMetricsFormScreen> {
-  final _nameController = TextEditingController();
   final _ageController = TextEditingController();
   final _heightController = TextEditingController();
   final _weightController = TextEditingController();
@@ -34,18 +33,41 @@ class _BodyMetricsFormScreenState
   final _hipController = TextEditingController();
 
   bool _isSaving = false;
+  bool _isLoading = true;
+  int? _storedAge;
 
   @override
   void initState() {
     super.initState();
-    // Pre-fill name from auth state
-    final name = ref.read(authProvider).user?.fullName ?? '';
-    if (name.isNotEmpty) _nameController.text = name;
+    _loadPreviousMetrics();
+  }
+
+  Future<void> _loadPreviousMetrics() async {
+    try {
+      final records = await ApiService().getBodyMetrics();
+      if (records.isNotEmpty && mounted) {
+        final latest = records.first as Map<String, dynamic>;
+        final heightCm = latest['heightCm'];
+        if (heightCm != null) {
+          final h = heightCm.toString();
+          _heightController.text = h.endsWith('.0') ? h.replaceAll('.0', '') : h;
+        }
+        final age = latest['age'];
+        if (age != null) {
+          final recordedAt = latest['recordedAt'] as String?;
+          final recordingDate = recordedAt != null ? DateTime.tryParse(recordedAt) : null;
+          final yearsElapsed = recordingDate != null
+              ? (DateTime.now().difference(recordingDate).inDays / 365.25).floor()
+              : 0;
+          _storedAge = (age as num).toInt() + yearsElapsed;
+        }
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _isLoading = false);
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
     _ageController.dispose();
     _heightController.dispose();
     _weightController.dispose();
@@ -54,13 +76,14 @@ class _BodyMetricsFormScreenState
     super.dispose();
   }
 
-  bool get _allFilled =>
-      _nameController.text.trim().isNotEmpty &&
-      _ageController.text.trim().isNotEmpty &&
-      _heightController.text.trim().isNotEmpty &&
-      _weightController.text.trim().isNotEmpty &&
-      _waistController.text.trim().isNotEmpty &&
-      _hipController.text.trim().isNotEmpty;
+  bool get _allFilled {
+    final ageOk = _storedAge != null || _ageController.text.trim().isNotEmpty;
+    return ageOk &&
+        _heightController.text.trim().isNotEmpty &&
+        _weightController.text.trim().isNotEmpty &&
+        _waistController.text.trim().isNotEmpty &&
+        _hipController.text.trim().isNotEmpty;
+  }
 
   Future<void> _save() async {
     if (!widget.isSkippable && !_allFilled) {
@@ -77,10 +100,8 @@ class _BodyMetricsFormScreenState
     try {
       await ApiService().saveBodyMetrics(
         courseId: widget.courseId,
-        name: _nameController.text.trim().isEmpty
-            ? null
-            : _nameController.text.trim(),
-        age: int.tryParse(_ageController.text.trim()),
+        name: ref.read(authProvider).user?.fullName,
+        age: _storedAge ?? int.tryParse(_ageController.text.trim()),
         heightCm: double.tryParse(_heightController.text.trim()),
         weightKg: double.tryParse(_weightController.text.trim()),
         waistIn: double.tryParse(_waistController.text.trim()),
@@ -171,35 +192,30 @@ class _BodyMetricsFormScreenState
 
           // ── Form ─────────────────────────────────────────────
           Expanded(
-            child: SingleChildScrollView(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildField(
-                    controller: _nameController,
-                    label: 'Full Name',
-                    hint: 'Your name',
-                    icon: Icons.person_outline_rounded,
-                    keyboardType: TextInputType.name,
-                    textCapitalization: TextCapitalization.words,
-                  ),
-                  const SizedBox(height: 14),
                   Row(
                     children: [
-                      Expanded(
-                        child: _buildField(
-                          controller: _ageController,
-                          label: 'Age',
-                          hint: 'e.g. 28',
-                          icon: Icons.cake_outlined,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                          ],
+                      if (_storedAge == null) ...[
+                        Expanded(
+                          child: _buildField(
+                            controller: _ageController,
+                            label: 'Age',
+                            hint: 'e.g. 28',
+                            icon: Icons.cake_outlined,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
+                        const SizedBox(width: 12),
+                      ],
                       Expanded(
                         child: _buildField(
                           controller: _heightController,

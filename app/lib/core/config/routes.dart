@@ -117,6 +117,7 @@ class AppRouter {
       ),
       // 4. Course Detail and Day List Screen
       GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
         path: '/course/:courseId',
         builder: (context, state) {
           final courseId = state.pathParameters['courseId'] ?? '';
@@ -126,6 +127,7 @@ class AppRouter {
 
       // 5. Course Completion Success Celebration Screen
       GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
         path: '/course_completed',
         builder: (context, state) {
           final courseId = state.uri.queryParameters['courseId'];
@@ -134,6 +136,7 @@ class AppRouter {
       ),
 
       GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
         path: '/program_details',
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
@@ -151,6 +154,7 @@ class AppRouter {
 
       // 7. Video Player Screen
       GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
         path: '/play',
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
@@ -179,6 +183,7 @@ class AppRouter {
 
       // 8. Cart Screen
       GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
         path: '/cart',
         builder: (context, state) {
           final courseId =
@@ -189,6 +194,7 @@ class AppRouter {
 
       // 9. Thank You Screen
       GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
         path: '/thank-you',
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
@@ -203,12 +209,14 @@ class AppRouter {
 
       // 10. Free Videos (accessible by registered users, no bottom nav)
       GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
         path: '/free-videos',
         builder: (context, state) => const FreeVideosScreen(),
       ),
 
       // 11. Body Metrics Form
       GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
         path: '/body-metrics',
         builder: (context, state) {
           final isSkippable =
@@ -226,42 +234,49 @@ class AppRouter {
 
       // 12. Body Metrics History (Personal Details)
       GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
         path: '/body-metrics-history',
         builder: (context, state) => const BodyMetricsHistoryScreen(),
       ),
 
       // 13. Community Leaderboard
       GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
         path: '/community-leaderboard',
         builder: (context, state) => const CommunityLeaderboardScreen(),
       ),
 
       // 14. Notification Preferences
       GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
         path: '/notifications',
         builder: (context, state) => const NotificationPreferencesScreen(),
       ),
 
       // 15. Subscription & Plans
       GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
         path: '/subscriptions',
         builder: (context, state) => const SubscriptionScreen(),
       ),
 
       // 16. Notification Centre (inbox of all received notifications)
       GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
         path: '/notification-center',
         builder: (context, state) => const NotificationCenterScreen(),
       ),
 
       // 17. Help & Support (content managed via admin panel)
       GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
         path: '/help',
         builder: (context, state) => const HelpSupportScreen(),
       ),
 
       // 18. Certificate download screen
       GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
         path: '/certificate',
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;

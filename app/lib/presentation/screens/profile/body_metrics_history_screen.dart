@@ -159,10 +159,63 @@ class _BodyMetricsHistoryScreenState extends State<BodyMetricsHistoryScreen> {
 
                     // History cards
                     ...typed.asMap().entries.map((e) {
+                      final record = e.value;
                       final prev = e.key < typed.length - 1
                           ? typed[e.key + 1]
                           : null;
-                      return _buildCard(e.value, e.key == 0, prev);
+                      return Dismissible(
+                        key: ValueKey(record['id']),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          margin: const EdgeInsets.only(bottom: 14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF5252),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 24),
+                          child: const Icon(Icons.delete_outline_rounded,
+                              color: Colors.white, size: 28),
+                        ),
+                        confirmDismiss: (_) async {
+                          return await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20)),
+                              title: const Text('Delete entry?'),
+                              content: const Text(
+                                  'This measurement record will be permanently removed.'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('Delete',
+                                      style:
+                                          TextStyle(color: Color(0xFFFF5252))),
+                                ),
+                              ],
+                            ),
+                          ) ??
+                              false;
+                        },
+                        onDismissed: (_) async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          try {
+                            await ApiService().deleteBodyMetrics(record['id'] as String);
+                          } catch (_) {
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                  content: Text('Failed to delete entry')),
+                            );
+                            _refresh();
+                          }
+                        },
+                        child: _buildCard(record, e.key == 0, prev),
+                      );
                     }),
                   ],
                 );
@@ -549,7 +602,7 @@ class _BodyMetricsHistoryScreenState extends State<BodyMetricsHistoryScreen> {
     final diff = c - p;
     if (diff == 0) return null;
     return _Delta(
-      label: '${diff.abs().toStringAsFixed(1)}',
+      label: diff.abs().toStringAsFixed(1),
       isDown: diff < 0,
       // weight/waist going down = good (green); height going down = neutral
       color: diff < 0 ? AppTheme.figmaGreen : const Color(0xFFE65100),
@@ -622,7 +675,6 @@ class _LinechartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final points = <Offset>[];
     final nonNull = values.whereType<double>().toList();
     if (nonNull.length < 2) return;
 

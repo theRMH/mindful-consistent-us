@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../config/app_config.dart';
 
@@ -76,11 +77,13 @@ class ApiService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         return jsonDecode(response.body);
       } else {
+        debugPrint('[API] POST $path → ${response.statusCode}: ${response.body}');
         throw HttpException(
           'API Error: ${response.statusCode} - ${response.body}',
         );
       }
     } catch (e) {
+      debugPrint('[API] POST $path exception: $e');
       throw Exception('Failed to connect to backend: $e');
     }
   }
@@ -259,6 +262,18 @@ class ApiService {
     if (avatarUrl != null) body['avatarUrl'] = avatarUrl;
     final res = await _post('/api/auth/sync', body);
     return (res as Map<String, dynamic>)['alreadyExisted'] == true;
+  }
+
+  Future<void> deleteBodyMetrics(String id) async {
+    final url = Uri.parse('${AppConfig.apiBaseUrl}/api/mobile/profile/body-metrics');
+    final response = await http.delete(
+      url,
+      headers: _getHeaders(),
+      body: jsonEncode({'id': id}),
+    );
+    if (response.statusCode != 200) {
+      throw HttpException('API Error: ${response.statusCode} - ${response.body}');
+    }
   }
 
   Future<List<dynamic>> getBodyMetrics() async {
