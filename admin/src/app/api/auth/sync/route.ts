@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { verifyAuth } from '@/lib/auth-middleware';
 
 export async function POST(req: NextRequest) {
   try {
+    const [{ default: prisma }, { verifyAuth }] = await Promise.all([
+      import('@/lib/prisma'),
+      import('@/lib/auth-middleware'),
+    ]);
     const user = await verifyAuth(req);
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
