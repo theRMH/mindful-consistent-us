@@ -76,14 +76,14 @@ class CoursesNotifier extends StateNotifier<CoursesState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final coursesData = await _apiService.getCourses().timeout(
-        const Duration(seconds: 10),
+        const Duration(seconds: 30),
       );
 
       List<dynamic> enrollmentsData = [];
       if (_ref.read(authProvider).isAuthenticated) {
         try {
           enrollmentsData = await _apiService.getEnrollments().timeout(
-            const Duration(seconds: 10),
+            const Duration(seconds: 30),
           );
         } catch (_) {}
       }
