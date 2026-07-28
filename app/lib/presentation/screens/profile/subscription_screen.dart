@@ -17,7 +17,7 @@ class SubscriptionScreen extends StatelessWidget {
         children: [
           Container(
             width: double.infinity,
-            padding: EdgeInsets.fromLTRB(20, topPad + 20, 20, 28),
+            padding: EdgeInsets.fromLTRB(20, topPad + 20, 20, 20),
             decoration: const BoxDecoration(
               color: AppTheme.figmaGreen,
               borderRadius: BorderRadius.only(
@@ -61,17 +61,19 @@ class SubscriptionScreen extends StatelessWidget {
                     color: Colors.white.withAlpha(200),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Your enrolled programs',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: Colors.white.withAlpha(210),
-                  ),
-                ),
               ],
             ),
           ),
+          const SizedBox(height: AppSpacing.lg),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _buildPageNote(
+              icon: Icons.subscriptions_outlined,
+              title: 'Your enrolled programs',
+              message: 'Review active plans and completed journeys.',
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
           Expanded(
             child: FutureBuilder<List<dynamic>>(
               future: ApiService().getEnrollments(),
@@ -375,6 +377,57 @@ class SubscriptionScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildPageNote({
+    required IconData icon,
+    required String title,
+    required String message,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5FAF2),
+        borderRadius: BorderRadius.circular(AppRadii.xxl),
+        border: Border.all(color: const Color(0xFFD4EAC8)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(
+              color: AppTheme.figmaGreen,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: AppFontSizes.bodyLarge,
+                    fontWeight: AppFontWeights.bold,
+                    color: AppTheme.figmaCharcoal,
+                  ),
+                ),
+                Text(
+                  message,
+                  style: GoogleFonts.inter(
+                    fontSize: AppFontSizes.bodyMedium,
+                    color: AppTheme.figmaMutedGray,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

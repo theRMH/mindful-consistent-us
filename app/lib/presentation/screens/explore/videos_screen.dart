@@ -69,6 +69,11 @@ class VideosScreen extends ConsumerWidget {
               coursesState.activeCourses,
               isGuest,
             ),
+            const SizedBox(height: AppSpacing.lg),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+              child: _buildDisciplineNote(),
+            ),
             if (!isGuest && hasEnrolledCourses) ...[
               const SizedBox(height: AppSpacing.lg),
               Padding(
@@ -132,6 +137,57 @@ class VideosScreen extends ConsumerWidget {
     );
   }
 
+
+  Widget _buildDisciplineNote() {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5FAF2),
+        borderRadius: BorderRadius.circular(AppRadii.xxl),
+        border: Border.all(color: const Color(0xFFD4EAC8)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(
+              color: AppTheme.figmaGreen,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.spa_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Show up for yourself',
+                  style: GoogleFonts.inter(
+                    fontSize: AppFontSizes.bodyLarge,
+                    fontWeight: AppFontWeights.bold,
+                    color: AppTheme.figmaCharcoal,
+                  ),
+                ),
+                Text(
+                  'One mindful session, every single day.',
+                  style: GoogleFonts.inter(
+                    fontSize: AppFontSizes.bodyMedium,
+                    color: AppTheme.figmaMutedGray,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
   Widget _buildHeader(
     BuildContext context,
     WidgetRef ref,
@@ -142,7 +198,7 @@ class VideosScreen extends ConsumerWidget {
   ) {
     return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 120),
+      constraints: const BoxConstraints(minHeight: 96),
       decoration: const BoxDecoration(
         image: DecorationImage(
           image: AssetImage('assets/unreg_header_bg.png'),
@@ -213,22 +269,6 @@ class VideosScreen extends ConsumerWidget {
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: AppTheme.figmaGreen,
-              borderRadius: BorderRadius.circular(AppRadii.pill),
-            ),
-            child: Text(
-              'Show up for yourself, Every single day.',
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: AppFontWeights.semiBold,
-              ),
-            ),
           ),
           if (!isGuest && activeCourses.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.sm),

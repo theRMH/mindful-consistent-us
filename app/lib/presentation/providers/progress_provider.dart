@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/services/api_service.dart';
 import '../../core/config/app_config.dart';
@@ -173,6 +174,9 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
 
     state = state.copyWith(isLoading: true, error: null);
     try {
+      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (token != null) _apiService.setToken(token);
+
       final results = await Future.wait([
         _apiService.getProgress(),
         _apiService.getLeaderboard(),

@@ -79,7 +79,14 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
                 // ── 1. Header Banner ─────────────────────────────────
                 _buildHeader(context),
 
-                const SizedBox(height: AppSpacing.xxl),
+                const SizedBox(height: AppSpacing.lg),
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                  child: _buildDisciplineNote(),
+                ),
+
+                const SizedBox(height: AppSpacing.xl),
 
                 // ── 2. Explore Programs ───────────────────────────────
                 _buildSectionHeader(context, 'Explore Programs'),
@@ -296,7 +303,7 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
   Widget _buildHeader(BuildContext context) {
     return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 130),
+      constraints: const BoxConstraints(minHeight: 96),
       decoration: const BoxDecoration(
         image: DecorationImage(
           image: AssetImage('assets/unregistered-header_bg.png'),
@@ -388,19 +395,6 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
                 ),
               ],
             ),
-
-            const SizedBox(height: AppSpacing.sm),
-
-            // Subtitle
-            Text(
-              'Daily discipline. Lasting transformation.',
-              style: GoogleFonts.inter(
-                color: AppTheme.figmaGreen,
-                fontSize: 9.5,
-                fontWeight: AppFontWeights.semiBold,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
           ],
         ),
       ),
@@ -409,6 +403,57 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
 
   // ─── Section Header ───────────────────────────────────────────────────────
 
+
+  Widget _buildDisciplineNote() {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5FAF2),
+        borderRadius: BorderRadius.circular(AppRadii.xxl),
+        border: Border.all(color: const Color(0xFFD4EAC8)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(
+              color: AppTheme.figmaGreen,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.spa_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Daily discipline',
+                  style: GoogleFonts.inter(
+                    fontSize: AppFontSizes.bodyLarge,
+                    fontWeight: AppFontWeights.bold,
+                    color: AppTheme.figmaCharcoal,
+                  ),
+                ),
+                Text(
+                  'Lasting transformation starts with one mindful session.',
+                  style: GoogleFonts.inter(
+                    fontSize: AppFontSizes.bodyMedium,
+                    color: AppTheme.figmaMutedGray,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
   Widget _buildSectionHeader(BuildContext context, String title) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),

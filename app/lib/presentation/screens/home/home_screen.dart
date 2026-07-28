@@ -82,6 +82,13 @@ class HomeScreen extends ConsumerWidget {
               _buildHeader(context, ref, userName, progressState.currentStreak),
               const SizedBox(height: AppSpacing.lg),
 
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                child: _buildDisciplineNote(),
+              ),
+
+              const SizedBox(height: AppSpacing.lg),
+
               // ── 2. Active Course Progress / Completion Banner ─────
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
@@ -134,10 +141,13 @@ class HomeScreen extends ConsumerWidget {
                                 color: const Color(0xFFF2F9F5),
                                 borderRadius: BorderRadius.circular(16),
                               ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
                                   SizedBox(
                                     height: 38,
                                     child: Center(
@@ -207,7 +217,8 @@ class HomeScreen extends ConsumerWidget {
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -229,10 +240,13 @@ class HomeScreen extends ConsumerWidget {
                                 color: const Color(0xFFFFF8E7),
                                 borderRadius: BorderRadius.circular(16),
                               ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
                                   SizedBox(
                                     height: 38,
                                     child: Center(
@@ -304,7 +318,8 @@ class HomeScreen extends ConsumerWidget {
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -384,7 +399,7 @@ class HomeScreen extends ConsumerWidget {
   Widget _buildHeader(BuildContext context, WidgetRef ref, String userName, int streak) {
     return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 130),
+      constraints: const BoxConstraints(minHeight: 96),
       decoration: const BoxDecoration(
         image: DecorationImage(
           image: AssetImage('assets/home_header_bg.png'),
@@ -471,26 +486,6 @@ class HomeScreen extends ConsumerWidget {
 
               ],
             ),
-
-            const SizedBox(height: AppSpacing.sm),
-
-            // Subtitle — highlighted motivational pill
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: AppTheme.figmaGreen,
-                borderRadius: BorderRadius.circular(AppRadii.pill),
-              ),
-              child: Text(
-                '✦  Daily discipline. Lasting transformation.',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: AppFontWeights.semiBold,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ),
           ],
         ),
       ),
@@ -499,6 +494,57 @@ class HomeScreen extends ConsumerWidget {
 
   // ─── Course Completion Banner (shown when enrolled course has expired) ────────
 
+
+  Widget _buildDisciplineNote() {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5FAF2),
+        borderRadius: BorderRadius.circular(AppRadii.xxl),
+        border: Border.all(color: const Color(0xFFD4EAC8)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(
+              color: AppTheme.figmaGreen,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.spa_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Daily discipline',
+                  style: GoogleFonts.inter(
+                    fontSize: AppFontSizes.bodyLarge,
+                    fontWeight: AppFontWeights.bold,
+                    color: AppTheme.figmaCharcoal,
+                  ),
+                ),
+                Text(
+                  'Lasting transformation starts with one mindful session.',
+                  style: GoogleFonts.inter(
+                    fontSize: AppFontSizes.bodyMedium,
+                    color: AppTheme.figmaMutedGray,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
   Widget _buildCompletedCourseBanner(
       BuildContext context, CourseModel course, int daysSinceCompletion) {
     final daysAgoText = daysSinceCompletion <= 1
@@ -597,12 +643,68 @@ class HomeScreen extends ConsumerWidget {
   // ─── Active Course Progress Banner ────────────────────────────────────────
 
   Widget _buildActiveCourseBanner(BuildContext context, WidgetRef ref, ProgressState ps, CourseModel? activeCourse) {
+    if (activeCourse == null) {
+      return Container(
+        decoration: BoxDecoration(
+          color: AppTheme.figmaGreen,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'No active course',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFF5FAFD),
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              'Choose a program to begin your journey.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFD0DF5A),
+                fontSize: 10.5,
+                fontWeight: FontWeight.normal,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => context.go('/programs?tab=explore'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: AppTheme.figmaGreen,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                ),
+                child: Text(
+                  'Explore Program',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.figmaGreen,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final completedCount = ps.completedDays.length;
-    final totalDays = activeCourse?.totalDays ?? 30;
+    final totalDays = activeCourse.totalDays;
     final progress = totalDays > 0 ? (completedCount / totalDays).clamp(0.0, 1.0) : 0.0;
     final progressPct = (progress * 100).toInt();
     final currentDay = (ps.currentDay ?? completedCount + 1).clamp(1, totalDays);
-    final courseTitle = activeCourse?.title ?? 'No Active Course';
+    final courseTitle = activeCourse.title;
 
     return Container(
       decoration: BoxDecoration(

@@ -56,6 +56,12 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
             _buildHeader(progressState.currentStreak),
             const SizedBox(height: AppSpacing.lg),
 
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+              child: _buildDisciplineNote(),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+
             // ── Tab Selector ─────────────────────────────────────────
             _buildTabSelector(),
             const SizedBox(height: AppSpacing.sm),
@@ -78,7 +84,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
   Widget _buildHeader(int streak) {
     return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 130),
+      constraints: const BoxConstraints(minHeight: 96),
       decoration: const BoxDecoration(
         image: DecorationImage(
           image: AssetImage('assets/unreg_header_bg.png'),
@@ -145,21 +151,55 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDisciplineNote() {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5FAF2),
+        borderRadius: BorderRadius.circular(AppRadii.xxl),
+        border: Border.all(color: const Color(0xFFD4EAC8)),
+      ),
+      child: Row(
+        children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(
               color: AppTheme.figmaGreen,
-              borderRadius: BorderRadius.circular(AppRadii.pill),
+              shape: BoxShape.circle,
             ),
-            child: Text(
-              '✦  Daily discipline. Lasting transformation.',
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: AppFontWeights.semiBold,
-                fontStyle: FontStyle.italic,
-              ),
+            child: const Icon(
+              Icons.spa_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Daily discipline',
+                  style: GoogleFonts.inter(
+                    fontSize: AppFontSizes.bodyLarge,
+                    fontWeight: AppFontWeights.bold,
+                    color: AppTheme.figmaCharcoal,
+                  ),
+                ),
+                Text(
+                  'Lasting transformation starts with one mindful session.',
+                  style: GoogleFonts.inter(
+                    fontSize: AppFontSizes.bodyMedium,
+                    color: AppTheme.figmaMutedGray,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -272,10 +312,26 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
     }
     if (coursesState.error != null) {
       return Center(
-        child: Text(
-          'Could not load courses.\n${coursesState.error}',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.inter(color: AppTheme.coolGray, fontSize: 13),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Could not load courses.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(color: AppTheme.coolGray, fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => ref.read(coursesProvider.notifier).refresh(),
+              child: Text(
+                'Try Again',
+                style: GoogleFonts.inter(
+                  color: AppTheme.figmaGreen,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
         ),
       );
     }

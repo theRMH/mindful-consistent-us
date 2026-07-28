@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/api_service.dart';
 
@@ -241,6 +242,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         try {
           alreadyExisted = await ApiService().syncProfile(fullName: name);
         } catch (e) {
+          debugPrint('[Auth] syncProfile error: $e');
           ApiService().setToken(null);
           await FirebaseAuth.instance.signOut();
           state = state.copyWith(

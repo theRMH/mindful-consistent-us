@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/services/api_service.dart';
 import '../../data/models/course_model.dart';
 import 'auth_provider.dart';
@@ -30,8 +31,11 @@ class CoursesState {
       final enrollment = enrollmentForCourse(c.id);
       if (enrollment == null) return false;
       final enrolledAt = enrollment.enrolledAt.toLocal();
-      final enrolledDate =
-          DateTime(enrolledAt.year, enrolledAt.month, enrolledAt.day);
+      final enrolledDate = DateTime(
+        enrolledAt.year,
+        enrolledAt.month,
+        enrolledAt.day,
+      );
       final calendarDay = todayDate.difference(enrolledDate).inDays + 1;
       return calendarDay > c.totalDays;
     }).toList();
@@ -82,6 +86,8 @@ class CoursesNotifier extends StateNotifier<CoursesState> {
       List<dynamic> enrollmentsData = [];
       if (_ref.read(authProvider).isAuthenticated) {
         try {
+          final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+          if (token != null) _apiService.setToken(token);
           enrollmentsData = await _apiService.getEnrollments().timeout(
             const Duration(seconds: 30),
           );

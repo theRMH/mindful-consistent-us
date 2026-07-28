@@ -88,6 +88,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 24),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _buildPageNote(
+                      icon: Icons.shopping_bag_outlined,
+                      title: 'Ready to unlock',
+                      message: 'Pay instantly with UPI and start today.',
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                   _buildSectionHeader(),
                   const SizedBox(height: 12),
                   _buildCourseCard(),
@@ -211,7 +220,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         top: statusBarHeight + 16,
         left: 20,
         right: 20,
-        bottom: 28,
+        bottom: 20,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,21 +279,63 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            'Premium fitness programs, ready to unlock.\nPay instantly with UPI and start today.',
-            style: GoogleFonts.inter(
-              color: Colors.white.withAlpha(204),
-              fontSize: 13,
-              height: 1.4,
-            ),
-          ),
         ],
       ),
     );
   }
 
   // ─── Section Header ──────────────────────────────────────────────────────
+
+  Widget _buildPageNote({
+    required IconData icon,
+    required String title,
+    required String message,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5FAF2),
+        borderRadius: BorderRadius.circular(AppRadii.xxl),
+        border: Border.all(color: const Color(0xFFD4EAC8)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(
+              color: AppTheme.figmaGreen,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: AppFontSizes.bodyLarge,
+                    fontWeight: AppFontWeights.bold,
+                    color: AppTheme.figmaCharcoal,
+                  ),
+                ),
+                Text(
+                  message,
+                  style: GoogleFonts.inter(
+                    fontSize: AppFontSizes.bodyMedium,
+                    color: AppTheme.figmaMutedGray,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
   Widget _buildSectionHeader() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -912,11 +963,21 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       setState(() => _isProcessing = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(response.message ?? 'Payment cancelled'),
+          content: Text(_paymentFailureMessage(response)),
           backgroundColor: Colors.red,
         ),
       );
     }
+  }
+
+  String _paymentFailureMessage(PaymentFailureResponse response) {
+    final message = response.message?.trim();
+    if (message == null ||
+        message.isEmpty ||
+        message.toLowerCase() == 'undefined') {
+      return 'Payment cancelled. You can try again anytime.';
+    }
+    return message;
   }
 
   void _handleExternalWallet(ExternalWalletResponse response) {

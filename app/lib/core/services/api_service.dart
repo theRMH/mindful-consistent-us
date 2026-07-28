@@ -37,11 +37,13 @@ class ApiService {
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
+        debugPrint('[API] GET $path → ${response.statusCode}: ${response.body}');
         throw HttpException(
           'API Error: ${response.statusCode} - ${response.body}',
         );
       }
     } catch (e) {
+      debugPrint('[API] GET $path exception: $e');
       throw Exception('Failed to connect to backend: $e');
     }
   }

@@ -120,14 +120,6 @@ class _CommunityLeaderboardScreenState
                     color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Earn points by watching videos, keeping streaks & hitting step goals.',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: Colors.white.withAlpha(210),
-                  ),
-                ),
                 const SizedBox(height: 16),
                 TabBar(
                   controller: _tabController,
@@ -148,6 +140,18 @@ class _CommunityLeaderboardScreenState
               ],
             ),
           ),
+
+          const SizedBox(height: AppSpacing.lg),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _buildPageNote(
+              icon: Icons.leaderboard_rounded,
+              title: 'Earn points',
+              message:
+                  'Watch videos, keep streaks, and hit step goals to climb.',
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
 
           // Tab Body
           Expanded(
@@ -277,6 +281,57 @@ class _CommunityLeaderboardScreenState
           child: _buildLeaderboardTab(_groupFuture!, isGroup: true),
         ),
       ],
+    );
+  }
+
+  Widget _buildPageNote({
+    required IconData icon,
+    required String title,
+    required String message,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5FAF2),
+        borderRadius: BorderRadius.circular(AppRadii.xxl),
+        border: Border.all(color: const Color(0xFFD4EAC8)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(
+              color: AppTheme.figmaGreen,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: AppFontSizes.bodyLarge,
+                    fontWeight: AppFontWeights.bold,
+                    color: AppTheme.figmaCharcoal,
+                  ),
+                ),
+                Text(
+                  message,
+                  style: GoogleFonts.inter(
+                    fontSize: AppFontSizes.bodyMedium,
+                    color: AppTheme.figmaMutedGray,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
