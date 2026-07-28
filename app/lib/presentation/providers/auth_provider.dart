@@ -240,13 +240,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
         bool alreadyExisted = false;
         try {
           alreadyExisted = await ApiService().syncProfile(fullName: name);
-        } catch (_) {
+        } catch (e) {
           ApiService().setToken(null);
           await FirebaseAuth.instance.signOut();
           state = state.copyWith(
             isLoading: false,
-            errorMessage:
-                'Could not finish setting up your account. Please try again.',
+            errorMessage: 'Setup error: $e',
           );
           return false;
         }

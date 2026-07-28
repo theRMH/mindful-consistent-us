@@ -355,6 +355,10 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
                                   )
                                 : GestureDetector(
                                     onTap: () async {
+                                      for (var c in _controllers) {
+                                        c.clear();
+                                      }
+                                      _focusNodes[0].requestFocus();
                                       final messenger = ScaffoldMessenger.of(
                                         context,
                                       );

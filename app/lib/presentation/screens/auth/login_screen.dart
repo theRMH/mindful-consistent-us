@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/config/theme.dart';
+import '../../../core/services/api_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/brand_logo.dart';
 import '../../widgets/background_leaves.dart';
@@ -18,6 +19,16 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final TextEditingController _phoneController = TextEditingController();
+  String? _phoneError;
+  bool _isChecking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _phoneController.addListener(() {
+      if (_phoneError != null) setState(() => _phoneError = null);
+    });
+  }
 
   @override
   void dispose() {
@@ -26,6 +37,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _handleSendOtp() async {
+    setState(() => _phoneError = null);
     final phone = _phoneController.text.trim();
     if (phone.length != 10) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -33,6 +45,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       );
       return;
     }
+
+    setState(() => _isChecking = true);
+    final exists = await ApiService().checkPhoneExists(phone);
+    if (!mounted) return;
+    setState(() => _isChecking = false);
+
+    if (!exists) {
+      setState(() => _phoneError = 'No account found. Please register first.');
+      return;
+    }
+
     await ref.read(authProvider.notifier).sendOtp(phone);
     if (!mounted) return;
     final error = ref.read(authProvider).errorMessage;
@@ -55,7 +78,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final authState = ref.watch(authProvider);
 
     return PopScope(
-      canPop: false,
+      canPop: GoRouter.of(context).canPop(),
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         context.go('/unregistered');
@@ -279,6 +302,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   ),
                                 ),
 
+                                if (_phoneError != null) ...[
+                                  const SizedBox(height: AppSpacing.xs),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: AppSpacing.md,
+                                    ),
+                                    child: Text(
+                                      _phoneError!,
+                                      style: GoogleFonts.inter(
+                                        color: Colors.red.shade600,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+
                                 const SizedBox(height: AppSpacing.lg),
 
                                 // Send OTP button
@@ -290,7 +329,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     width: double.infinity,
                                     height: 52,
                                     child: ElevatedButton(
-                                      onPressed: authState.isLoading
+                                      onPressed: (authState.isLoading || _isChecking)
                                           ? null
                                           : _handleSendOtp,
                                       style: ElevatedButton.styleFrom(
@@ -303,7 +342,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         ),
                                         elevation: 0,
                                       ),
-                                      child: authState.isLoading
+                                      child: (authState.isLoading || _isChecking)
                                           ? const SizedBox(
                                               height: 22,
                                               width: 22,

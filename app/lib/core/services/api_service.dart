@@ -242,6 +242,17 @@ class ApiService {
     return (res as List<dynamic>).cast<Map<String, dynamic>>();
   }
 
+  Future<bool> checkPhoneExists(String phone) async {
+    try {
+      final encoded = Uri.encodeComponent('+91$phone');
+      final res = await _get('/api/mobile/check-phone?phone=$encoded')
+          .timeout(const Duration(seconds: 10));
+      return (res as Map<String, dynamic>)['exists'] == true;
+    } catch (_) {
+      return true; // fail-open: let OTP proceed if check fails
+    }
+  }
+
   Future<bool> syncProfile({String? fullName, String? avatarUrl}) async {
     final body = <String, dynamic>{};
     if (fullName != null) body['fullName'] = fullName;

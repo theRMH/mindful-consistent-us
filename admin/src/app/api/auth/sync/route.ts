@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, profile, stats, alreadyExisted: existing !== null }, { status: 200 });
   } catch (error) {
     console.error('Error syncing auth profile:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    const detail = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: 'Internal Server Error', detail }, { status: 500 });
   }
 }

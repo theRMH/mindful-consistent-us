@@ -5,6 +5,7 @@ import 'theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/analytics_service.dart';
 import '../../presentation/providers/auth_provider.dart';
+import '../../presentation/widgets/login_prompt.dart';
 import '../../presentation/providers/courses_provider.dart';
 import '../../presentation/screens/auth/login_screen.dart';
 import '../../presentation/screens/auth/otp_screen.dart';
@@ -334,11 +335,15 @@ class AppNavigationShell extends ConsumerWidget {
               context.go('/videos');
               break;
             case 3:
-              context.go('/steps');
+              if (!authState.isAuthenticated) {
+                showLoginPrompt(context);
+              } else {
+                context.go('/steps');
+              }
               break;
             case 4:
               if (!authState.isAuthenticated) {
-                context.push('/login?redirect=${Uri.encodeComponent('/profile')}');
+                showLoginPrompt(context);
               } else {
                 context.go('/profile');
               }

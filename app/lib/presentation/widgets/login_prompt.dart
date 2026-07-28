@@ -53,7 +53,7 @@ void showLoginPrompt(BuildContext context) {
               onPressed: () {
                 final redirect = Uri.encodeComponent(GoRouterState.of(context).uri.toString());
                 Navigator.pop(ctx);
-                context.go('/signup?redirect=$redirect');
+                context.push('/signup?redirect=$redirect');
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.figmaGreen,
@@ -77,7 +77,7 @@ void showLoginPrompt(BuildContext context) {
             onPressed: () {
               final redirect = Uri.encodeComponent(GoRouterState.of(context).uri.toString());
               Navigator.pop(ctx);
-              context.go('/login?redirect=$redirect');
+              context.push('/login?redirect=$redirect');
             },
             child: Text(
               'Already have an account? Login',

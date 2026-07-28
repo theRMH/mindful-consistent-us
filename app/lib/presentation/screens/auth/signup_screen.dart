@@ -66,7 +66,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     final authState = ref.watch(authProvider);
 
     return PopScope(
-      canPop: false,
+      canPop: GoRouter.of(context).canPop(),
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         context.go('/unregistered');
