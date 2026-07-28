@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
+import { verifyAuth } from '@/lib/auth-middleware';
 
 export async function POST(req: NextRequest) {
   try {
-    const [{ default: prisma }, { verifyAuth }] = await Promise.all([
-      import('@/lib/prisma'),
-      import('@/lib/auth-middleware'),
-    ]);
     const user = await verifyAuth(req);
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -16,7 +14,6 @@ export async function POST(req: NextRequest) {
 
     const existing = await prisma.profile.findUnique({ where: { id: user.id }, select: { id: true } });
 
-    // Upsert Profile
     const profile = await prisma.profile.upsert({
       where: { id: user.id },
       update: {
@@ -35,13 +32,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Ensure UserStats row exists
     const stats = await prisma.userStats.upsert({
       where: { userId: user.id },
       update: {},
-      create: {
-        userId: user.id,
-      },
+      create: { userId: user.id },
     });
 
     return NextResponse.json({ success: true, profile, stats, alreadyExisted: existing !== null }, { status: 200 });
