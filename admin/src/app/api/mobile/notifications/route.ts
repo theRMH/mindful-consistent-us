@@ -7,7 +7,13 @@ export async function GET(req: NextRequest) {
     const user = await verifyAuth(req);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const profile = await prisma.profile.findUnique({
+      where: { id: user.id },
+      select: { createdAt: true },
+    });
+
     const notifications = await prisma.appNotification.findMany({
+      where: profile ? { sentAt: { gte: profile.createdAt } } : {},
       orderBy: { sentAt: 'desc' },
       take: 50,
       include: {
