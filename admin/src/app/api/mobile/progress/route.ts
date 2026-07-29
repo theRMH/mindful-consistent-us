@@ -57,8 +57,13 @@ export async function GET(req: NextRequest) {
     const stepsGoalSetting = await prisma.appSetting.findUnique({ where: { key: 'steps_goal' } });
     const stepsGoal = parseInt(stepsGoalSetting?.value ?? '10000', 10);
 
-    // Use device timezone from header so all date boundaries are in the user's local time
-    const tz = req.headers.get('x-timezone') ?? 'UTC';
+    // Use device timezone from header; fall back to stored profile timezone, then UTC
+    const headerTz = req.headers.get('x-timezone');
+    let tz = headerTz ?? 'UTC';
+    if (!headerTz) {
+      const profile = await prisma.profile.findUnique({ where: { id: user.id }, select: { timezone: true } });
+      tz = profile?.timezone ?? 'UTC';
+    }
     const localDateStr = (date: Date) =>
       new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(date);
 

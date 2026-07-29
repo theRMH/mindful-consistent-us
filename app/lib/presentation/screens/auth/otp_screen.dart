@@ -16,6 +16,7 @@ class OTPScreen extends ConsumerStatefulWidget {
   final String mode; // 'login' or 'register'
   final String? redirect;
   final String? name;
+  final String dialCode;
 
   const OTPScreen({
     super.key,
@@ -23,6 +24,7 @@ class OTPScreen extends ConsumerStatefulWidget {
     this.mode = 'register',
     this.redirect,
     this.name,
+    this.dialCode = '+1',
   });
 
   @override
@@ -225,7 +227,7 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'Enter verification code sent to +91 ${widget.phone}',
+                            'Enter verification code sent to ${widget.dialCode} ${widget.phone}',
                             style: GoogleFonts.inter(
                               color: AppTheme.coolGray,
                               fontSize: 13,
@@ -364,7 +366,7 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
                                       );
                                       await ref
                                           .read(authProvider.notifier)
-                                          .sendOtp(widget.phone);
+                                          .sendOtp(widget.phone, dialCode: widget.dialCode);
                                       if (!mounted) return;
                                       final error = ref
                                           .read(authProvider)

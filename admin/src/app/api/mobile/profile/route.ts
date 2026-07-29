@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     const [profile, stepsGoalSetting] = await Promise.all([
       prisma.profile.findUnique({
         where: { id: user.id },
-        select: { id: true, fullName: true, phone: true, avatarUrl: true, email: true, notificationsEnabled: true, notificationTime: true },
+        select: { id: true, fullName: true, phone: true, avatarUrl: true, email: true, notificationsEnabled: true, notificationTime: true, currency: true, timezone: true },
       }),
       prisma.appSetting.findUnique({ where: { key: 'steps_goal' } }),
     ]);
@@ -37,7 +37,7 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { fullName, avatarUrl, fcmToken, notificationsEnabled, notificationTime } = body;
+    const { fullName, avatarUrl, fcmToken, notificationsEnabled, notificationTime, timezone } = body;
 
     const updated = await prisma.profile.update({
       where: { id: user.id },
@@ -47,8 +47,9 @@ export async function PUT(req: NextRequest) {
         ...(fcmToken !== undefined && { fcmToken }),
         ...(notificationsEnabled !== undefined && { notificationsEnabled }),
         ...(notificationTime !== undefined && { notificationTime }),
+        ...(timezone !== undefined && { timezone }),
       },
-      select: { id: true, fullName: true, phone: true, avatarUrl: true, email: true, notificationsEnabled: true, notificationTime: true },
+      select: { id: true, fullName: true, phone: true, avatarUrl: true, email: true, notificationsEnabled: true, notificationTime: true, currency: true, timezone: true },
     });
 
     return NextResponse.json(updated, { status: 200 });

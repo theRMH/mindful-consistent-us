@@ -9,12 +9,16 @@ class UserProfile {
   final String phone;
   final String fullName;
   final String avatarUrl;
+  final String currency;
+  final String? timezone;
 
   UserProfile({
     required this.id,
     required this.phone,
     required this.fullName,
     required this.avatarUrl,
+    this.currency = 'INR',
+    this.timezone,
   });
 }
 
@@ -27,6 +31,7 @@ class AuthState {
   final String? verificationId;
   final int? resendToken;
   final String? autoFilledCode;
+  final String dialCode;
 
   AuthState({
     this.isAuthenticated = false,
@@ -37,6 +42,7 @@ class AuthState {
     this.verificationId,
     this.resendToken,
     this.autoFilledCode,
+    this.dialCode = '+1',
   });
 
   AuthState copyWith({
@@ -48,6 +54,7 @@ class AuthState {
     String? verificationId,
     int? resendToken,
     String? autoFilledCode,
+    String? dialCode,
     bool clearAutoFilledCode = false,
     bool clearErrorMessage = false,
   }) {
@@ -64,6 +71,7 @@ class AuthState {
       autoFilledCode: clearAutoFilledCode
           ? null
           : (autoFilledCode ?? this.autoFilledCode),
+      dialCode: dialCode ?? this.dialCode,
     );
   }
 }
@@ -115,12 +123,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final profile = await ApiService().getProfile();
       final fullName = (profile['fullName'] as String? ?? '').trim();
       final avatarUrl = (profile['avatarUrl'] as String? ?? '');
+      final currency = profile['currency'] as String? ?? 'INR';
+      final timezone = profile['timezone'] as String?;
       state = state.copyWith(
         user: UserProfile(
           id: state.user!.id,
           phone: state.user!.phone,
           fullName: fullName.isNotEmpty ? fullName : state.user!.phone,
           avatarUrl: avatarUrl,
+          currency: currency,
+          timezone: timezone,
         ),
       );
     } catch (_) {}
@@ -130,18 +142,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = AuthState(isGuest: true, isAuthenticated: false);
   }
 
-  Future<void> sendOtp(String phone) async {
+  Future<void> sendOtp(String phone, {String dialCode = '+1'}) async {
     state = state.copyWith(
       isLoading: true,
       clearErrorMessage: true,
       clearAutoFilledCode: true,
+      dialCode: dialCode,
     );
     // verifyPhoneNumber's Future resolves before any callback fires.
     // Use a Completer so callers can await the actual outcome (codeSent /
     // verificationFailed / verificationCompleted) instead of just the kick-off.
     final completer = Completer<void>();
     await FirebaseAuth.instance.verifyPhoneNumber(
-      phoneNumber: '+91$phone',
+      phoneNumber: '$dialCode$phone',
       forceResendingToken: state.resendToken,
       verificationCompleted: (PhoneAuthCredential credential) {
         // Android auto-read the SMS — store the code for OTP screen to auto-fill.
@@ -237,10 +250,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
           return false;
         }
       } else {
-        // Signup — create/update profile and detect if account already existed.
+        // Signup — derive currency from dial code, get timezone from ApiService.
+        final currency = state.dialCode == '+91' ? 'INR' : 'USD';
+        final timezone = ApiService().getTimezone();
+        // Create/update profile and detect if account already existed.
         bool alreadyExisted = false;
         try {
-          alreadyExisted = await ApiService().syncProfile(fullName: name);
+          alreadyExisted = await ApiService().syncProfile(
+            fullName: name,
+            timezone: timezone,
+            currency: currency,
+          );
         } catch (e) {
           debugPrint('[Auth] syncProfile error: $e');
           ApiService().setToken(null);
@@ -265,7 +285,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // Login path: sync still needed to refresh phone/email on the profile.
       if (name == null) {
         try {
-          await ApiService().syncProfile();
+          await ApiService().syncProfile(timezone: ApiService().getTimezone());
         } catch (_) {
           // Non-fatal on login — profile already confirmed to exist above.
         }
@@ -273,10 +293,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       String resolvedName = name ?? '';
       String avatarUrl = '';
+      String currency = 'INR';
+      String? timezone;
       try {
         final profile = existingProfile ?? await ApiService().getProfile();
         resolvedName = (profile['fullName'] as String? ?? resolvedName);
         avatarUrl = profile['avatarUrl'] as String? ?? '';
+        currency = profile['currency'] as String? ?? 'INR';
+        timezone = profile['timezone'] as String?;
       } catch (_) {
         ApiService().setToken(null);
         await FirebaseAuth.instance.signOut();
@@ -289,11 +313,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       state = AuthState(
         isAuthenticated: true,
+        dialCode: state.dialCode,
         user: UserProfile(
           id: userCred.user!.uid,
           phone: userCred.user!.phoneNumber ?? '',
           fullName: resolvedName,
           avatarUrl: avatarUrl,
+          currency: currency,
+          timezone: timezone,
         ),
       );
       return true;

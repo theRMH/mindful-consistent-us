@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { fullName, avatarUrl } = body;
+    const { fullName, avatarUrl, timezone, currency } = body;
 
     const existing = await prisma.profile.findUnique({ where: { id: user.id }, select: { id: true } });
 
@@ -21,6 +21,7 @@ export async function POST(req: NextRequest) {
         phone: user.phone ?? null,
         fullName: fullName ?? undefined,
         avatarUrl: avatarUrl ?? undefined,
+        ...(timezone !== undefined && { timezone }),
         updatedAt: new Date(),
       },
       create: {
@@ -29,6 +30,8 @@ export async function POST(req: NextRequest) {
         phone: user.phone ?? null,
         fullName: fullName ?? '',
         avatarUrl: avatarUrl ?? '',
+        timezone: timezone ?? null,
+        currency: currency ?? 'INR',
       },
     });
 

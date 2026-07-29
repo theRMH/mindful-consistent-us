@@ -19,6 +19,8 @@ class ApiService {
     _timezone = identifier;
   }
 
+  String? getTimezone() => _timezone;
+
   Map<String, String> _getHeaders() {
     final headers = {'Content-Type': 'application/json'};
     if (_authToken != null) {
@@ -247,9 +249,9 @@ class ApiService {
     return (res as List<dynamic>).cast<Map<String, dynamic>>();
   }
 
-  Future<bool> checkPhoneExists(String phone) async {
+  Future<bool> checkPhoneExists(String fullPhone) async {
     try {
-      final encoded = Uri.encodeComponent('+91$phone');
+      final encoded = Uri.encodeComponent(fullPhone);
       final res = await _get('/api/mobile/check-phone?phone=$encoded')
           .timeout(const Duration(seconds: 10));
       return (res as Map<String, dynamic>)['exists'] == true;
@@ -258,10 +260,12 @@ class ApiService {
     }
   }
 
-  Future<bool> syncProfile({String? fullName, String? avatarUrl}) async {
+  Future<bool> syncProfile({String? fullName, String? avatarUrl, String? timezone, String? currency}) async {
     final body = <String, dynamic>{};
     if (fullName != null) body['fullName'] = fullName;
     if (avatarUrl != null) body['avatarUrl'] = avatarUrl;
+    if (timezone != null) body['timezone'] = timezone;
+    if (currency != null) body['currency'] = currency;
     final res = await _post('/api/auth/sync', body);
     return (res as Map<String, dynamic>)['alreadyExisted'] == true;
   }
@@ -308,20 +312,14 @@ class ApiService {
     String? avatarUrl,
     bool? notificationsEnabled,
     String? notificationTime,
+    String? timezone,
   }) async {
     final body = <String, dynamic>{};
-    if (fullName != null) {
-      body['fullName'] = fullName;
-    }
-    if (avatarUrl != null) {
-      body['avatarUrl'] = avatarUrl;
-    }
-    if (notificationsEnabled != null) {
-      body['notificationsEnabled'] = notificationsEnabled;
-    }
-    if (notificationTime != null) {
-      body['notificationTime'] = notificationTime;
-    }
+    if (fullName != null) body['fullName'] = fullName;
+    if (avatarUrl != null) body['avatarUrl'] = avatarUrl;
+    if (notificationsEnabled != null) body['notificationsEnabled'] = notificationsEnabled;
+    if (notificationTime != null) body['notificationTime'] = notificationTime;
+    if (timezone != null) body['timezone'] = timezone;
     await _put('/api/mobile/profile', body);
   }
 

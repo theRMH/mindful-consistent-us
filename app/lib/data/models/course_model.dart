@@ -8,6 +8,7 @@ class CourseModel {
   final String difficulty; // 'Beginner' | 'Intermediate' | 'Advanced'
   final int totalDays;
   final double priceInr;
+  final double? priceUsd;
   final int avgDailyMins; // average video duration per day, rounded to 5m
   final String? instructorName;
   final String? instructorTitle;
@@ -24,6 +25,7 @@ class CourseModel {
     this.difficulty = 'Beginner',
     required this.totalDays,
     required this.priceInr,
+    this.priceUsd,
     this.avgDailyMins = 30,
     this.instructorName,
     this.instructorTitle,
@@ -42,6 +44,7 @@ class CourseModel {
       difficulty: json['difficulty'] as String? ?? 'Beginner',
       totalDays: json['totalDays'] as int,
       priceInr: double.parse(json['priceInr']?.toString() ?? '0'),
+      priceUsd: json['priceUsd'] != null ? double.parse(json['priceUsd'].toString()) : null,
       avgDailyMins: json['avgDailyMins'] as int? ?? 30,
       instructorName: json['instructorName'] as String?,
       instructorTitle: json['instructorTitle'] as String?,

@@ -7,6 +7,7 @@ import '../../../core/config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/brand_logo.dart';
 import '../../widgets/background_leaves.dart';
+import '../../widgets/country_code_picker.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   final String? redirect;
@@ -20,6 +21,7 @@ class SignupScreen extends ConsumerStatefulWidget {
 class _SignupScreenState extends ConsumerState<SignupScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  String _dialCode = '+1';
 
   @override
   void dispose() {
@@ -37,27 +39,25 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       );
       return;
     }
-    if (phone.length != 10) {
+    if (phone.length < 4) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid 10-digit mobile number')),
+        const SnackBar(content: Text('Enter a valid mobile number')),
       );
       return;
     }
 
-    await ref.read(authProvider.notifier).sendOtp(phone);
+    await ref.read(authProvider.notifier).sendOtp(phone, dialCode: _dialCode);
     if (!mounted) return;
     final error = ref.read(authProvider).errorMessage;
     if (error != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
       return;
     }
     final redirectParam = widget.redirect != null
         ? '&redirect=${Uri.encodeComponent(widget.redirect!)}'
         : '';
     context.push(
-      '/otp?phone=${Uri.encodeComponent(phone)}&mode=register&name=${Uri.encodeComponent(name)}$redirectParam',
+      '/otp?phone=${Uri.encodeComponent(phone)}&dialCode=${Uri.encodeComponent(_dialCode)}&mode=register&name=${Uri.encodeComponent(name)}$redirectParam',
     );
   }
 
@@ -297,20 +297,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                         ),
                                         child: Row(
                                           children: [
-                                            Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: AppSpacing.md,
-                                                  ),
-                                              child: Text(
-                                                '+91',
-                                                style: GoogleFonts.inter(
-                                                  fontSize: 14,
-                                                  fontWeight:
-                                                      AppFontWeights.semiBold,
-                                                  color: AppTheme.figmaGreen,
-                                                ),
-                                              ),
+                                            CountryCodePicker(
+                                              selected: _dialCode,
+                                              onChanged: (code) =>
+                                                  setState(() => _dialCode = code),
                                             ),
                                             Container(
                                               width: 1,
@@ -322,7 +312,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                                 controller: _phoneController,
                                                 keyboardType:
                                                     TextInputType.phone,
-                                                maxLength: 10,
+                                                maxLength: 15,
                                                 inputFormatters: [
                                                   FilteringTextInputFormatter
                                                       .digitsOnly,
@@ -332,8 +322,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                                   color: AppTheme.figmaCharcoal,
                                                 ),
                                                 decoration: InputDecoration(
-                                                  hintText:
-                                                      '10-digit mobile number',
+                                                  hintText: 'Mobile number',
                                                   hintStyle: GoogleFonts.inter(
                                                     color:
                                                         AppTheme.figmaMutedGray,

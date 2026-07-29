@@ -8,6 +8,7 @@ import '../../../core/services/api_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/brand_logo.dart';
 import '../../widgets/background_leaves.dart';
+import '../../widgets/country_code_picker.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   final String? redirect;
@@ -19,6 +20,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final TextEditingController _phoneController = TextEditingController();
+  String _dialCode = '+1';
   String? _phoneError;
   bool _isChecking = false;
 
@@ -39,15 +41,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _handleSendOtp() async {
     setState(() => _phoneError = null);
     final phone = _phoneController.text.trim();
-    if (phone.length != 10) {
+    if (phone.length < 4) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid 10-digit mobile number')),
+        const SnackBar(content: Text('Enter a valid mobile number')),
       );
       return;
     }
 
     setState(() => _isChecking = true);
-    final exists = await ApiService().checkPhoneExists(phone);
+    final exists = await ApiService().checkPhoneExists('$_dialCode$phone');
     if (!mounted) return;
     setState(() => _isChecking = false);
 
@@ -56,20 +58,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
 
-    await ref.read(authProvider.notifier).sendOtp(phone);
+    await ref.read(authProvider.notifier).sendOtp(phone, dialCode: _dialCode);
     if (!mounted) return;
     final error = ref.read(authProvider).errorMessage;
     if (error != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
       return;
     }
     final redirectParam = widget.redirect != null
         ? '&redirect=${Uri.encodeComponent(widget.redirect!)}'
         : '';
     context.push(
-      '/otp?phone=${Uri.encodeComponent(phone)}&mode=login$redirectParam',
+      '/otp?phone=${Uri.encodeComponent(phone)}&dialCode=${Uri.encodeComponent(_dialCode)}&mode=login$redirectParam',
     );
   }
 
@@ -242,20 +242,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         ),
                                         child: Row(
                                           children: [
-                                            Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: AppSpacing.md,
-                                                  ),
-                                              child: Text(
-                                                '+91',
-                                                style: GoogleFonts.inter(
-                                                  fontSize: 14,
-                                                  fontWeight:
-                                                      AppFontWeights.semiBold,
-                                                  color: AppTheme.figmaGreen,
-                                                ),
-                                              ),
+                                            CountryCodePicker(
+                                              selected: _dialCode,
+                                              onChanged: (code) =>
+                                                  setState(() => _dialCode = code),
                                             ),
                                             Container(
                                               width: 1,
@@ -267,7 +257,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                                 controller: _phoneController,
                                                 keyboardType:
                                                     TextInputType.phone,
-                                                maxLength: 10,
+                                                maxLength: 15,
                                                 inputFormatters: [
                                                   FilteringTextInputFormatter
                                                       .digitsOnly,
@@ -277,8 +267,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                                   color: AppTheme.figmaCharcoal,
                                                 ),
                                                 decoration: InputDecoration(
-                                                  hintText:
-                                                      '10-digit mobile number',
+                                                  hintText: 'Mobile number',
                                                   hintStyle: GoogleFonts.inter(
                                                     color:
                                                         AppTheme.figmaMutedGray,

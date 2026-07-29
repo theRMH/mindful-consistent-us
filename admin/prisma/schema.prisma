@@ -21,6 +21,7 @@ model Profile {
   fcmToken                String?              @map("fcm_token")
   notificationsEnabled    Boolean              @default(false) @map("notifications_enabled")
   notificationTime        String?              @map("notification_time")
+  timezone                String?
   createdAt               DateTime             @default(now()) @map("created_at") @db.Timestamptz
   updatedAt          DateTime             @default(now()) @map("updated_at") @db.Timestamptz
   enrollments        Enrollment[]

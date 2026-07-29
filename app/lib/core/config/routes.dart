@@ -75,7 +75,8 @@ class AppRouter {
           final mode = state.uri.queryParameters['mode'] ?? 'register';
           final redirect = state.uri.queryParameters['redirect'];
           final name = state.uri.queryParameters['name'];
-          return OTPScreen(phone: phone, mode: mode, redirect: redirect, name: name);
+          final dialCode = state.uri.queryParameters['dialCode'] ?? '+1';
+          return OTPScreen(phone: phone, mode: mode, redirect: redirect, name: name, dialCode: dialCode);
         },
       ),
 

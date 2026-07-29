@@ -30,7 +30,20 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   Map<String, dynamic>? _courseData;
   bool _loadingCourse = true;
 
+  String get _currency =>
+      ref.read(authProvider).user?.currency ?? 'INR';
+
+  String get _currencySymbol => _currency == 'USD' ? '\$' : '₹';
+
   double? get _originalPrice {
+    if (_currency == 'USD') {
+      final raw = _courseData?['priceUsd'];
+      if (raw != null) {
+        if (raw is num) return raw.toDouble();
+        final parsed = double.tryParse(raw.toString());
+        if (parsed != null) return parsed;
+      }
+    }
     final raw = _courseData?['priceInr'];
     if (raw == null) return null;
     if (raw is num) return raw.toDouble();
@@ -40,9 +53,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   double? get _unitPrice {
     final base = _originalPrice;
     if (base == null) return null;
-    return _couponApplied && _couponDiscount != null
-        ? (base - _couponDiscount!).clamp(0, double.infinity)
-        : base;
+    // Coupons are INR-denominated; only apply for INR users
+    if (_currency == 'INR' && _couponApplied && _couponDiscount != null) {
+      return (base - _couponDiscount!).clamp(0, double.infinity);
+    }
+    return base;
   }
   double? get _totalPayable {
     final u = _unitPrice;
@@ -99,8 +114,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   const SizedBox(height: 12),
                   _buildCourseCard(),
                   const SizedBox(height: 16),
-                  _buildCouponSection(),
-                  const SizedBox(height: 28),
+                  if (_currency == 'INR') _buildCouponSection(),
+                  if (_currency == 'INR') const SizedBox(height: 28),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Text(
@@ -386,7 +401,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           ),
                         )
                       : Text(
-                          '₹${_unitPrice!.toInt()}',
+                          '$_currencySymbol${_unitPrice!.toStringAsFixed(_currency == 'USD' ? 2 : 0)}',
                           style: GoogleFonts.inter(
                             fontSize: 15,
                             fontWeight: AppFontWeights.semiBold,
@@ -436,7 +451,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Coupon applied! ₹${_couponDiscount!.toInt()} off'),
+          content: Text('Coupon applied! ₹${_couponDiscount!.toInt()} off on this order'),
           backgroundColor: AppTheme.figmaGreen,
           duration: const Duration(seconds: 2),
         ),
@@ -586,7 +601,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             ),
           ),
           Text(
-            _totalPayable == null ? '—' : '₹${_totalPayable!.toInt()}',
+            _totalPayable == null ? '—' : '$_currencySymbol${_totalPayable!.toStringAsFixed(_currency == 'USD' ? 2 : 0)}',
             style: GoogleFonts.inter(
               fontSize: 15,
               fontWeight: AppFontWeights.semiBold,
@@ -623,7 +638,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         child: Row(
           children: [
             Text(
-              _totalPayable == null ? '—' : '₹${_totalPayable!.toInt()}',
+              _totalPayable == null ? '—' : '$_currencySymbol${_totalPayable!.toStringAsFixed(_currency == 'USD' ? 2 : 0)}',
               style: GoogleFonts.inter(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
