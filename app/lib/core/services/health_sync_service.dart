@@ -38,8 +38,11 @@ class HealthSyncService {
       final now = DateTime.now();
       final midnight = DateTime(now.year, now.month, now.day);
 
-      final authorized = await _health.requestAuthorization(_types);
-      if (!authorized) return null;
+      final already = await _health.hasPermissions(_types) ?? false;
+      if (!already) {
+        final authorized = await _health.requestAuthorization(_types);
+        if (!authorized) return null;
+      }
 
       final total = await _health.getTotalStepsInInterval(midnight, now);
       if (total == null) return null;

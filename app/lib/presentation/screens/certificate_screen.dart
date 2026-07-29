@@ -39,11 +39,14 @@ class _CertificateScreenState extends ConsumerState<CertificateScreen> {
     if (_isDownloading) return;
     setState(() => _isDownloading = true);
     try {
-      final boundary =
-          _repaintKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      final ctx = _repaintKey.currentContext;
+      if (ctx == null) return;
+      final boundary = ctx.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return;
       final image = await boundary.toImage(pixelRatio: 3.0);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      final bytes = byteData!.buffer.asUint8List();
+      if (byteData == null) return;
+      final bytes = byteData.buffer.asUint8List();
       await Gal.putImageBytes(bytes, name: 'ConsistentUs_Certificate');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(

@@ -565,7 +565,7 @@ class _StepsScreenState extends ConsumerState<StepsScreen> with WidgetsBindingOb
   // ─── Health warning banner ─────────────────────────────────────────────────
 
   Widget _buildHealthWarningBanner() {
-    final label = Platform.isIOS ? 'Apple Health' : 'Google Health';
+    final label = Platform.isIOS ? 'Apple Health' : 'Health Connect';
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: Container(

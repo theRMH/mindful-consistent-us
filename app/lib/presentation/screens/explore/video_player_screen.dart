@@ -146,7 +146,9 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
 
   Future<void> _openCastSettings() async {
     if (Platform.isAndroid) {
-      await _castChannel.invokeMethod('openCastSettings');
+      try {
+        await _castChannel.invokeMethod('openCastSettings');
+      } catch (_) {}
     } else {
       if (!mounted) return;
       showModalBottomSheet(
