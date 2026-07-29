@@ -70,7 +70,10 @@ class HomeScreen extends ConsumerWidget {
               child: RefreshIndicator(
                 color: AppTheme.figmaGreen,
                 onRefresh: () async {
-                  await ref.read(progressProvider.notifier).refreshFromApi();
+                  await Future.wait([
+                    ref.read(progressProvider.notifier).refreshFromApi(),
+                    ref.read(coursesProvider.notifier).refresh(),
+                  ]);
                   ref.invalidate(homeLeaderboardProvider);
                 },
                 child: SingleChildScrollView(
@@ -94,7 +97,7 @@ class HomeScreen extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
                 child: courseExpired && activeCourse != null
                     ? _buildCompletedCourseBanner(context, activeCourse, daysSinceCompletion)
-                    : _buildActiveCourseBanner(context, ref, progressState, activeCourse),
+                    : _buildActiveCourseBanner(context, ref, progressState, activeCourse, isLoading: coursesState.isLoading),
               ),
 
               const SizedBox(height: AppSpacing.lg),
@@ -634,8 +637,20 @@ class HomeScreen extends ConsumerWidget {
 
   // ─── Active Course Progress Banner ────────────────────────────────────────
 
-  Widget _buildActiveCourseBanner(BuildContext context, WidgetRef ref, ProgressState ps, CourseModel? activeCourse) {
+  Widget _buildActiveCourseBanner(BuildContext context, WidgetRef ref, ProgressState ps, CourseModel? activeCourse, {bool isLoading = false}) {
     if (activeCourse == null) {
+      if (isLoading) {
+        return Container(
+          decoration: BoxDecoration(
+            color: AppTheme.figmaGreen,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 32),
+          child: const Center(
+            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+          ),
+        );
+      }
       return Container(
         decoration: BoxDecoration(
           color: AppTheme.figmaGreen,
