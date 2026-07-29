@@ -22,6 +22,21 @@ class ProgramsScreen extends ConsumerStatefulWidget {
 
 class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
   late String _activeTab;
+  bool _quoteVisible = true;
+  double _lastScrollOffset = 0;
+
+  bool _onScroll(ScrollNotification notification) {
+    if (notification is ScrollUpdateNotification) {
+      final delta = notification.metrics.pixels - _lastScrollOffset;
+      _lastScrollOffset = notification.metrics.pixels;
+      if (delta > 4 && _quoteVisible) {
+        setState(() => _quoteVisible = false);
+      } else if (delta < -4 && !_quoteVisible) {
+        setState(() => _quoteVisible = true);
+      }
+    }
+    return false;
+  }
 
   @override
   void initState() {
@@ -56,11 +71,22 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
             _buildHeader(progressState.currentStreak),
             const SizedBox(height: AppSpacing.lg),
 
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-              child: _buildDisciplineNote(),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOut,
+              child: _quoteVisible
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildDisciplineNote(),
+                          const SizedBox(height: AppSpacing.lg),
+                        ],
+                      ),
+                    )
+                  : const SizedBox.shrink(),
             ),
-            const SizedBox(height: AppSpacing.lg),
 
             // ── Tab Selector ─────────────────────────────────────────
             _buildTabSelector(),
@@ -68,9 +94,12 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
 
             // ── Tab Body ─────────────────────────────────────────────
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                child: _buildTabContent(progressState),
+              child: NotificationListener<ScrollNotification>(
+                onNotification: _onScroll,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                  child: _buildTabContent(progressState),
+                ),
               ),
             ),
           ],
@@ -470,7 +499,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
               ),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: () => context.go('/programs?tab=explore'),
+                onPressed: () => setState(() => _activeTab = 'explore'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.figmaGreen,
                   foregroundColor: Colors.white,
@@ -773,11 +802,13 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
             'courseId': course.id,
             'title': course.title,
             'imagePath': imagePath,
+            'fromExplore': true,
           }),
           onEnroll: () => context.push('/program_details', extra: {
             'courseId': course.id,
             'title': course.title,
             'imagePath': imagePath,
+            'fromExplore': true,
           }),
         );
       },

@@ -20,6 +20,7 @@ class ProgramDetailsScreen extends ConsumerStatefulWidget {
   final String? courseTitle;
   final String? courseImagePath;
   final String? courseId;
+  final bool fromExplore;
 
   const ProgramDetailsScreen({
     super.key,
@@ -27,6 +28,7 @@ class ProgramDetailsScreen extends ConsumerStatefulWidget {
     this.courseTitle,
     this.courseImagePath,
     this.courseId,
+    this.fromExplore = false,
   });
 
   @override
@@ -323,85 +325,58 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                           const SizedBox(height: 24),
 
                           // Instructor Card
-                          GestureDetector(
-                            onTap: () => _showInstructorSheet(
-                              context,
-                              name: courseDetail?.instructorName ?? 'Deepa',
-                              title: courseDetail?.instructorTitle ?? 'Certified Yoga Instructor',
-                              bio: courseDetail?.instructorBio,
-                              photoUrl: courseDetail?.instructorPhotoUrl,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
                             ),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 12,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: const Color(0xFFE2E8F0),
                               ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: const Color(0xFFE2E8F0),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x02000000),
+                                  blurRadius: 8,
+                                  offset: Offset(0, 4),
                                 ),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Color(0x02000000),
-                                    blurRadius: 8,
-                                    offset: Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                children: [
-                                  _InstructorAvatar(
-                                    photoUrl: courseDetail?.instructorPhotoUrl,
-                                    size: 40,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          courseDetail?.instructorName ?? 'Deepa',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppTheme.darkSlate,
-                                          ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                _InstructorAvatar(
+                                  photoUrl: courseDetail?.instructorPhotoUrl,
+                                  size: 40,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        courseDetail?.instructorName ?? 'Deepa',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.figmaCharcoal,
                                         ),
-                                        Text(
-                                          courseDetail?.instructorTitle ?? 'Certified Yoga Instructor',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppTheme.figmaGreen,
-                                          ),
+                                      ),
+                                      Text(
+                                        courseDetail?.instructorTitle ?? 'Certified Yoga Instructor',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.figmaGreen,
                                         ),
-                                      ],
-                                    ),
-                                  ),
-                                  Container(
-                                    width: 32,
-                                    height: 32,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.white,
-                                      border: Border.all(
-                                        color: AppTheme.figmaGreen.withAlpha(76),
                                       ),
-                                    ),
-                                    child: const Center(
-                                      child: Icon(
-                                        Icons.person_outline_rounded,
-                                        color: AppTheme.figmaGreen,
-                                        size: 18,
-                                      ),
-                                    ),
+                                    ],
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           ),
                           if (isEnrolled &&
@@ -456,8 +431,8 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                             ),
                           ],
 
-                          // Certificate download — shown when course is expired/completed
-                          if (courseExpired && isEnrolled) ...[
+                          // Certificate download — shown when course is expired/completed (not in explore context)
+                          if (courseExpired && isEnrolled && !widget.fromExplore) ...[
                             const SizedBox(height: 16),
                             GestureDetector(
                               onTap: () {
@@ -572,7 +547,7 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                               : Column(
                                   children: displayedDays.map((dayModel) {
                                     final int dayNumber = dayModel.dayNumber;
-                                    final isDayCompleted = progressState.completedDays.contains(dayNumber);
+                                    final isDayCompleted = !courseExpired && !widget.fromExplore && progressState.completedDays.contains(dayNumber);
                                     final isPlayable =
                                         isEnrolled && !courseExpired && dayNumber == todayDayNumber;
                                     final isMissed = isEnrolled && !courseExpired &&
@@ -658,26 +633,6 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
               ),
             ),
         ],
-      ),
-    );
-  }
-
-  void _showInstructorSheet(
-    BuildContext context, {
-    required String name,
-    required String title,
-    String? bio,
-    String? photoUrl,
-  }) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => _InstructorSheet(
-        name: name,
-        title: title,
-        bio: bio,
-        photoUrl: photoUrl,
       ),
     );
   }
@@ -1439,77 +1394,3 @@ class _InstructorAvatar extends StatelessWidget {
   }
 }
 
-class _InstructorSheet extends StatelessWidget {
-  final String name;
-  final String title;
-  final String? bio;
-  final String? photoUrl;
-
-  const _InstructorSheet({
-    required this.name,
-    required this.title,
-    this.bio,
-    this.photoUrl,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 12),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE2E8F0),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 28),
-          _InstructorAvatar(photoUrl: photoUrl, size: 88),
-          const SizedBox(height: 16),
-          Text(
-            name,
-            style: GoogleFonts.inter(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.darkSlate,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.figmaGreen,
-            ),
-          ),
-          if (bio != null && bio!.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
-              child: Text(
-                bio!,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  height: 1.6,
-                  color: const Color(0xFF5B5B5B),
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 32),
-        ],
-      ),
-    );
-  }
-}

@@ -29,11 +29,30 @@ String _categoryLabel(String? category) =>
 String _categoryValue(String label) =>
     label == 'General Workout' ? 'general_exercise' : 'yoga';
 
-class VideosScreen extends ConsumerWidget {
+class VideosScreen extends ConsumerStatefulWidget {
   const VideosScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<VideosScreen> createState() => _VideosScreenState();
+}
+
+class _VideosScreenState extends ConsumerState<VideosScreen> {
+  bool _quoteVisible = true;
+
+  bool _onScroll(ScrollNotification notification) {
+    if (notification is ScrollUpdateNotification) {
+      final delta = notification.scrollDelta ?? 0;
+      if (delta > 2 && _quoteVisible) {
+        setState(() => _quoteVisible = false);
+      } else if (delta < -2 && !_quoteVisible) {
+        setState(() => _quoteVisible = true);
+      }
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final isGuest = ref.watch(authProvider).user == null;
     final fvState = ref.watch(freeVideosProvider);
     final progressState = ref.watch(progressProvider);
@@ -69,10 +88,19 @@ class VideosScreen extends ConsumerWidget {
               coursesState.activeCourses,
               isGuest,
             ),
-            const SizedBox(height: AppSpacing.lg),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-              child: _buildDisciplineNote(),
+            ClipRect(
+              child: AnimatedSize(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                child: _quoteVisible
+                    ? Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, 0,
+                        ),
+                        child: _buildDisciplineNote(),
+                      )
+                    : const SizedBox.shrink(),
+              ),
             ),
             if (!isGuest && hasEnrolledCourses) ...[
               const SizedBox(height: AppSpacing.lg),
@@ -105,7 +133,9 @@ class VideosScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.xl),
             ],
             Expanded(
-              child: RefreshIndicator(
+              child: NotificationListener<ScrollNotification>(
+                onNotification: _onScroll,
+                child: RefreshIndicator(
                 color: AppTheme.figmaGreen,
                 onRefresh: () async {
                   await Future.wait([
@@ -129,6 +159,7 @@ class VideosScreen extends ConsumerWidget {
                             : 'dJMOsV_2nXI',
                       )
                     : _buildLoggedInNoCourseContent(context, fvState),
+              ),
               ),
             ),
           ],
@@ -588,6 +619,7 @@ class VideosScreen extends ConsumerWidget {
                           'courseId': viewingCourseId,
                           'title': course?.title ?? '',
                           'imagePath': thumbPath,
+                          'fromExplore': true,
                         });
                       },
                       child: Text(

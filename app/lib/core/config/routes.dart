@@ -143,11 +143,13 @@ class AppRouter {
           final title = extra?['title'] as String?;
           final imagePath = extra?['imagePath'] as String?;
           final courseId = extra?['courseId'] as String?;
+          final fromExplore = (extra?['fromExplore'] as bool?) ?? false;
           return ProgramDetailsScreen(
             courseId: courseId,
             courseTitle: title,
             courseImagePath: imagePath,
             showBackButton: true,
+            fromExplore: fromExplore,
           );
         },
       ),

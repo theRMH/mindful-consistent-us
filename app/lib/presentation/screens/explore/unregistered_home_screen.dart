@@ -72,7 +72,7 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
         backgroundColor: Colors.white,
         body: SafeArea(
           child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
+            physics: const ClampingScrollPhysics(),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -499,7 +499,7 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
     return GestureDetector(
       onTap: () => context.push(
         '/program_details',
-        extra: {'courseId': courseId, 'title': title, 'imagePath': imagePath},
+        extra: {'courseId': courseId, 'title': title, 'imagePath': imagePath, 'fromExplore': true},
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),

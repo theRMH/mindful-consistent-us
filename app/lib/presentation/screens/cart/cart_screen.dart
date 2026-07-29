@@ -30,17 +30,24 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   Map<String, dynamic>? _courseData;
   bool _loadingCourse = true;
 
-  double get _originalPrice {
+  double? get _originalPrice {
     final raw = _courseData?['priceInr'];
-    if (raw == null) return 999.0;
+    if (raw == null) return null;
     if (raw is num) return raw.toDouble();
-    return double.tryParse(raw.toString()) ?? 999.0;
+    return double.tryParse(raw.toString());
   }
 
-  double get _unitPrice => _couponApplied && _couponDiscount != null
-      ? (_originalPrice - _couponDiscount!).clamp(0, double.infinity)
-      : _originalPrice;
-  double get _totalPayable => _unitPrice * _quantity;
+  double? get _unitPrice {
+    final base = _originalPrice;
+    if (base == null) return null;
+    return _couponApplied && _couponDiscount != null
+        ? (base - _couponDiscount!).clamp(0, double.infinity)
+        : base;
+  }
+  double? get _totalPayable {
+    final u = _unitPrice;
+    return u == null ? null : u * _quantity;
+  }
 
   @override
   void initState() {
@@ -88,15 +95,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 24),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: _buildPageNote(
-                      icon: Icons.shopping_bag_outlined,
-                      title: 'Ready to unlock',
-                      message: 'Pay instantly with UPI and start today.',
-                    ),
-                  ),
-                  const SizedBox(height: 20),
                   _buildSectionHeader(),
                   const SizedBox(height: 12),
                   _buildCourseCard(),
@@ -139,22 +137,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                       ),
                       child: Row(
                         children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF072654),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Center(
-                              child: Text(
-                                'R',
-                                style: GoogleFonts.inter(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.asset(
+                              'assets/razorpay.png',
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.contain,
                             ),
                           ),
                           const SizedBox(width: 14),
@@ -286,56 +275,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
   // ─── Section Header ──────────────────────────────────────────────────────
 
-  Widget _buildPageNote({
-    required IconData icon,
-    required String title,
-    required String message,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5FAF2),
-        borderRadius: BorderRadius.circular(AppRadii.xxl),
-        border: Border.all(color: const Color(0xFFD4EAC8)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: const BoxDecoration(
-              color: AppTheme.figmaGreen,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: Colors.white, size: 22),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    fontSize: AppFontSizes.bodyLarge,
-                    fontWeight: AppFontWeights.bold,
-                    color: AppTheme.figmaCharcoal,
-                  ),
-                ),
-                Text(
-                  message,
-                  style: GoogleFonts.inter(
-                    fontSize: AppFontSizes.bodyMedium,
-                    color: AppTheme.figmaMutedGray,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
   Widget _buildSectionHeader() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -437,14 +376,23 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    '₹${_unitPrice.toInt()}',
-                    style: GoogleFonts.inter(
-                      fontSize: 15,
-                      fontWeight: AppFontWeights.semiBold,
-                      color: AppTheme.figmaCharcoal,
-                    ),
-                  ),
+                  _unitPrice == null
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppTheme.figmaGreen,
+                          ),
+                        )
+                      : Text(
+                          '₹${_unitPrice!.toInt()}',
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            fontWeight: AppFontWeights.semiBold,
+                            color: AppTheme.figmaCharcoal,
+                          ),
+                        ),
                 ],
               ),
             ),
@@ -638,7 +586,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             ),
           ),
           Text(
-            '₹${_totalPayable.toInt()}',
+            _totalPayable == null ? '—' : '₹${_totalPayable!.toInt()}',
             style: GoogleFonts.inter(
               fontSize: 15,
               fontWeight: AppFontWeights.semiBold,
@@ -675,7 +623,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         child: Row(
           children: [
             Text(
-              '₹${_totalPayable.toInt()}',
+              _totalPayable == null ? '—' : '₹${_totalPayable!.toInt()}',
               style: GoogleFonts.inter(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
@@ -866,7 +814,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 
   Future<void> _processPayment() async {
-    if (_isProcessing) return;
+    if (_isProcessing || _totalPayable == null) return;
     setState(() => _isProcessing = true);
     try {
       final couponCode = _couponApplied ? _couponController.text.trim() : null;
@@ -932,7 +880,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       );
       if (!mounted) return;
       setState(() => _isProcessing = false);
-      _goToThankYou(amountPaid: _totalPayable.toInt());
+      _goToThankYou(amountPaid: _totalPayable!.toInt());
     } catch (e) {
       if (mounted) {
         setState(() => _isProcessing = false);

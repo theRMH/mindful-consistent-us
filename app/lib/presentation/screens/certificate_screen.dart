@@ -110,7 +110,7 @@ class _CertificateScreenState extends ConsumerState<CertificateScreen> {
                             // Days number
                             Positioned(
                               left: w * 0.05,
-                              top: h * 0.52,
+                              top: h * 0.52 - 2,
                               width: w * 0.15,
                               child: Text(
                                 '${widget.totalDays}',

@@ -141,13 +141,10 @@ class HomeScreen extends ConsumerWidget {
                                 color: const Color(0xFFF2F9F5),
                                 borderRadius: BorderRadius.circular(16),
                               ),
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
                                   SizedBox(
                                     height: 38,
                                     child: Center(
@@ -162,6 +159,7 @@ class HomeScreen extends ConsumerWidget {
                                   const SizedBox(height: 6),
                                   Text(
                                     'Yoga',
+                                    textAlign: TextAlign.center,
                                     style: GoogleFonts.inter(
                                       color: AppTheme.figmaGreen,
                                       fontSize: 12.5,
@@ -176,7 +174,7 @@ class HomeScreen extends ConsumerWidget {
                                       borderRadius: BorderRadius.circular(100),
                                     ),
                                     child: Row(
-                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
                                         Text(
                                           'Go to Yoga',
@@ -207,7 +205,7 @@ class HomeScreen extends ConsumerWidget {
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    'Flexibility · Mobility · Strength',
+                                    'Flexibility · Mobility',
                                     textAlign: TextAlign.center,
                                     style: GoogleFonts.inter(
                                       color: AppTheme.figmaMutedGray,
@@ -217,8 +215,7 @@ class HomeScreen extends ConsumerWidget {
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                                  ],
-                                ),
+                                ],
                               ),
                             ),
                           ),
@@ -240,13 +237,10 @@ class HomeScreen extends ConsumerWidget {
                                 color: const Color(0xFFFFF8E7),
                                 borderRadius: BorderRadius.circular(16),
                               ),
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
                                   SizedBox(
                                     height: 38,
                                     child: Center(
@@ -261,6 +255,7 @@ class HomeScreen extends ConsumerWidget {
                                   const SizedBox(height: 6),
                                   Text(
                                     'General Exercise',
+                                    textAlign: TextAlign.center,
                                     style: GoogleFonts.inter(
                                       color: AppTheme.brown,
                                       fontSize: 12.5,
@@ -277,7 +272,7 @@ class HomeScreen extends ConsumerWidget {
                                       borderRadius: BorderRadius.circular(100),
                                     ),
                                     child: Row(
-                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
                                         Text(
                                           'Go to Workouts',
@@ -308,18 +303,15 @@ class HomeScreen extends ConsumerWidget {
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    'Strength · Energy · Vitality',
+                                    'Energy',
                                     textAlign: TextAlign.center,
                                     style: GoogleFonts.inter(
                                       color: AppTheme.figmaMutedGray,
                                       fontSize: 11,
                                       fontWeight: FontWeight.w500,
                                     ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  ],
-                                ),
+                                ],
                               ),
                             ),
                           ),
@@ -706,6 +698,19 @@ class HomeScreen extends ConsumerWidget {
     final currentDay = (ps.currentDay ?? completedCount + 1).clamp(1, totalDays);
     final courseTitle = activeCourse.title;
 
+    // Build subtitle — show completion date when all days are done
+    String bannerSubtitle = 'Show up for yourself, Every single day.';
+    if (completedCount >= totalDays) {
+      final enrollment = ref.read(coursesProvider).enrollmentForCourse(activeCourse.id);
+      if (enrollment != null) {
+        final enrolledAt = enrollment.enrolledAt.toLocal();
+        final enrolledDate = DateTime(enrolledAt.year, enrolledAt.month, enrolledAt.day);
+        final completionDate = enrolledDate.add(Duration(days: totalDays - 1));
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        bannerSubtitle = 'Completed on ${completionDate.day} ${months[completionDate.month - 1]}';
+      }
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.figmaGreen,
@@ -735,7 +740,7 @@ class HomeScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
-                      'Show up for yourself, Every single day.',
+                      bannerSubtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
@@ -1823,7 +1828,8 @@ class _DayStrip extends StatefulWidget {
 
 class _DayStripState extends State<_DayStrip> {
   final _scroll = ScrollController();
-  static const double _itemW = 44.0;
+  static const double _minItemW = 44.0;
+  double _currentItemW = _minItemW;
 
   @override
   void initState() {
@@ -1842,7 +1848,7 @@ class _DayStripState extends State<_DayStrip> {
   void _centreCurrentDay() {
     if (!_scroll.hasClients) return;
     final vp = _scroll.position.viewportDimension;
-    final target = (widget.currentDay - 1) * _itemW + _itemW / 2 - vp / 2;
+    final target = (widget.currentDay - 1) * _currentItemW + _currentItemW / 2 - vp / 2;
     _scroll.jumpTo(target.clamp(0.0, _scroll.position.maxScrollExtent));
   }
 
@@ -1856,17 +1862,26 @@ class _DayStripState extends State<_DayStrip> {
   Widget build(BuildContext context) {
     return SizedBox(
       height: 60,
-      child: SingleChildScrollView(
-        controller: _scroll,
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: List.generate(widget.totalDays, (i) => _buildItem(i + 1)),
-        ),
+      child: LayoutBuilder(
+        builder: (ctx, constraints) {
+          final availW = constraints.maxWidth;
+          final fitsInRow = widget.totalDays * _minItemW <= availW;
+          _currentItemW = fitsInRow ? availW / widget.totalDays : _minItemW;
+          final items = List.generate(widget.totalDays, (i) => _buildItem(i + 1, _currentItemW));
+          if (fitsInRow) {
+            return Row(children: items);
+          }
+          return SingleChildScrollView(
+            controller: _scroll,
+            scrollDirection: Axis.horizontal,
+            child: Row(children: items),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildItem(int dayNum) {
+  Widget _buildItem(int dayNum, double itemW) {
     final isCompleted = widget.completedDays.contains(dayNum);
     final isCurrentDay = dayNum == widget.currentDay;
     final isMissed = !isCompleted && !isCurrentDay && dayNum < widget.currentDay;
@@ -1967,7 +1982,7 @@ class _DayStripState extends State<_DayStrip> {
     }
 
     return SizedBox(
-      width: _itemW,
+      width: itemW,
       child: Stack(
         alignment: Alignment.center,
         children: [
