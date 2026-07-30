@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/config/app_config.dart';
 import '../../providers/auth_provider.dart';
@@ -343,12 +344,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: thumbnailUrl != null && thumbnailUrl.isNotEmpty
-                  ? Image.network(
-                      thumbnailUrl,
+                  ? CachedNetworkImage(
+                      imageUrl: thumbnailUrl,
                       width: 80,
                       height: 80,
                       fit: BoxFit.cover,
-                      errorBuilder: (ctx, e, st) => _buildCoursePlaceholder(),
+                      errorWidget: (ctx, url, e) => _buildCoursePlaceholder(),
                     )
                   : Image.asset(
                       'assets/course_30_days.png',

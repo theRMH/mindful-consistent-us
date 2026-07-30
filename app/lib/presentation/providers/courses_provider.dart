@@ -79,27 +79,26 @@ class CoursesNotifier extends StateNotifier<CoursesState> {
   Future<void> _load() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final coursesData = await _apiService.getCourses().timeout(
-        const Duration(seconds: 30),
-      );
-
-      List<dynamic> enrollmentsData = [];
-      if (_ref.read(authProvider).isAuthenticated) {
-        try {
-          final token = await FirebaseAuth.instance.currentUser?.getIdToken();
-          if (token != null) _apiService.setToken(token);
-          enrollmentsData = await _apiService.getEnrollments().timeout(
-            const Duration(seconds: 30),
-          );
-        } catch (_) {}
+      final isAuth = _ref.read(authProvider).isAuthenticated;
+      if (isAuth) {
+        final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+        if (token != null) _apiService.setToken(token);
       }
 
-      final courses = coursesData.map((e) => CourseModel.fromJson(e)).toList();
+      final results = await Future.wait([
+        _apiService.getCourses().timeout(const Duration(seconds: 30)),
+        if (isAuth)
+          _apiService.getEnrollments().timeout(const Duration(seconds: 30)).catchError((_) => <dynamic>[])
+        else
+          Future<dynamic>.value(<dynamic>[]),
+      ]);
 
-      final enrollmentList = enrollmentsData
+      final courses = (results[0] as List<dynamic>)
+          .map((e) => CourseModel.fromJson(e))
+          .toList();
+      final enrollmentList = (results[1] as List<dynamic>)
           .map((e) => EnrollmentModel.fromJson(e))
           .toList();
-
       final enrolledIds = enrollmentList.map((e) => e.courseId).toSet();
 
       state = state.copyWith(

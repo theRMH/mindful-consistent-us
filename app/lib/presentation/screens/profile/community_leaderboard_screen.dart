@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/config/theme.dart';
 import '../../../core/services/api_service.dart';
 import '../../providers/courses_provider.dart';
@@ -613,10 +614,10 @@ class _CommunityLeaderboardScreenState
       child: ClipRRect(
         borderRadius: BorderRadius.circular(size / 2),
         child: (url != null && url.isNotEmpty)
-            ? Image.network(
-                url,
+            ? CachedNetworkImage(
+                imageUrl: url,
                 fit: BoxFit.cover,
-                errorBuilder: (ctx, err, trace) => _initials(initial, size, bgColor),
+                errorWidget: (ctx, u, err) => _initials(initial, size, bgColor),
               )
             : _initials(initial, size, bgColor),
       ),

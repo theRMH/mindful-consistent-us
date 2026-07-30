@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/config/theme.dart';
 import '../../../data/models/course_model.dart';
 import '../../providers/auth_provider.dart';
@@ -1172,10 +1173,10 @@ class _VideosScreenState extends ConsumerState<VideosScreen> {
               ),
               child: ClipOval(
                 child: _isNetworkPath(imagePath)
-                    ? Image.network(
-                        imagePath,
+                    ? CachedNetworkImage(
+                        imageUrl: imagePath,
                         fit: BoxFit.cover,
-                        errorBuilder: (ctx, err, st) => const Icon(
+                        errorWidget: (ctx, url, err) => const Icon(
                           Icons.self_improvement_rounded,
                           color: AppTheme.figmaGreen,
                           size: 24,
@@ -1550,10 +1551,10 @@ class _VideosScreenState extends ConsumerState<VideosScreen> {
                 fit: StackFit.expand,
                 children: [
                   _isNetworkPath(imagePath)
-                      ? Image.network(
-                          imagePath,
+                      ? CachedNetworkImage(
+                          imageUrl: imagePath,
                           fit: BoxFit.cover,
-                          errorBuilder: (ctx, err, st) => Container(
+                          errorWidget: (ctx, url, err) => Container(
                             color: AppTheme.lightGray,
                             child: const Icon(
                               Icons.play_circle_outline,

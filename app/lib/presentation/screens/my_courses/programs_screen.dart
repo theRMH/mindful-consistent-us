@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/config/theme.dart';
 import '../../../data/models/course_model.dart';
 import '../../providers/auth_provider.dart';
@@ -761,8 +762,8 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
       child: const Icon(Icons.spa_rounded, color: AppTheme.figmaGreen),
     );
     if (path.startsWith('http')) {
-      return Image.network(path, width: width, height: height, fit: fit,
-          errorBuilder: (ctx, err, st) => fallback);
+      return CachedNetworkImage(imageUrl: path, width: width, height: height, fit: fit,
+          errorWidget: (ctx, url, err) => fallback);
     }
     return Image.asset(path, width: width, height: height, fit: fit,
         errorBuilder: (ctx, err, st) => fallback);

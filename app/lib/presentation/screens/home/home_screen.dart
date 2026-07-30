@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../../core/config/theme.dart';
 import '../../../data/models/course_model.dart';
 import '../../providers/auth_provider.dart';
@@ -74,7 +76,6 @@ class HomeScreen extends ConsumerWidget {
                     ref.read(progressProvider.notifier).refreshFromApi(),
                     ref.read(coursesProvider.notifier).refresh(),
                   ]);
-                  ref.invalidate(homeLeaderboardProvider);
                 },
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -867,9 +868,19 @@ class HomeScreen extends ConsumerWidget {
   // ─── Stats Row ────────────────────────────────────────────────────────────
 
   Widget _buildStatsRow(BuildContext context, WidgetRef ref, ProgressState ps, CourseModel? activeCourse) {
-    final liveSteps = ref.watch(todayStepsProvider);
-    final cachedSteps = ref.watch(todayStepsCachedProvider).valueOrNull ?? 0;
-    final todaySteps = liveSteps > 0 ? liveSteps : cachedSteps;
+    if (ps.isLoading && ps.mindfulMins == 0 && ps.completedSessionsToday == 0) {
+      return Shimmer.fromColors(
+        baseColor: const Color(0xFFE8E8E8),
+        highlightColor: const Color(0xFFF5F5F5),
+        child: Container(
+          height: 80,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
+      );
+    }
     final goalPct = activeCourse != null && activeCourse.totalDays > 0
         ? ((ps.completedDays.length + ps.stepsGoalDays) / (activeCourse.totalDays * 2) * 100).toInt().clamp(0, 100)
         : 0;
@@ -1337,8 +1348,20 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildLeaderboardCard(BuildContext context, WidgetRef ref, ProgressState ps) {
-    final liveAsync = ref.watch(homeLeaderboardProvider);
-    final leaderboard = liveAsync.valueOrNull ?? ps.leaderboard;
+    if (ps.isLoading && ps.leaderboard.isEmpty) {
+      return Shimmer.fromColors(
+        baseColor: const Color(0xFFE8E8E8),
+        highlightColor: const Color(0xFFF5F5F5),
+        child: Container(
+          height: 210,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppRadii.xxl),
+          ),
+        ),
+      );
+    }
+    final leaderboard = ps.leaderboard;
     final rank1 = leaderboard.isNotEmpty ? leaderboard[0] : null;
     final rank2 = leaderboard.length > 1 ? leaderboard[1] : null;
     final rank3 = leaderboard.length > 2 ? leaderboard[2] : null;
@@ -1562,10 +1585,10 @@ class HomeScreen extends ConsumerWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(avatarR),
                 child: avatarUrl.isNotEmpty
-                    ? Image.network(
-                        avatarUrl,
+                    ? CachedNetworkImage(
+                        imageUrl: avatarUrl,
                         fit: BoxFit.cover,
-                        errorBuilder: (ctx, err, st) => Center(child: avatarChild),
+                        errorWidget: (ctx, url, err) => Center(child: avatarChild),
                       )
                     : Center(child: avatarChild),
               ),

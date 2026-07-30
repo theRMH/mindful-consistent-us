@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -220,10 +221,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(48),
                                 child: avatarUrl != null
-                                    ? Image.network(
-                                        avatarUrl,
+                                    ? CachedNetworkImage(
+                                        imageUrl: avatarUrl,
                                         fit: BoxFit.cover,
-                                        errorBuilder: (ctx, err, st) =>
+                                        errorWidget: (ctx, url, err) =>
                                             _buildInitialsCircle(fullName),
                                       )
                                     : _buildInitialsCircle(fullName),

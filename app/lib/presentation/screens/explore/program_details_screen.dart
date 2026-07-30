@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/courses_provider.dart';
 import '../../providers/progress_provider.dart';
@@ -716,12 +717,12 @@ class _SessionDayTileState extends State<SessionDayTile> {
       ),
       child: Center(
         child: _isNetworkPath(iconPath)
-            ? Image.network(
-                iconPath,
+            ? CachedNetworkImage(
+                imageUrl: iconPath,
                 width: 28,
                 height: 28,
                 fit: BoxFit.contain,
-                errorBuilder: (ctx, err, st) => const Icon(
+                errorWidget: (ctx, url, err) => const Icon(
                   Icons.self_improvement_rounded,
                   color: AppTheme.figmaGreen,
                   size: 24,

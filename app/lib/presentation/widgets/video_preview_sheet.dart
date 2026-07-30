@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/config/theme.dart';
 
 /// Shows a half-screen bottom sheet preview of a video.
@@ -227,12 +228,12 @@ class _VideoPreviewSheetState extends State<_VideoPreviewSheet> {
       ),
     );
     if (_thumbnailUrl != null && _thumbnailUrl!.isNotEmpty) {
-      return Image.network(
-        _thumbnailUrl!,
+      return CachedNetworkImage(
+        imageUrl: _thumbnailUrl!,
         height: 200,
         width: double.infinity,
         fit: BoxFit.cover,
-        errorBuilder: (ctx, err, st) => placeholder,
+        errorWidget: (ctx, url, err) => placeholder,
       );
     }
     return placeholder;

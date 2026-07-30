@@ -470,20 +470,6 @@ final progressProvider = StateNotifierProvider<ProgressNotifier, ProgressState>(
   },
 );
 
-// Leaderboard fetched independently so home screen always shows fresh data.
-// Watches authProvider so it re-runs after login (token is set before this fires).
-final homeLeaderboardProvider = FutureProvider<List<LeaderboardUser>>((
-  ref,
-) async {
-  ref.watch(authProvider); // re-run when auth state changes
-  final api = ApiService();
-  final data = await api.getLeaderboard();
-  final entries = data['entries'] as List<dynamic>? ?? [];
-  return entries
-      .map((e) => LeaderboardUser.fromJson(e as Map<String, dynamic>))
-      .toList();
-});
-
 // Live today's step count from the local pedometer (written by StepsScreen).
 // Home screen reads this instead of progressState.steps so both show the same number.
 final todayStepsProvider = StateProvider<int>((ref) => 0);
