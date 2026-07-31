@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/config/theme.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/courses_provider.dart';
 import '../../providers/free_videos_provider.dart';
 import '../../providers/community_moments_provider.dart';
@@ -49,6 +50,16 @@ class _UnregisteredHomeScreenState extends ConsumerState<UnregisteredHomeScreen>
     final coursesState = ref.watch(coursesProvider);
     final fvState = ref.watch(freeVideosProvider);
     final cmState = ref.watch(communityMomentsProvider);
+    final authState = ref.watch(authProvider);
+
+    // Once courses load, redirect authenticated users who now have an active course
+    ref.listen<CoursesState>(coursesProvider, (prev, next) {
+      if (!next.isLoading && next.hasActiveCourse && authState.isAuthenticated) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) context.go('/home');
+        });
+      }
+    });
 
     final isLoading =
         coursesState.isLoading || fvState.isLoading || cmState.isLoading;

@@ -181,18 +181,17 @@ export async function POST(req: NextRequest) {
         }
 
         if (existingEnrollment) {
-          if (!existingEnrollment.isActive) {
-            const updated = await tx.enrollment.update({
-              where: { id: existingEnrollment.id },
-              data: {
-                isActive: true,
-                paymentId: verifiedPaymentId,
-                paymentStatus: "completed",
-              },
-            });
-            return { existingEnrollment: updated, enrollment: null };
-          }
-          return { existingEnrollment, enrollment: null };
+          // Always reset enrolledAt on re-purchase so the course calendar restarts today
+          const updated = await tx.enrollment.update({
+            where: { id: existingEnrollment.id },
+            data: {
+              isActive: true,
+              paymentId: verifiedPaymentId,
+              paymentStatus: "completed",
+              enrolledAt: new Date(),
+            },
+          });
+          return { existingEnrollment: updated, enrollment: null };
         }
 
         const enrollment = await tx.enrollment.create({

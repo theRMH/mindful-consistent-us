@@ -46,6 +46,22 @@ class CoursesState {
     return matches.isEmpty ? null : matches.first;
   }
 
+  bool get hasActiveCourse {
+    if (enrollments.isEmpty) return false;
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+    for (final enrollment in enrollments) {
+      final matches = allCourses.where((c) => c.id == enrollment.courseId);
+      if (matches.isEmpty) continue;
+      final course = matches.first;
+      final enrolledAt = enrollment.enrolledAt.toLocal();
+      final enrolledDate = DateTime(enrolledAt.year, enrolledAt.month, enrolledAt.day);
+      final calendarDay = todayDate.difference(enrolledDate).inDays + 1;
+      if (calendarDay <= course.totalDays) return true;
+    }
+    return false;
+  }
+
   CoursesState copyWith({
     List<CourseModel>? allCourses,
     Set<String>? enrolledCourseIds,

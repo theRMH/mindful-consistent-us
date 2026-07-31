@@ -27,6 +27,20 @@ class HomeScreen extends ConsumerWidget {
     final authState = ref.watch(authProvider);
     final progressState = ref.watch(progressProvider);
     final coursesState = ref.watch(coursesProvider);
+
+    // Once courses finish loading, redirect to explore if no active purchase
+    ref.listen<CoursesState>(coursesProvider, (prev, next) {
+      if (!next.isLoading && !next.hasActiveCourse) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) context.go('/unregistered');
+        });
+      }
+    });
+
+    if (!coursesState.isLoading && !coursesState.hasActiveCourse) {
+      return const Scaffold(backgroundColor: Colors.white, body: SizedBox.shrink());
+    }
+
     final userProfile = authState.user;
     final userName = (userProfile?.fullName ?? '').trim().isNotEmpty
         ? userProfile!.fullName.trim()
