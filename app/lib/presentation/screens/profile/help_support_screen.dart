@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -54,7 +54,7 @@ class HelpSupportScreen extends ConsumerWidget {
             );
           }
           return SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
+            physics: const ClampingScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(8, 8, 8, 32),
             child: Html(
               data: html,
@@ -140,3 +140,4 @@ class HelpSupportScreen extends ConsumerWidget {
     );
   }
 }
+

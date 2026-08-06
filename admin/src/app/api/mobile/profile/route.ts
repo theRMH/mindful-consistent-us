@@ -21,8 +21,19 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
+    // Auto-assign a DiceBear avatar for users who have never set one
+    let { avatarUrl } = profile;
+    if (!avatarUrl) {
+      const seed = encodeURIComponent((profile.fullName || profile.phone || profile.id).trim());
+      avatarUrl = `https://api.dicebear.com/7.x/thumbs/svg?seed=${seed}&radius=50`;
+      await prisma.profile.update({
+        where: { id: user.id },
+        data: { avatarUrl },
+      });
+    }
+
     const stepsGoal = parseInt(stepsGoalSetting?.value ?? '10000', 10);
-    return NextResponse.json({ ...profile, stepsGoal }, { status: 200 });
+    return NextResponse.json({ ...profile, avatarUrl, stepsGoal }, { status: 200 });
   } catch (error) {
     console.error('Error fetching profile:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

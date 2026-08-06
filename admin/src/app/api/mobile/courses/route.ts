@@ -42,8 +42,8 @@ export async function GET() {
         category: course.category,
         difficulty: course.difficulty ?? 'Beginner',
         totalDays: course.totalDays,
-        priceInr: course.priceInr,
-        priceUsd: course.priceUsd ?? null,
+        priceInr: Number(course.priceInr),
+        priceUsd: course.priceUsd != null ? Number(course.priceUsd) : null,
         avgDailyMins,
       };
     });

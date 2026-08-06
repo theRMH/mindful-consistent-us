@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -37,6 +37,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _loadHealthPref() async {
+    // Check actual permission status first — the user may have granted it
+    // from the steps page without touching the profile toggle.
+    final hasPerms = await HealthSyncService().hasPermission();
+    if (mounted && hasPerms) {
+      setState(() => _healthConnected = true);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_prefHealthConnected, true);
+      return;
+    }
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
       setState(() {
@@ -69,7 +78,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               title: const Text('Allow Steps Access'),
               content: const Text(
                 'To sync your steps, please open the Health Connect app and allow this app to read Steps data.\n\n'
-                'Health Connect → App permissions → Mindful → Steps → Allow',
+                'Health Connect â†’ App permissions â†’ Mindful â†’ Steps â†’ Allow',
               ),
               actions: [
                 TextButton(
@@ -176,11 +185,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7F7),
       body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
+        physics: const ClampingScrollPhysics(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── 1. Green header with avatar ───────────────────────────
+            // â”€â”€ 1. Green header with avatar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Stack(
               clipBehavior: Clip.none,
               alignment: Alignment.bottomCenter,
@@ -220,14 +229,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(48),
-                                child: avatarUrl != null
-                                    ? CachedNetworkImage(
-                                        imageUrl: avatarUrl,
-                                        fit: BoxFit.cover,
-                                        errorWidget: (ctx, url, err) =>
-                                            _buildInitialsCircle(fullName),
-                                      )
-                                    : _buildInitialsCircle(fullName),
+                                child: CachedNetworkImage(
+                                  imageUrl: resolveAvatarUrl(avatarUrl, fullName),
+                                  fit: BoxFit.cover,
+                                  errorWidget: (ctx, url, err) =>
+                                      _buildInitialsCircle(fullName),
+                                ),
                               ),
                             ),
                             Positioned(
@@ -286,7 +293,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
             const SizedBox(height: 68), // space for floating card
 
-            // ── 2. Menu options ───────────────────────────────────────
+            // â”€â”€ 2. Menu options â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: _buildMenuCard(context, ref, isAuthenticated),
@@ -315,7 +322,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  // ─── Stats Card ───────────────────────────────────────────────────────────
+  // â”€â”€â”€ Stats Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Widget _buildStatsCard(ProgressState ps) {
     return Container(
@@ -356,8 +363,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 width: 1, thickness: 1, color: Color(0xFFEEEEEE)),
             Expanded(
               child: _buildStatItem(
-                useEmoji: true,
-                emoji: '🔥',
+                icon: Icons.local_fire_department_rounded,
                 iconColor: Colors.orange,
                 value: '${ps.currentStreak}',
                 label: 'Day Streak',
@@ -405,7 +411,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  // ─── Menu List ────────────────────────────────────────────────────────────
+  // â”€â”€â”€ Menu List â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Widget _buildMenuCard(BuildContext context, WidgetRef ref, bool isAuthenticated) {
     final healthLabel = Platform.isIOS ? 'Connect Apple Health' : 'Connect Google Fit';
@@ -824,3 +830,4 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 }
+

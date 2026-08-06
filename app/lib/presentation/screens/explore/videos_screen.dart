@@ -271,7 +271,7 @@ class _VideosScreenState extends ConsumerState<VideosScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('🔥', style: TextStyle(fontSize: 16)),
+                    const Text('ðŸ”¥', style: TextStyle(fontSize: 16)),
                     const SizedBox(width: AppSpacing.xs),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -392,7 +392,7 @@ class _VideosScreenState extends ConsumerState<VideosScreen> {
     );
   }
 
-  // ─── Guest Content ────────────────────────────────────────────────────────
+  // â”€â”€â”€ Guest Content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Widget _buildGuestContent(BuildContext context, List<FreeVideoModel> videos) {
     if (videos.isEmpty) {
@@ -404,7 +404,7 @@ class _VideosScreenState extends ConsumerState<VideosScreen> {
       );
     }
     return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
+      physics: const ClampingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -593,7 +593,7 @@ class _VideosScreenState extends ConsumerState<VideosScreen> {
         }
 
         return SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
+          physics: const ClampingScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -828,7 +828,7 @@ class _VideosScreenState extends ConsumerState<VideosScreen> {
                 },
                 child: Row(
                   children: [
-                    // Thumbnail — shows tick when completed
+                    // Thumbnail -- shows tick when completed
                     if (isCompleted)
                       Container(
                         width: 48,
@@ -880,7 +880,7 @@ class _VideosScreenState extends ConsumerState<VideosScreen> {
                             ),
                           ),
                           Text(
-                            '${day.videos.isNotEmpty ? day.videos.first.durationSeconds ~/ 60 : 15} mins • ${isCompleted ? 'Completed' : 'Up Next'}',
+                            '${day.videos.isNotEmpty ? day.videos.first.durationSeconds ~/ 60 : 15} mins * ${isCompleted ? 'Completed' : 'Up Next'}',
                             style: GoogleFonts.inter(
                               color: isCompleted
                                   ? AppTheme.primaryGreen
@@ -938,7 +938,7 @@ class _VideosScreenState extends ConsumerState<VideosScreen> {
         : (isUpNext ? const Color(0xFFE67E22) : AppTheme.coolGray);
     final timeText = '${video.durationSeconds ~/ 60} mins';
     final statusLine =
-        statusLabel.isNotEmpty ? '$timeText • $statusLabel' : timeText;
+        statusLabel.isNotEmpty ? '$timeText * $statusLabel' : timeText;
 
     return IntrinsicHeight(
       child: Row(
@@ -1207,7 +1207,7 @@ class _VideosScreenState extends ConsumerState<VideosScreen> {
                     ),
                   ),
                   Text(
-                    '${video.durationLabel} • ${video.category ?? ''}',
+                    '${video.durationLabel} * ${video.category ?? ''}',
                     style: GoogleFonts.inter(
                       color: AppTheme.coolGray,
                       fontWeight: AppFontWeights.semiBold,
@@ -1371,14 +1371,14 @@ class _VideosScreenState extends ConsumerState<VideosScreen> {
     );
   }
 
-  // ─── Logged-in, no purchased courses ─────────────────────────────────────
+  // â”€â”€â”€ Logged-in, no purchased courses â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Widget _buildLoggedInNoCourseContent(
     BuildContext context,
     FreeVideosState fvState,
   ) {
     return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
+      physics: const ClampingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1648,3 +1648,4 @@ class _VideosScreenState extends ConsumerState<VideosScreen> {
     );
   }
 }
+

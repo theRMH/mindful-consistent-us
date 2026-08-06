@@ -10,7 +10,7 @@ import '../../../data/models/course_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/courses_provider.dart';
 import '../../providers/progress_provider.dart';
-import '../explore/videos_screen.dart';
+import '../explore/videos_screen.dart' show videoCategoryProvider;
 
 const List<String> _funnyLeaderNames = [
   'GrapplingTiger', 'FastestCheetah', 'ZoningZebra',
@@ -18,6 +18,11 @@ const List<String> _funnyLeaderNames = [
   'NinjaPanda', 'FierceLynx', 'RoaringLion', 'StealthWolf',
   'FlashingHawk', 'MightyBison', 'GlidingEagle', 'SprintingHorse', 'FuriousBear',
 ];
+
+// Tracks which active course the user has selected on the home screen.
+// Null means "use the API's activeCourseId" (default). Set to a courseId
+// when the user picks a different course from the dropdown.
+final selectedHomeCourseIdProvider = StateProvider<String?>((ref) => null);
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -27,6 +32,7 @@ class HomeScreen extends ConsumerWidget {
     final authState = ref.watch(authProvider);
     final progressState = ref.watch(progressProvider);
     final coursesState = ref.watch(coursesProvider);
+    final selectedCourseId = ref.watch(selectedHomeCourseIdProvider);
 
     // Once courses finish loading, redirect to explore if no active purchase
     ref.listen<CoursesState>(coursesProvider, (prev, next) {
@@ -46,16 +52,22 @@ class HomeScreen extends ConsumerWidget {
         ? userProfile!.fullName.trim()
         : 'User';
 
-    // Resolve active course: prefer the one matching activeCourseId, else first enrolled
+    final activeCourses = coursesState.activeCourses;
+
+    // Resolve active course: user's explicit pick → API's activeCourseId → first enrolled
     CourseModel? activeCourse;
-    final activeCourseId = progressState.activeCourseId;
-    if (activeCourseId != null) {
-      final match = coursesState.allCourses.where((c) => c.id == activeCourseId);
+    if (selectedCourseId != null) {
+      final match = activeCourses.where((c) => c.id == selectedCourseId);
       activeCourse = match.isEmpty ? null : match.first;
     }
-    activeCourse ??= coursesState.activeCourses.isNotEmpty
-        ? coursesState.activeCourses.first
-        : null;
+    if (activeCourse == null) {
+      final apiCourseId = progressState.activeCourseId;
+      if (apiCourseId != null) {
+        final match = coursesState.allCourses.where((c) => c.id == apiCourseId);
+        activeCourse = match.isEmpty ? null : match.first;
+      }
+    }
+    activeCourse ??= activeCourses.isNotEmpty ? activeCourses.first : null;
 
     // Expiry check — used to swap progress banner for completion banner
     bool courseExpired = false;
@@ -96,279 +108,63 @@ class HomeScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-              // ── 1. Header Banner ──────────────────────────────────
+              // ── 1. Header ─────────────────────────────────────────
               _buildHeader(context, ref, userName, progressState.currentStreak),
-              const SizedBox(height: AppSpacing.lg),
 
+              // ── 2. Today's Journey Banner ─────────────────────────
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                child: _buildDisciplineNote(),
-              ),
-
-              const SizedBox(height: AppSpacing.lg),
-
-              // ── 2. Active Course Progress / Completion Banner ─────
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 0),
                 child: courseExpired && activeCourse != null
                     ? _buildCompletedCourseBanner(context, activeCourse, daysSinceCompletion)
-                    : _buildActiveCourseBanner(context, ref, progressState, activeCourse, isLoading: coursesState.isLoading),
+                    : _buildActiveCourseBanner(context, ref, progressState, activeCourse, activeCourses: activeCourses, isLoading: coursesState.isLoading),
               ),
 
               const SizedBox(height: AppSpacing.lg),
 
-              // ── 3. Stats Row ──────────────────────────────────────
+              // ── 3. Today's Plan ───────────────────────────────────
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                child: _buildStatsRow(context, ref, progressState, activeCourse),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: _buildTodaysPlan(context, ref, progressState, activeCourse),
               ),
 
-              const SizedBox(height: AppSpacing.xl),
+              const SizedBox(height: AppSpacing.lg),
 
-              // ── 4. Yoga / General Workout Action Cards ─────────────
+              // ── 4. This Week Progress ─────────────────────────────
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFE2EBE5), width: 1),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x04000000),
-                        blurRadius: 10,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      // Yoga Card (Square Box)
-                      Expanded(
-                        child: AspectRatio(
-                          aspectRatio: 1.0,
-                          child: GestureDetector(
-                            onTap: () {
-                              ref.read(videoCategoryProvider.notifier).state = 'Yoga';
-                              context.go('/videos');
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF2F9F5),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  SizedBox(
-                                    height: 38,
-                                    child: Center(
-                                      child: CustomPaint(
-                                        size: const Size(38, 38),
-                                        painter: YogaSilhouettePainter(
-                                          color: AppTheme.figmaGreen,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Yoga',
-                                    textAlign: TextAlign.center,
-                                    style: GoogleFonts.inter(
-                                      color: AppTheme.figmaGreen,
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.figmaGreen,
-                                      borderRadius: BorderRadius.circular(100),
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          'Go to Yoga',
-                                          style: GoogleFonts.inter(
-                                            color: Colors.white,
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Container(
-                                          width: 14,
-                                          height: 14,
-                                          decoration: const BoxDecoration(
-                                            color: Colors.white,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Center(
-                                            child: Icon(
-                                              Icons.chevron_right_rounded,
-                                              color: AppTheme.figmaGreen,
-                                              size: 10,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Flexibility · Mobility',
-                                    textAlign: TextAlign.center,
-                                    style: GoogleFonts.inter(
-                                      color: AppTheme.figmaMutedGray,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      // General Exercise Card (Square Box)
-                      Expanded(
-                        child: AspectRatio(
-                          aspectRatio: 1.0,
-                          child: GestureDetector(
-                            onTap: () {
-                              ref.read(videoCategoryProvider.notifier).state = 'General Workout';
-                              context.go('/videos');
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFF8E7),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  SizedBox(
-                                    height: 38,
-                                    child: Center(
-                                      child: CustomPaint(
-                                        size: const Size(42, 26),
-                                        painter: DumbbellPainter(
-                                          color: AppTheme.brown,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'General Exercise',
-                                    textAlign: TextAlign.center,
-                                    style: GoogleFonts.inter(
-                                      color: AppTheme.brown,
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.brown,
-                                      borderRadius: BorderRadius.circular(100),
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          'Go to Workouts',
-                                          style: GoogleFonts.inter(
-                                            color: Colors.white,
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Container(
-                                          width: 14,
-                                          height: 14,
-                                          decoration: const BoxDecoration(
-                                            color: Colors.white,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Center(
-                                            child: Icon(
-                                              Icons.chevron_right_rounded,
-                                              color: AppTheme.brown,
-                                              size: 10,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Energy',
-                                    textAlign: TextAlign.center,
-                                    style: GoogleFonts.inter(
-                                      color: AppTheme.figmaMutedGray,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: _buildWeeklyActivityCard(context, progressState, activeCourse),
               ),
-              const SizedBox(height: AppSpacing.xl),
 
-              // ── 5. Steps Today Card ───────────────────────────────
+              const SizedBox(height: AppSpacing.lg),
+
+              // ── 5. Steps Today ────────────────────────────────────
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: GestureDetector(
                   onTap: () => context.go('/steps'),
                   child: _buildStepsTodayCard(context, ref, progressState),
                 ),
               ),
 
-              const SizedBox(height: AppSpacing.xl),
+              const SizedBox(height: AppSpacing.lg),
 
-              // ── 6. Weekly Activity ────────────────────────────────
+              // ── 6. You're on a roll ───────────────────────────────
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                child: _buildWeeklyActivityCard(context, progressState.weeklyActivity),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: _buildStreakBanner(context, progressState.currentStreak),
               ),
 
-              const SizedBox(height: AppSpacing.xl),
+              const SizedBox(height: AppSpacing.lg),
 
               // ── 7. Community Leaderboard ──────────────────────────
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: _buildLeaderboardCard(context, ref, progressState),
               ),
 
               const SizedBox(height: AppSpacing.md),
 
-              // ── 8. Points permalink ────────────────────────────────
+              // ── 8. Points permalink ───────────────────────────────
               GestureDetector(
                 onTap: () => _showPointsExplanation(context),
                 child: Center(
@@ -407,97 +203,139 @@ class HomeScreen extends ConsumerWidget {
   // ─── Header ───────────────────────────────────────────────────────────────
 
   Widget _buildHeader(BuildContext context, WidgetRef ref, String userName, int streak) {
-    return Container(
-      width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 96),
-      decoration: const BoxDecoration(
-        image: DecorationImage(
-          image: AssetImage('assets/home_header_bg.png'),
-          fit: BoxFit.cover,
-          alignment: Alignment.center,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.lg,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Greeting text
-                Column(
+    final hour = DateTime.now().hour;
+    final greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+    final initials = userName.trim().isNotEmpty
+        ? userName.trim().split(' ').map((w) => w[0]).take(2).join().toUpperCase()
+        : 'U';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Top bar — logo left, bell + avatar right
+          Row(
+            children: [
+              Image.asset('assets/logo.png', height: 28),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                'ConsistentUs',
+                style: GoogleFonts.merriweather(
+                  fontSize: 16,
+                  fontWeight: AppFontWeights.bold,
+                  color: AppTheme.figmaGreen,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const Spacer(),
+              // Bell
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(AppRadii.xl),
+                  border: Border.all(color: const Color(0xFFE8EDE9)),
+                ),
+                child: const Icon(Icons.notifications_outlined,
+                    size: 18, color: AppTheme.figmaCharcoal),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              // Avatar circle with initials
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppTheme.figmaGreen,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    initials,
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: AppFontWeights.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          // Greeting row
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Vanakkam',
+                      '$greeting, $userName 👋',
                       style: GoogleFonts.inter(
-                        color: AppTheme.figmaMutedGray,
-                        fontSize: AppFontSizes.bodyMedium,
-                        fontWeight: AppFontWeights.regular,
+                        fontSize: 18,
+                        fontWeight: AppFontWeights.bold,
+                        color: AppTheme.figmaCharcoal,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xxs),
+                    const SizedBox(height: 2),
                     Text(
-                      '$userName 👋',
+                      'Stay consistent. See the change.',
                       style: GoogleFonts.inter(
-                        fontSize: 20,
-                        fontWeight: AppFontWeights.bold,
-                        color: AppTheme.darkTeal,
+                        fontSize: 12,
+                        color: AppTheme.figmaMutedGray,
                       ),
                     ),
                   ],
                 ),
-                const Spacer(),
-
-                // Streak badge — fire + number stacked with "Day Streak" label
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(AppRadii.xl),
-                    border: Border.all(color: const Color(0xFFE8EDE9)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('🔥', style: TextStyle(fontSize: 16)),
-                      const SizedBox(width: AppSpacing.xs),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '$streak',
-                            style: GoogleFonts.inter(
-                              color: AppTheme.darkTeal,
-                              fontSize: AppFontSizes.bodyLarge,
-                              fontWeight: AppFontWeights.bold,
-                              height: 1.0,
-                            ),
-                          ),
-                          Text(
-                            'Day Streak',
-                            style: GoogleFonts.inter(
-                              color: AppTheme.coolGray,
-                              fontSize: 8,
-                              fontWeight: AppFontWeights.regular,
-                              height: 1.2,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+              ),
+              // Streak badge
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(AppRadii.xl),
+                  border: Border.all(color: const Color(0xFFE8EDE9)),
+                  boxShadow: const [
+                    BoxShadow(color: Color(0x08000000), blurRadius: 6, offset: Offset(0, 2)),
+                  ],
                 ),
-
-              ],
-            ),
-          ],
-        ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('🔥', style: TextStyle(fontSize: 16)),
+                    const SizedBox(width: AppSpacing.xs),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '$streak',
+                          style: GoogleFonts.inter(
+                            color: AppTheme.figmaCharcoal,
+                            fontSize: 16,
+                            fontWeight: AppFontWeights.bold,
+                            height: 1.0,
+                          ),
+                        ),
+                        Text(
+                          'Day Streak',
+                          style: GoogleFonts.inter(
+                            color: AppTheme.coolGray,
+                            fontSize: 8,
+                            height: 1.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -505,56 +343,6 @@ class HomeScreen extends ConsumerWidget {
   // ─── Course Completion Banner (shown when enrolled course has expired) ────────
 
 
-  Widget _buildDisciplineNote() {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5FAF2),
-        borderRadius: BorderRadius.circular(AppRadii.xxl),
-        border: Border.all(color: const Color(0xFFD4EAC8)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: const BoxDecoration(
-              color: AppTheme.figmaGreen,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.spa_rounded,
-              color: Colors.white,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Daily discipline',
-                  style: GoogleFonts.inter(
-                    fontSize: AppFontSizes.bodyLarge,
-                    fontWeight: AppFontWeights.bold,
-                    color: AppTheme.figmaCharcoal,
-                  ),
-                ),
-                Text(
-                  'Lasting transformation starts with one mindful session.',
-                  style: GoogleFonts.inter(
-                    fontSize: AppFontSizes.bodyMedium,
-                    color: AppTheme.figmaMutedGray,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
   Widget _buildCompletedCourseBanner(
       BuildContext context, CourseModel course, int daysSinceCompletion) {
     final daysAgoText = daysSinceCompletion <= 1
@@ -650,9 +438,97 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
+  String? _courseAssetPath(CourseModel course) {
+    final title = course.title.toLowerCase();
+    if (title.contains('30')) return 'assets/course_30_days.png';
+    if (title.contains('48')) return 'assets/course_48_days.png';
+    return null;
+  }
+
+  Widget _courseImageFallback(CourseModel course) {
+    final assetPath = _courseAssetPath(course);
+    if (assetPath != null) {
+      return ClipOval(
+        child: Image.asset(assetPath, width: 72, height: 72, fit: BoxFit.cover),
+      );
+    }
+    return Container(
+      width: 72,
+      height: 72,
+      decoration: BoxDecoration(
+        color: Colors.white.withAlpha(30),
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: CustomPaint(
+          size: const Size(48, 48),
+          painter: YogaSilhouettePainter(color: Colors.white),
+        ),
+      ),
+    );
+  }
+
+  // ─── Course Picker Bottom Sheet ───────────────────────────────────────────
+
+  void _showCoursePicker(BuildContext context, WidgetRef ref, List<CourseModel> courses, CourseModel? current) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+              child: Text('Switch Course',
+                  style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF1A3C20))),
+            ),
+            const Divider(height: 1),
+            ...courses.map((course) {
+              final isSelected = course.id == current?.id;
+              return ListTile(
+                onTap: () {
+                  ref.read(selectedHomeCourseIdProvider.notifier).state = course.id;
+                  Navigator.of(context).pop();
+                },
+                leading: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppTheme.figmaGreen : const Color(0xFFF0F0F0),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.spa_rounded, size: 18,
+                      color: isSelected ? Colors.white : const Color(0xFF888888)),
+                ),
+                title: Text(course.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected ? AppTheme.figmaGreen : const Color(0xFF333333))),
+                subtitle: Text('${course.totalDays} days',
+                    style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF888888))),
+                trailing: isSelected
+                    ? const Icon(Icons.check_circle_rounded, color: AppTheme.figmaGreen, size: 20)
+                    : null,
+              );
+            }),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ─── Active Course Progress Banner ────────────────────────────────────────
 
-  Widget _buildActiveCourseBanner(BuildContext context, WidgetRef ref, ProgressState ps, CourseModel? activeCourse, {bool isLoading = false}) {
+  Widget _buildActiveCourseBanner(BuildContext context, WidgetRef ref, ProgressState ps, CourseModel? activeCourse, {List<CourseModel> activeCourses = const [], bool isLoading = false}) {
     if (activeCourse == null) {
       if (isLoading) {
         return Container(
@@ -660,7 +536,7 @@ class HomeScreen extends ConsumerWidget {
             color: AppTheme.figmaGreen,
             borderRadius: BorderRadius.circular(24),
           ),
-          padding: const EdgeInsets.symmetric(vertical: 32),
+          padding: const EdgeInsets.symmetric(vertical: 40),
           child: const Center(
             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
           ),
@@ -675,44 +551,47 @@ class HomeScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'No active course',
-              style: GoogleFonts.inter(
-                color: const Color(0xFFF5FAFD),
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              children: [
+                const Icon(Icons.spa_rounded, color: Colors.white70, size: 16),
+                const SizedBox(width: 6),
+                Text('Today\'s Journey',
+                    style: GoogleFonts.inter(color: Colors.white70, fontSize: 12)),
+              ],
             ),
-            const SizedBox(height: AppSpacing.xxs),
-            Text(
-              'Choose a program to begin your journey.',
-              style: GoogleFonts.inter(
-                color: const Color(0xFFD0DF5A),
-                fontSize: 10.5,
-                fontWeight: FontWeight.normal,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => context.go('/programs?tab=explore'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: AppTheme.figmaGreen,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(100),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 11),
-                ),
-                child: Text(
-                  'Explore Program',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.figmaGreen,
-                  ),
+            const SizedBox(height: AppSpacing.sm),
+            Text('No active course',
+                style: GoogleFonts.inter(
+                    color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+            const SizedBox(height: AppSpacing.xs),
+            Text('Choose a program to begin your journey.',
+                style: GoogleFonts.inter(color: Colors.white70, fontSize: 12)),
+            const SizedBox(height: AppSpacing.lg),
+            GestureDetector(
+              onTap: () => context.go('/programs?tab=explore'),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadii.xl),
+                child: Stack(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      color: Colors.white.withAlpha(40),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text('Explore Programs',
+                              style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14)),
+                          const SizedBox(width: AppSpacing.xs),
+                          const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 16),
+                        ],
+                      ),
+                    ),
+                    Positioned.fill(child: CustomPaint(painter: _LeafPatternPainter())),
+                  ],
                 ),
               ),
             ),
@@ -726,152 +605,180 @@ class HomeScreen extends ConsumerWidget {
     final progress = totalDays > 0 ? (completedCount / totalDays).clamp(0.0, 1.0) : 0.0;
     final progressPct = (progress * 100).toInt();
     final currentDay = (ps.currentDay ?? completedCount + 1).clamp(1, totalDays);
-    final courseTitle = activeCourse.title;
 
-    // Build subtitle — show completion date when all days are done
-    String bannerSubtitle = 'Show up for yourself, Every single day.';
+    String subtitle = 'Keep going, you\'re doing great!';
     if (completedCount >= totalDays) {
-      final enrollment = ref.read(coursesProvider).enrollmentForCourse(activeCourse.id);
-      if (enrollment != null) {
-        final enrolledAt = enrollment.enrolledAt.toLocal();
-        final enrolledDate = DateTime(enrolledAt.year, enrolledAt.month, enrolledAt.day);
-        final completionDate = enrolledDate.add(Duration(days: totalDays - 1));
-        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-        bannerSubtitle = 'Completed on ${completionDate.day} ${months[completionDate.month - 1]}';
-      }
+      subtitle = 'All days complete — amazing work!';
     }
 
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.figmaGreen,
-        borderRadius: BorderRadius.circular(24), // visually match mockups (borders round!)
+        borderRadius: BorderRadius.circular(24),
       ),
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title row
+          // Top label row
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start, // Align to top right
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      courseTitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFF5FAFD),
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+              const Icon(Icons.spa_rounded, color: Colors.white70, size: 14),
+              const SizedBox(width: 5),
+              Text('Today\'s Journey',
+                  style: GoogleFonts.inter(color: Colors.white70, fontSize: 11)),
+              const Spacer(),
+              GestureDetector(
+                onTap: activeCourses.length > 1
+                    ? () => _showCoursePicker(context, ref, activeCourses, activeCourse)
+                    : null,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8C830),
+                    borderRadius: BorderRadius.circular(AppRadii.pill),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          activeCourse.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF1A3C20),
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(
-                      bannerSubtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFD0DF5A),
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.normal,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0E3C31),
-                  borderRadius: BorderRadius.circular(100), // pill shape matching screenshot
-                  border: Border.all(color: const Color(0xFF2F552B), width: 1),
-                ),
-                child: Text(
-                  'Day $currentDay of $totalDays',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFF5FAFD),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
+                      if (activeCourses.length > 1) ...[
+                        const SizedBox(width: 3),
+                        const Icon(Icons.expand_more_rounded, size: 13, color: Color(0xFF1A3C20)),
+                      ],
+                    ],
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
-          // Day strip
-          _DayStrip(
-            completedDays: ps.completedDays,
-            currentDay: currentDay,
-            totalDays: totalDays,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          // Progress bar row
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0E3C31),
-              borderRadius: BorderRadius.circular(100), // pill shape matching screenshot
-              border: Border.all(color: const Color(0xFF2F552B), width: 1),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    "$completedCount of $totalDays Days Completed",
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w400,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
+          const SizedBox(height: AppSpacing.sm),
+          // Day counter row with yoga illustration placeholder
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 90,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withAlpha(38),
-                        borderRadius: BorderRadius.circular(100),
-                      ),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: FractionallySizedBox(
-                          widthFactor: progress.clamp(0.0, 1.0),
-                          child: Container(
-                            height: 5,
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF038A44), Color(0xFF72B942)],
-                              ),
-                              borderRadius: BorderRadius.circular(100),
+                    RichText(
+                      text: TextSpan(children: [
+                        TextSpan(
+                          text: 'Day $currentDay ',
+                          style: GoogleFonts.playfairDisplay(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        TextSpan(
+                          text: 'of $totalDays',
+                          style: GoogleFonts.inter(
+                            color: Colors.white70,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ]),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(subtitle,
+                        style: GoogleFonts.inter(color: Colors.white70, fontSize: 11)),
+                    const SizedBox(height: AppSpacing.md),
+                    // Progress bar + %
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: progress,
+                              backgroundColor: Colors.white.withAlpha(50),
+                              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF90EE90)),
+                              minHeight: 7,
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '$progressPct%',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Text('$progressPct%',
+                            style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold)),
+                      ],
                     ),
                   ],
                 ),
-              ],
+              ),
+              const SizedBox(width: AppSpacing.md),
+              // Course thumbnail
+              ClipOval(
+                child: activeCourse.thumbnailUrl != null && activeCourse.thumbnailUrl!.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: activeCourse.thumbnailUrl!,
+                        width: 72,
+                        height: 72,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                          width: 72,
+                          height: 72,
+                          color: Colors.white.withAlpha(30),
+                          child: const Center(
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          ),
+                        ),
+                        errorWidget: (_, __, ___) => _courseImageFallback(activeCourse),
+                      )
+                    : _courseImageFallback(activeCourse),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          // CTA button — same style as unregistered home
+          GestureDetector(
+            onTap: () => context.go('/programs'),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadii.xl),
+              child: Stack(
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    color: const Color(0xFFE8C830),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Continue Today\'s Session',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF1A3C20),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        const Icon(Icons.arrow_forward_rounded,
+                            color: Color(0xFF1A3C20), size: 16),
+                      ],
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: _LeafPatternPainter(),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -881,66 +788,260 @@ class HomeScreen extends ConsumerWidget {
 
   // ─── Stats Row ────────────────────────────────────────────────────────────
 
-  Widget _buildStatsRow(BuildContext context, WidgetRef ref, ProgressState ps, CourseModel? activeCourse) {
-    if (ps.isLoading && ps.mindfulMins == 0 && ps.completedSessionsToday == 0) {
-      return Shimmer.fromColors(
-        baseColor: const Color(0xFFE8E8E8),
-        highlightColor: const Color(0xFFF5F5F5),
-        child: Container(
-          height: 80,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-          ),
-        ),
-      );
-    }
-    final goalPct = activeCourse != null && activeCourse.totalDays > 0
-        ? ((ps.completedDays.length + ps.stepsGoalDays) / (activeCourse.totalDays * 2) * 100).toInt().clamp(0, 100)
+  // ─── Today's Plan ────────────────────────────────────────────────────────
+
+  Widget _buildTodaysPlan(BuildContext context, WidgetRef ref, ProgressState ps, CourseModel? activeCourse) {
+    // Today is done only if the last entry in weeklyActivity (today) has points
+    final todayVal = ps.weeklyActivity.isNotEmpty
+        ? (ps.weeklyActivity.last['val'] as int? ?? 0)
         : 0;
+    final yogaDone = todayVal > 0;
+    final workoutDone = todayVal >= 80; // full day complete (50 watch + 30 complete)
+    final liveSteps = ref.watch(todayStepsProvider);
+    final cached = ref.watch(todayStepsCachedProvider).valueOrNull ?? 0;
+    final steps = liveSteps > 0 ? liveSteps : cached;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2EBE5), width: 1),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x04000000),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(AppRadii.xxl),
+        border: Border.all(color: const Color(0xFFF0F0F0)),
+        boxShadow: const [BoxShadow(color: Color(0x06000000), blurRadius: 10, offset: Offset(0, 4))],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: _buildStatItem(
-              icon: Icons.timer_outlined,
-              value: '${ps.mindfulMins}',
-              label: 'Mins',
-              bgColor: const Color(0xFFE6F4EA),
-              iconColor: const Color(0xFF137333),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
+            child: Row(
+              children: [
+                Text('Today\'s Plan',
+                    style: GoogleFonts.inter(
+                        fontSize: 15, fontWeight: AppFontWeights.bold, color: AppTheme.figmaCharcoal)),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => activeCourse != null
+                      ? context.push('/program_details', extra: {
+                          'courseId': activeCourse.id,
+                          'title': activeCourse.title,
+                          'imagePath': null,
+                          'fromExplore': false,
+                        })
+                      : context.go('/programs'),
+                  child: Text('View Full Plan',
+                      style: GoogleFonts.inter(
+                          fontSize: 12, color: AppTheme.figmaGreen, fontWeight: AppFontWeights.semiBold)),
+                ),
+                const Icon(Icons.chevron_right_rounded, size: 14, color: AppTheme.figmaGreen),
+              ],
             ),
           ),
-          _buildStatDivider(),
-          Expanded(
-            child: _buildStatItem(
-              icon: Icons.check_circle_outline_rounded,
-              value: '${ps.completedSessionsToday}',
-              label: 'Sessions',
-              bgColor: const Color(0xFFE4F3ED),
-              iconColor: const Color(0xFF007A4D),
+          const SizedBox(height: AppSpacing.sm),
+          _buildPlanRow(
+            icon: Icons.self_improvement_rounded,
+            iconBg: AppTheme.figmaGreen,
+            title: 'Yoga Session',
+            subtitle: '20 min · Flexibility',
+            isDone: yogaDone,
+            onTap: () {
+              ref.read(videoCategoryProvider.notifier).state = 'Yoga';
+              context.go('/videos');
+            },
+          ),
+          const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFF0F0F0)),
+          _buildPlanRow(
+            icon: Icons.fitness_center_rounded,
+            iconBg: const Color(0xFFE8A000),
+            title: 'General Workout',
+            subtitle: '20 min · Energy',
+            isDone: workoutDone,
+            onTap: () {
+              ref.read(videoCategoryProvider.notifier).state = 'General Workout';
+              context.go('/videos');
+            },
+          ),
+          const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFF0F0F0)),
+          _buildPlanRow(
+            icon: Icons.directions_walk_rounded,
+            iconBg: AppTheme.figmaGreen,
+            title: 'Walking Goal',
+            subtitle: '8,000 steps',
+            isDone: false,
+            trailingText: '${_formatSteps(steps)} / 10,000',
+            trailingColor: AppTheme.figmaGreen,
+            onTap: () => context.go('/steps'),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlanRow({
+    required IconData icon,
+    required Color iconBg,
+    required String title,
+    required String subtitle,
+    required bool isDone,
+    String? trailingText,
+    Color? trailingColor,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
+              child: Icon(icon, color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: AppFontWeights.semiBold,
+                          color: AppTheme.figmaCharcoal)),
+                  Text(subtitle,
+                      style: GoogleFonts.inter(fontSize: 11, color: AppTheme.figmaMutedGray)),
+                ],
+              ),
+            ),
+            if (trailingText != null)
+              Text(trailingText,
+                  style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: AppFontWeights.bold,
+                      color: trailingColor ?? AppTheme.figmaCharcoal))
+            else
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isDone ? AppTheme.figmaGreen : Colors.transparent,
+                  border: isDone ? null : Border.all(color: const Color(0xFFCCCCCC), width: 1.5),
+                ),
+                child: isDone
+                    ? const Icon(Icons.check_rounded, color: Colors.white, size: 14)
+                    : null,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Streak motivational banner ───────────────────────────────────────────
+
+  Widget _buildStreakBanner(BuildContext context, int streak) {
+    if (streak < 1) return const SizedBox.shrink();
+    final message = streak >= 7
+        ? 'Unstoppable! Keep the fire alive!'
+        : streak >= 3
+            ? 'Amazing consistency, keep going!'
+            : 'Great start — don\'t break it!';
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFF6B00), Color(0xFFFF9A00), Color(0xFFFFCC00)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: const [
+          BoxShadow(color: Color(0x33FF6B00), blurRadius: 12, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Stack(
+        children: [
+          // Subtle flame pattern
+          Positioned(
+            right: 16,
+            top: 0,
+            bottom: 0,
+            child: Opacity(
+              opacity: 0.12,
+              child: Text('🔥', style: const TextStyle(fontSize: 64)),
             ),
           ),
-          _buildStatDivider(),
-          Expanded(
-            child: _buildStatItem(
-              icon: Icons.track_changes_rounded,
-              value: '$goalPct%',
-              label: 'Goal',
-              bgColor: const Color(0xFFE8E5F7),
-              iconColor: const Color(0xFF5E35B1),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 14),
+            child: Row(
+              children: [
+                // Big flame icon circle
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(40),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: Text('🔥', style: TextStyle(fontSize: 26)),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("You're on a roll!",
+                          style: GoogleFonts.inter(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              shadows: [const Shadow(color: Color(0x44000000), blurRadius: 4)])),
+                      const SizedBox(height: 4),
+                      RichText(
+                        text: TextSpan(
+                          children: [
+                            TextSpan(
+                              text: '$streak',
+                              style: GoogleFonts.inter(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                height: 1.1,
+                              ),
+                            ),
+                            TextSpan(
+                              text: ' day${streak == 1 ? '' : 's'} streak',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white.withAlpha(220),
+                                height: 1.1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(message,
+                          style: GoogleFonts.inter(
+                              fontSize: 11,
+                              color: Colors.white.withAlpha(200))),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(40),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 18),
+                ),
+              ],
             ),
           ),
         ],
@@ -948,50 +1049,34 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatItem({
-    required IconData icon,
-    required String value,
-    required String label,
-    required Color bgColor,
-    required Color iconColor,
-  }) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(color: bgColor, shape: BoxShape.circle),
-          child: Icon(icon, color: iconColor, size: 17),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          value,
-          style: GoogleFonts.inter(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.figmaCharcoal,
-            height: 1.1,
-          ),
-        ),
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 12,
-            color: AppTheme.figmaMutedGray,
-            fontWeight: FontWeight.normal,
-            height: 1.2,
-          ),
-        ),
-      ],
-    );
-  }
+  // ─── Week stat chip ───────────────────────────────────────────────────────
 
-  Widget _buildStatDivider() {
-    return Container(
-      width: 1,
-      height: 50,
-      color: const Color(0xFFE2EBE5),
+  Widget _buildWeekStatChip(IconData icon, String value, String label, Color bg, Color iconColor) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: AppSpacing.xs),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(AppRadii.lg),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: iconColor, size: 18),
+            const SizedBox(width: 5),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(value,
+                    style: GoogleFonts.inter(
+                        fontSize: 14, fontWeight: AppFontWeights.bold, color: iconColor)),
+                Text(label,
+                    style: GoogleFonts.inter(fontSize: 9, color: iconColor.withAlpha(180))),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1130,7 +1215,11 @@ class HomeScreen extends ConsumerWidget {
   // ─── Weekly Activity ───────────────────────────────────────────────────────
 
   Widget _buildWeeklyActivityCard(
-      BuildContext context, List<Map<String, dynamic>> data) {
+      BuildContext context, ProgressState ps, CourseModel? activeCourse) {
+    final data = ps.weeklyActivity;
+    final goalPct = activeCourse != null && activeCourse.totalDays > 0
+        ? ((ps.completedDays.length + ps.stepsGoalDays) / (activeCourse.totalDays * 2) * 100).toInt().clamp(0, 100)
+        : 0;
     final allEmpty = data.every((d) => (d['val'] as int) == 0);
     final maxVal = data.fold<int>(
         1, (m, d) => ((d['val'] as int) > m ? d['val'] as int : m));
@@ -1156,7 +1245,7 @@ class HomeScreen extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Weekly Activity',
+                'This Week Progress',
                 style: GoogleFonts.inter(
                   fontSize: AppFontSizes.bodyLarge,
                   fontWeight: AppFontWeights.bold,
@@ -1188,6 +1277,20 @@ class HomeScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          // 3-stat chips row
+          Row(
+            children: [
+              _buildWeekStatChip(Icons.timer_outlined, '${ps.mindfulMins}', 'Minutes',
+                  const Color(0xFFE6F4EA), const Color(0xFF137333)),
+              const SizedBox(width: AppSpacing.sm),
+              _buildWeekStatChip(Icons.check_circle_outline_rounded, '${ps.completedSessionsToday}', 'Sessions',
+                  const Color(0xFFE4F3ED), const Color(0xFF007A4D)),
+              const SizedBox(width: AppSpacing.sm),
+              _buildWeekStatChip(Icons.track_changes_rounded, '$goalPct%', 'Goal',
+                  const Color(0xFFE8E5F7), const Color(0xFF5E35B1)),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -1598,13 +1701,11 @@ class HomeScreen extends ConsumerWidget {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(avatarR),
-                child: avatarUrl.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: avatarUrl,
-                        fit: BoxFit.cover,
-                        errorWidget: (ctx, url, err) => Center(child: avatarChild),
-                      )
-                    : Center(child: avatarChild),
+                child: CachedNetworkImage(
+                  imageUrl: resolveAvatarUrl(avatarUrl, name),
+                  fit: BoxFit.cover,
+                  errorWidget: (ctx, url, err) => Center(child: avatarChild),
+                ),
               ),
             ),
             Positioned(
@@ -2067,6 +2168,37 @@ class _DayStripState extends State<_DayStrip> {
       ),
     );
   }
+}
+
+// Leaf pattern painter (shared with unregistered home CTA buttons)
+class _LeafPatternPainter extends CustomPainter {
+  const _LeafPatternPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = const Color(0x22FFFFFF)..style = PaintingStyle.fill;
+    void drawLeaf(double cx, double cy, double w, double h, double angle) {
+      canvas.save();
+      canvas.translate(cx, cy);
+      canvas.rotate(angle);
+      final path = Path()
+        ..moveTo(0, -h / 2)
+        ..quadraticBezierTo(w / 2, 0, 0, h / 2)
+        ..quadraticBezierTo(-w / 2, 0, 0, -h / 2)
+        ..close();
+      canvas.drawPath(path, paint);
+      canvas.restore();
+    }
+    drawLeaf(size.width * 0.08, size.height * 0.3, 14, 28, -0.6);
+    drawLeaf(size.width * 0.15, size.height * 0.75, 10, 20, 0.4);
+    drawLeaf(size.width * 0.82, size.height * 0.25, 16, 32, 0.8);
+    drawLeaf(size.width * 0.90, size.height * 0.7, 10, 22, -0.3);
+    drawLeaf(size.width * 0.55, size.height * 0.15, 8, 18, 1.1);
+    drawLeaf(size.width * 0.70, size.height * 0.85, 12, 24, -1.0);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 // Custom Painter for Goal Ring (kept for potential future use)

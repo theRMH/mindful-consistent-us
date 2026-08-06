@@ -105,7 +105,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           _buildHeader(context),
           Expanded(
             child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
+              physics: const ClampingScrollPhysics(),
               padding: const EdgeInsets.only(bottom: 30),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -209,7 +209,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  // ─── Header ────────────────────────────────────────────────────────
+  // â”€â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   Widget _buildHeader(BuildContext context) {
     final statusBarHeight = MediaQuery.of(context).padding.top;
     return Container(
@@ -289,7 +289,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  // ─── Section Header ──────────────────────────────────────────────────────
+  // â”€â”€â”€ Section Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Widget _buildSectionHeader() {
     return Padding(
@@ -305,7 +305,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  // ─── Course Card ─────────────────────────────────────────────────────────
+  // â”€â”€â”€ Course Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   Widget _buildCourseCard() {
     if (_loadingCourse) {
       return const Padding(
@@ -431,7 +431,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  // ─── Coupon Section ──────────────────────────────────────────────────────
+  // â”€â”€â”€ Coupon Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   Future<void> _applyCoupon() async {
     final code = _couponController.text.trim();
     if (code.isEmpty) {
@@ -452,7 +452,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Coupon applied! ₹${_couponDiscount!.toInt()} off on this order'),
+          content: Text('Coupon applied! â‚¹${_couponDiscount!.toInt()} off on this order'),
           backgroundColor: AppTheme.figmaGreen,
           duration: const Duration(seconds: 2),
         ),
@@ -522,7 +522,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               ),
                             ),
                             Text(
-                              '₹${_couponDiscount!.toInt()} off on this order',
+                              'â‚¹${_couponDiscount!.toInt()} off on this order',
                               style: GoogleFonts.inter(
                                 fontSize: 12,
                                 color: AppTheme.coolGray,
@@ -586,7 +586,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  // ─── Total Payable ────────────────────────────────────────────────────────
+  // â”€â”€â”€ Total Payable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   Widget _buildTotalRow() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -602,7 +602,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             ),
           ),
           Text(
-            _totalPayable == null ? '—' : '$_currencySymbol${_totalPayable!.toStringAsFixed(_currency == 'USD' ? 2 : 0)}',
+            _totalPayable == null ? '--' : '$_currencySymbol${_totalPayable!.toStringAsFixed(_currency == 'USD' ? 2 : 0)}',
             style: GoogleFonts.inter(
               fontSize: 15,
               fontWeight: AppFontWeights.semiBold,
@@ -614,7 +614,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  // ─── Sticky Checkout Footer ───────────────────────────────────────────────
+  // â”€â”€â”€ Sticky Checkout Footer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   Widget _buildCheckoutBar(BuildContext context) {
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -639,7 +639,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         child: Row(
           children: [
             Text(
-              _totalPayable == null ? '—' : '$_currencySymbol${_totalPayable!.toStringAsFixed(_currency == 'USD' ? 2 : 0)}',
+              _totalPayable == null ? '--' : '$_currencySymbol${_totalPayable!.toStringAsFixed(_currency == 'USD' ? 2 : 0)}',
               style: GoogleFonts.inter(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
@@ -687,7 +687,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  // ─── Checkout Logic ───────────────────────────────────────────────────────
+  // â”€â”€â”€ Checkout Logic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   void _handleCheckout() {
     final isLoggedIn = ref.read(authProvider).isAuthenticated;
     if (!isLoggedIn) {
@@ -948,3 +948,4 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     if (mounted) setState(() => _isProcessing = false);
   }
 }
+

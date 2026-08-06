@@ -55,9 +55,19 @@ class CourseDetail {
   }
 }
 
+// In-memory cache — survives navigation, cleared on hot restart only.
+final _cache = <String, CourseDetail>{};
+
+// Not autoDispose — keeps data alive across navigation so returning to the
+// same course is instant and never shows stale content from a previous fetch.
 final courseDetailProvider =
-    FutureProvider.autoDispose.family<CourseDetail, String>((ref, courseId) async {
-  final api = ApiService();
-  final data = await api.getCourseDetails(courseId);
-  return CourseDetail.fromJson(data);
+    FutureProvider.family<CourseDetail, String>((ref, courseId) async {
+  if (_cache.containsKey(courseId)) return _cache[courseId]!;
+  final data = await ApiService().getCourseDetails(courseId);
+  final detail = CourseDetail.fromJson(data);
+  _cache[courseId] = detail;
+  return detail;
 });
+
+/// Call this to force a fresh fetch (e.g. after admin edits content).
+void invalidateCourseDetailCache(String courseId) => _cache.remove(courseId);

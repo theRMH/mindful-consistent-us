@@ -220,10 +220,9 @@ class ApiService {
     return res as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> getLeaderboard({String? courseId}) async {
-    final path = courseId != null
-        ? '/api/mobile/leaderboard?courseId=$courseId'
-        : '/api/mobile/leaderboard';
+  Future<Map<String, dynamic>> getLeaderboard({String? courseId, String period = 'all'}) async {
+    var path = '/api/mobile/leaderboard?period=$period';
+    if (courseId != null) path += '&courseId=$courseId';
     final res = await _get(path);
     return res as Map<String, dynamic>;
   }
@@ -249,16 +248,6 @@ class ApiService {
     return (res as List<dynamic>).cast<Map<String, dynamic>>();
   }
 
-  Future<bool> checkPhoneExists(String fullPhone) async {
-    try {
-      final encoded = Uri.encodeComponent(fullPhone);
-      final res = await _get('/api/mobile/check-phone?phone=$encoded')
-          .timeout(const Duration(seconds: 10));
-      return (res as Map<String, dynamic>)['exists'] == true;
-    } catch (_) {
-      return true; // fail-open: let OTP proceed if check fails
-    }
-  }
 
   Future<bool> syncProfile({String? fullName, String? avatarUrl, String? timezone, String? currency}) async {
     final body = <String, dynamic>{};

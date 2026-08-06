@@ -10,6 +10,16 @@ class HealthSyncService {
 
   static const _types = [HealthDataType.STEPS];
 
+  /// Returns true if health permissions are already granted.
+  Future<bool> hasPermission() async {
+    try {
+      if (!await _isAvailable()) return false;
+      return await _health.hasPermissions(_types) ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Returns null if Health Connect / HealthKit is not available on this device.
   /// Returns true if permissions are granted, false if denied.
   Future<bool?> requestAuthorization() async {

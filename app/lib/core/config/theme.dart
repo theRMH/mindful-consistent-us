@@ -152,4 +152,13 @@ class AppFontWeights {
   static const FontWeight regular = FontWeight.w400;
 }
 
+/// Returns a DiceBear avatar URL seeded by [name] when [url] is empty/null.
+/// Falls back gracefully — CachedNetworkImage will call errorWidget if CDN is
+/// unreachable, so callers should still supply an initials fallback.
+String resolveAvatarUrl(String? url, String name) {
+  if (url != null && url.isNotEmpty) return url;
+  final seed = Uri.encodeComponent(name.trim().isNotEmpty ? name.trim() : 'user');
+  return 'https://api.dicebear.com/7.x/thumbs/svg?seed=$seed&radius=50';
+}
+
 

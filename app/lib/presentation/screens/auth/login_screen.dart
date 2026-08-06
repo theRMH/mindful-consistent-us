@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/config/theme.dart';
-import '../../../core/services/api_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/brand_logo.dart';
 import '../../widgets/background_leaves.dart';
@@ -22,7 +21,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final TextEditingController _phoneController = TextEditingController();
   String _dialCode = '+1';
   String? _phoneError;
-  bool _isChecking = false;
 
   @override
   void initState() {
@@ -45,16 +43,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Enter a valid mobile number')),
       );
-      return;
-    }
-
-    setState(() => _isChecking = true);
-    final exists = await ApiService().checkPhoneExists('$_dialCode$phone');
-    if (!mounted) return;
-    setState(() => _isChecking = false);
-
-    if (!exists) {
-      setState(() => _phoneError = 'No account found. Please register first.');
       return;
     }
 
@@ -318,7 +306,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     width: double.infinity,
                                     height: 52,
                                     child: ElevatedButton(
-                                      onPressed: (authState.isLoading || _isChecking)
+                                      onPressed: authState.isLoading
                                           ? null
                                           : _handleSendOtp,
                                       style: ElevatedButton.styleFrom(
@@ -331,7 +319,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         ),
                                         elevation: 0,
                                       ),
-                                      child: (authState.isLoading || _isChecking)
+                                      child: authState.isLoading
                                           ? const SizedBox(
                                               height: 22,
                                               width: 22,

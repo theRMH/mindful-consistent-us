@@ -85,25 +85,21 @@ class _StepsScreenState extends ConsumerState<StepsScreen> with WidgetsBindingOb
       if (mounted) setState(() => _isInitializing = false);
       return;
     }
+
+    // Show local history immediately so the page feels responsive
+    await _loadLocalHistory();
+    if (mounted) setState(() => _isInitializing = false);
+
     // Activity recognition is needed for both pedometer and Health Connect
     final arStatus = await Permission.activityRecognition.request();
     if (arStatus.isPermanentlyDenied) {
-      if (mounted) {
-        setState(() { _error = 'permanently_denied'; _isInitializing = false; });
-      }
+      if (mounted) setState(() => _error = 'permanently_denied');
       return;
     }
     if (!arStatus.isGranted) {
-      if (mounted) {
-        setState(() {
-          _error = 'Motion permission denied. Enable it in Settings to track steps.';
-          _isInitializing = false;
-        });
-      }
+      if (mounted) setState(() => _error = 'Motion permission denied. Enable it in Settings to track steps.');
       return;
     }
-
-    await _loadLocalHistory();
 
     final healthGranted = await _tryInitHealth();
 
@@ -112,8 +108,6 @@ class _StepsScreenState extends ConsumerState<StepsScreen> with WidgetsBindingOb
       await _restoreHistoryFromBackend();
       await _startPedometer();
     }
-
-    if (mounted) setState(() => _isInitializing = false);
   }
 
   // Try to initialise the platform health store (Google Health Connect / Apple Health).
@@ -175,26 +169,28 @@ class _StepsScreenState extends ConsumerState<StepsScreen> with WidgetsBindingOb
     } catch (_) {}
   }
 
-  // Read last 6 days of step history from the health store.
+  // Read last 6 days of step history from the health store — queries run in parallel.
   Future<void> _readHistoryFromHealthStore() async {
     final now = DateTime.now();
-    final List<Map<String, dynamic>> history = [];
-    for (int i = 1; i <= 6; i++) {
-      try {
-        final date = now.subtract(Duration(days: i));
-        final start = DateTime(date.year, date.month, date.day);
-        final end = start.add(const Duration(days: 1));
-        final steps = await _health.getTotalStepsInInterval(start, end) ?? 0;
-        if (steps > 0) {
-          final dateStr = _dateStr(date);
-          history.add({ 'dateStr': dateStr, 'steps': steps, 'minutes': (steps * 0.0084).toInt() });
-          if (ref.read(authProvider).isAuthenticated) {
-            try { await ApiService().saveDailySteps(dateStr, steps); } catch (_) {}
-          }
-        }
-      } catch (_) {}
-    }
+    final results = await Future.wait(
+      List.generate(6, (i) async {
+        try {
+          final date = now.subtract(Duration(days: i + 1));
+          final start = DateTime(date.year, date.month, date.day);
+          final end = start.add(const Duration(days: 1));
+          final steps = await _health.getTotalStepsInInterval(start, end) ?? 0;
+          if (steps > 0) return {'dateStr': _dateStr(date), 'steps': steps, 'minutes': (steps * 0.0084).toInt()};
+        } catch (_) {}
+        return null;
+      }),
+    );
+    final history = results.whereType<Map<String, dynamic>>().toList();
     if (mounted) setState(() => _history = history);
+    if (ref.read(authProvider).isAuthenticated) {
+      for (final entry in history) {
+        try { await ApiService().saveDailySteps(entry['dateStr'] as String, entry['steps'] as int); } catch (_) {}
+      }
+    }
   }
 
   // Load persisted history from SharedPreferences into _history.

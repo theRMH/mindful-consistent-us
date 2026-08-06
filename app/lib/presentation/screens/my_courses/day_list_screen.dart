@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -180,7 +180,7 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
               : ListView.builder(
                   padding: const EdgeInsets.all(20),
                   itemCount: courseDetail.days.length,
-                  physics: const BouncingScrollPhysics(),
+                  physics: const ClampingScrollPhysics(),
                   itemBuilder: (context, index) {
                     final day = courseDetail.days[index];
                     final enrolledDate = DateTime(
@@ -403,7 +403,7 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
       parts.add('$videoCount video${videoCount > 1 ? 's' : ''}');
     }
     if (totalSeconds > 0) parts.add('${(totalSeconds / 60).round()}m');
-    return parts.isNotEmpty ? parts.join(' · ') : 'Available';
+    return parts.isNotEmpty ? parts.join(' Â· ') : 'Available';
   }
 
   Widget _buildVideoList(
@@ -540,3 +540,4 @@ class _DayListScreenState extends ConsumerState<DayListScreen> {
     });
   }
 }
+

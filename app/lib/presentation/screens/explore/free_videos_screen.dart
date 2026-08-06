@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -45,7 +45,7 @@ class FreeVideosScreen extends ConsumerWidget {
           );
         }
         return SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
+          physics: const ClampingScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(
               AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.xxxl),
           child: Column(
@@ -170,3 +170,4 @@ class FreeVideosScreen extends ConsumerWidget {
     );
   }
 }
+

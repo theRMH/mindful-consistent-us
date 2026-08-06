@@ -388,7 +388,7 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
           LeaderboardUser(
             rank: 1,
             name: 'Priya S',
-            avatarUrl: 'assets/avatar_priya.png',
+            avatarUrl: 'https://api.dicebear.com/7.x/thumbs/svg?seed=PriyaS&radius=50',
             streak: 12,
             score: 1420,
             isCurrentUser: false,
@@ -396,7 +396,7 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
           LeaderboardUser(
             rank: 2,
             name: 'Rohit K',
-            avatarUrl: 'assets/avatar_rohit.png',
+            avatarUrl: 'https://api.dicebear.com/7.x/thumbs/svg?seed=RohitK&radius=50',
             streak: 8,
             score: 980,
             isCurrentUser: false,

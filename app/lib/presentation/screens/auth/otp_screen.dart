@@ -40,6 +40,11 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
   int _secondsRemaining = 30;
   Timer? _timer;
 
+  // Set to true when backend says this phone has no account yet.
+  // We then show a name field and re-submit to register them.
+  bool _needsName = false;
+  final TextEditingController _nameController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -80,6 +85,7 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
     for (var f in _focusNodes) {
       f.dispose();
     }
+    _nameController.dispose();
     super.dispose();
   }
 
@@ -97,6 +103,30 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
   }
 
   void _handleVerify() async {
+    // If we're in "needs name" mode, validate the name first then re-verify.
+    if (_needsName) {
+      final name = _nameController.text.trim();
+      if (name.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter your name to continue')),
+        );
+        return;
+      }
+      // Re-use the same OTP that was already entered.
+      final otp = _controllers.map((c) => c.text).join();
+      final success = await ref
+          .read(authProvider.notifier)
+          .verifyOtpAndLogin(otp, name: name);
+      if (success && mounted) {
+        AnalyticsService().logSignUp();
+        context.go(widget.redirect?.isNotEmpty == true ? widget.redirect! : '/home');
+      } else if (mounted) {
+        final errorMsg = ref.read(authProvider).errorMessage ?? 'Registration failed';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMsg)));
+      }
+      return;
+    }
+
     String otp = _controllers.map((c) => c.text).join();
     if (otp.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -125,27 +155,17 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
       final errorMsg =
           ref.read(authProvider).errorMessage ?? 'Verification failed';
       if (errorMsg == AuthNotifier.notRegisteredError) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No account found. Please register first.'),
-          ),
-        );
-        final redirectParam = widget.redirect != null
-            ? '&redirect=${Uri.encodeComponent(widget.redirect!)}'
-            : '';
-        context.go(
-          '/signup?phone=${Uri.encodeComponent(widget.phone)}$redirectParam',
-        );
+        // Phone verified but no account — ask for name to register inline.
+        setState(() => _needsName = true);
       } else if (errorMsg == AuthNotifier.alreadyRegisteredError) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Account already exists. Please log in.'),
-          ),
-        );
-        final redirectParam = widget.redirect != null
-            ? '?redirect=${Uri.encodeComponent(widget.redirect!)}'
-            : '';
-        context.go('/login$redirectParam');
+        // Coming from signup screen but account exists — just log them in.
+        final success2 = await ref
+            .read(authProvider.notifier)
+            .verifyOtpAndLogin(otp);
+        if (success2 && mounted) {
+          AnalyticsService().logLogin();
+          context.go(widget.redirect?.isNotEmpty == true ? widget.redirect! : '/home');
+        }
       } else {
         ScaffoldMessenger.of(
           context,
@@ -298,6 +318,54 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
                           ),
                           const SizedBox(height: 36),
 
+                          // Name field — shown only when phone is verified
+                          // but no account exists yet.
+                          if (_needsName) ...[
+                            Text(
+                              'Almost there! Enter your name to create your account.',
+                              style: GoogleFonts.inter(
+                                color: AppTheme.coolGray,
+                                fontSize: 13,
+                                height: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            TextField(
+                              controller: _nameController,
+                              textCapitalization: TextCapitalization.words,
+                              autofocus: true,
+                              style: GoogleFonts.inter(
+                                fontSize: 15,
+                                color: AppTheme.darkTeal,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: 'Your full name',
+                                hintStyle: GoogleFonts.inter(
+                                  color: AppTheme.coolGray,
+                                  fontSize: 14,
+                                ),
+                                filled: true,
+                                fillColor: AppTheme.lightGray,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                    color: AppTheme.emeraldGreen,
+                                    width: 2,
+                                  ),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+
                           // Verify button
                           SizedBox(
                             width: double.infinity,
@@ -328,7 +396,7 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
                                           MainAxisAlignment.center,
                                       children: [
                                         Text(
-                                          'Verify & Proceed',
+                                          _needsName ? 'Complete Registration' : 'Verify & Proceed',
                                           style: GoogleFonts.inter(
                                             fontSize: 16,
                                             fontWeight: FontWeight.bold,

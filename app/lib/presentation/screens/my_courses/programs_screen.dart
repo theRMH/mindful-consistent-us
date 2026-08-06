@@ -366,13 +366,27 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
       );
     }
 
-    if (_activeTab == 'active') {
-      return _buildActiveOrCompletedList(coursesState, progressState, isCompleted: false);
-    } else if (_activeTab == 'completed') {
-      return _buildActiveOrCompletedList(coursesState, progressState, isCompleted: true);
-    } else {
-      return _buildExploreList(coursesState);
+    Future<void> onRefresh() async {
+      await Future.wait([
+        ref.read(coursesProvider.notifier).refresh(),
+        ref.read(progressProvider.notifier).refreshFromApi(),
+      ]);
     }
+
+    Widget content;
+    if (_activeTab == 'active') {
+      content = _buildActiveOrCompletedList(coursesState, progressState, isCompleted: false);
+    } else if (_activeTab == 'completed') {
+      content = _buildActiveOrCompletedList(coursesState, progressState, isCompleted: true);
+    } else {
+      content = _buildExploreList(coursesState);
+    }
+
+    return RefreshIndicator(
+      color: AppTheme.figmaGreen,
+      onRefresh: onRefresh,
+      child: content,
+    );
   }
 
   Widget _buildLockedState(BuildContext context) {
@@ -522,16 +536,14 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
     }
 
     return ListView.builder(
-      physics: const BouncingScrollPhysics(),
+      physics: const AlwaysScrollableScrollPhysics(),
       itemCount: courses.length,
       itemBuilder: (context, index) {
         final course = courses[index];
-        final int comp = course.id == progressState.activeCourseId
-            ? (progressState.currentDay ?? progressState.completedDays.length)
-            : 0;
         final int compDone = course.id == progressState.activeCourseId
             ? progressState.completedDays.length
-            : 0;
+            : (isCompleted ? course.totalDays : 0);
+        final int comp = isCompleted ? course.totalDays : compDone;
         final double prog = course.totalDays > 0 ? compDone / course.totalDays : 0.0;
         final String imagePath = _thumbnailPath(course);
 
@@ -711,30 +723,6 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
                       ),
                     ],
                   ),
-                  if (isCompleted && courseId != null) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 38,
-                      child: ElevatedButton(
-                        onPressed: () =>
-                            context.go('/cart?courseId=$courseId'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.figmaGreen,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24)),
-                        ),
-                        child: Text(
-                          'Enroll Again',
-                          style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: AppFontWeights.bold),
-                        ),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -783,13 +771,17 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> {
       );
     }
 
+    final currency = ref.watch(authProvider).user?.currency ?? 'INR';
+
     return ListView.builder(
-      physics: const BouncingScrollPhysics(),
+      physics: const AlwaysScrollableScrollPhysics(),
       itemCount: courses.length,
       itemBuilder: (context, index) {
         final course = courses[index];
         final imagePath = _thumbnailPath(course);
-        final price = '₹${course.priceInr.toStringAsFixed(0)}';
+        final price = currency == 'USD' && course.priceUsd != null
+            ? '\$${course.priceUsd!.toStringAsFixed(0)}'
+            : '₹${course.priceInr.toStringAsFixed(0)}';
 
         return _buildExploreCourseCard(
           context,

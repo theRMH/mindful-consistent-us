@@ -3,6 +3,23 @@ import Razorpay from "razorpay";
 import prisma from "@/lib/prisma";
 import { verifyAuth } from "@/lib/auth-middleware";
 
+// Fetch live USD→INR rate. Falls back to 84 if the API is unreachable.
+async function getUsdToInrRate(): Promise<number> {
+  try {
+    const res = await fetch(
+      "https://api.exchangerate-api.com/v4/latest/USD",
+      { next: { revalidate: 3600 } }, // cache for 1 hour
+    );
+    if (!res.ok) throw new Error("rate fetch failed");
+    const data = await res.json();
+    const rate = data?.rates?.INR;
+    if (typeof rate === "number" && rate > 0) return rate;
+    throw new Error("invalid rate");
+  } catch {
+    return 84; // safe fallback
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const user = await verifyAuth(req);
@@ -15,16 +32,38 @@ export async function POST(req: NextRequest) {
     if (!courseId)
       return NextResponse.json({ error: "Missing courseId" }, { status: 400 });
 
-    const course = await prisma.course.findUnique({
-      where: { id: courseId },
-      select: { priceInr: true, title: true, isPublished: true },
-    });
+    const [course, profile] = await Promise.all([
+      prisma.course.findUnique({
+        where: { id: courseId },
+        select: { priceInr: true, priceUsd: true, title: true, isPublished: true },
+      }),
+      prisma.profile.findUnique({
+        where: { id: user.id },
+        select: { currency: true },
+      }),
+    ]);
+
     if (!course || !course.isPublished) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
 
-    let finalPrice = Number(course.priceInr);
+    const isUsdUser = profile?.currency === "USD" && course.priceUsd != null;
 
+    // For USD users: show price in USD, but charge INR equivalent via live rate.
+    // Razorpay always charges INR (works on all Indian accounts).
+    let finalPriceInr: number;
+    let displayPriceUsd: number | null = null;
+
+    if (isUsdUser) {
+      const usdPrice = Number(course.priceUsd);
+      const rate = await getUsdToInrRate();
+      finalPriceInr = Math.round(usdPrice * rate);
+      displayPriceUsd = usdPrice;
+    } else {
+      finalPriceInr = Number(course.priceInr);
+    }
+
+    // Coupons are INR-denominated
     if (couponCode) {
       const coupon = await prisma.coupon.findUnique({
         where: { code: (couponCode as string).toUpperCase() },
@@ -40,15 +79,17 @@ export async function POST(req: NextRequest) {
           { status: 400 },
         );
       }
-      finalPrice = Math.max(0, finalPrice - Number(coupon.discountAmount));
+      finalPriceInr = Math.max(0, finalPriceInr - Number(coupon.discountAmount));
     }
 
-    const amountPaise = Math.round(finalPrice * 100);
+    const amountPaise = Math.round(finalPriceInr * 100);
     if (amountPaise <= 0) {
       return NextResponse.json({
         free: true,
         amount: 0,
         currency: "INR",
+        displayCurrency: isUsdUser ? "USD" : "INR",
+        displayPrice: isUsdUser ? displayPriceUsd : 0,
         keyId: process.env.RAZORPAY_KEY_ID,
       });
     }
@@ -73,8 +114,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       orderId: order.id,
-      amount: order.amount,
-      currency: order.currency,
+      amount: order.amount,       // paise in INR
+      currency: order.currency,   // always "INR"
+      displayCurrency: isUsdUser ? "USD" : "INR",
+      displayPrice: isUsdUser ? displayPriceUsd : finalPriceInr,
       keyId: process.env.RAZORPAY_KEY_ID,
     });
   } catch (error) {

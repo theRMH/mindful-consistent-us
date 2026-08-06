@@ -33,12 +33,13 @@ class _CommunityLeaderboardScreenState
   late Future<Map<String, dynamic>> _allTimeFuture;
   Future<Map<String, dynamic>>? _groupFuture;
   String? _selectedGroupCourseId;
+  String _period = 'week'; // 'week' | 'month' | 'all'
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _allTimeFuture = ApiService().getLeaderboard();
+    _allTimeFuture = ApiService().getLeaderboard(period: _period);
 
     _tabController.addListener(() {
       if (_tabController.index == 1) {
@@ -54,7 +55,7 @@ class _CommunityLeaderboardScreenState
     _selectedGroupCourseId ??= courseId;
     if (_groupFuture == null) {
       setState(() {
-        _groupFuture = ApiService().getLeaderboard(courseId: courseId);
+        _groupFuture = ApiService().getLeaderboard(courseId: courseId, period: _period);
       });
     }
   }
@@ -62,7 +63,20 @@ class _CommunityLeaderboardScreenState
   void _loadGroupForCourse(String courseId) {
     setState(() {
       _selectedGroupCourseId = courseId;
-      _groupFuture = ApiService().getLeaderboard(courseId: courseId);
+      _groupFuture = ApiService().getLeaderboard(courseId: courseId, period: _period);
+    });
+  }
+
+  void _setPeriod(String period) {
+    if (_period == period) return;
+    setState(() {
+      _period = period;
+      _allTimeFuture = ApiService().getLeaderboard(period: period);
+      if (_selectedGroupCourseId != null) {
+        _groupFuture = ApiService().getLeaderboard(courseId: _selectedGroupCourseId, period: period);
+      } else {
+        _groupFuture = null; // will reload when tab switches
+      }
     });
   }
 
@@ -142,17 +156,23 @@ class _CommunityLeaderboardScreenState
             ),
           ),
 
-          const SizedBox(height: AppSpacing.lg),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _buildPageNote(
-              icon: Icons.leaderboard_rounded,
-              title: 'Earn points',
-              message:
-                  'Watch videos, keep streaks, and hit step goals to climb.',
+          const SizedBox(height: 12),
+          // Period filter pills
+          SizedBox(
+            height: 32,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              children: [
+                _buildPeriodPill('week', 'This Week'),
+                const SizedBox(width: 8),
+                _buildPeriodPill('month', 'This Month'),
+                const SizedBox(width: 8),
+                _buildPeriodPill('all', 'All Time'),
+              ],
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: 8),
 
           // Tab Body
           Expanded(
@@ -285,53 +305,28 @@ class _CommunityLeaderboardScreenState
     );
   }
 
-  Widget _buildPageNote({
-    required IconData icon,
-    required String title,
-    required String message,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5FAF2),
-        borderRadius: BorderRadius.circular(AppRadii.xxl),
-        border: Border.all(color: const Color(0xFFD4EAC8)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: const BoxDecoration(
-              color: AppTheme.figmaGreen,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: Colors.white, size: 22),
+  Widget _buildPeriodPill(String value, String label) {
+    final isSelected = _period == value;
+    return GestureDetector(
+      onTap: () => _setPeriod(value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.figmaGreen : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? AppTheme.figmaGreen : const Color(0xFFDDDDDD),
           ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    fontSize: AppFontSizes.bodyLarge,
-                    fontWeight: AppFontWeights.bold,
-                    color: AppTheme.figmaCharcoal,
-                  ),
-                ),
-                Text(
-                  message,
-                  style: GoogleFonts.inter(
-                    fontSize: AppFontSizes.bodyMedium,
-                    color: AppTheme.figmaMutedGray,
-                  ),
-                ),
-              ],
-            ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: isSelected ? Colors.white : AppTheme.coolGray,
           ),
-        ],
+        ),
       ),
     );
   }
@@ -359,8 +354,22 @@ class _CommunityLeaderboardScreenState
         final entries = (data['entries'] as List<dynamic>? ?? [])
             .cast<Map<String, dynamic>>();
         final userRank = data['userRank'] as int?;
-        final currentUserEntry =
+        final outOfRankEntry = data['currentUserEntry'] != null
+            ? data['currentUserEntry'] as Map<String, dynamic>
+            : null;
+        // Find user inside top-10
+        final topUserEntry =
             entries.where((e) => e['isCurrentUser'] == true).firstOrNull;
+
+        // Gap to the person just ahead (for motivational note)
+        int? ptsToNext;
+        if (outOfRankEntry != null && entries.isNotEmpty) {
+          final userScore = (outOfRankEntry['score'] as num?)?.toDouble() ?? 0;
+          final lastTopScore =
+              (entries.last['score'] as num?)?.toDouble() ?? 0;
+          final diff = (lastTopScore - userScore).ceil();
+          if (diff > 0) ptsToNext = diff;
+        }
 
         if (entries.isEmpty) {
           return Center(
@@ -378,19 +387,43 @@ class _CommunityLeaderboardScreenState
         }
 
         return ListView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+          physics: const ClampingScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
           children: [
+            // Motivational rank callout
+            if (userRank != null) ...[
+              const SizedBox(height: 12),
+              _buildRankCallout(
+                rank: userRank,
+                ptsToNext: topUserEntry != null ? null : ptsToNext,
+              ),
+            ],
+            const SizedBox(height: 16),
             if (entries.length >= 3) _buildPodium(entries),
             const SizedBox(height: 16),
             ...List.generate(entries.length, (i) => _buildRow(entries[i], i)),
-            if (currentUserEntry == null &&
-                userRank != null &&
-                userRank > 10) ...[
-              const SizedBox(height: 8),
-              const Divider(color: Color(0xFFEEEEEE)),
-              const SizedBox(height: 8),
-              _buildMyRankBanner(userRank),
+            // User is outside top 10 â€” show separator + their full row
+            if (outOfRankEntry != null) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Expanded(child: Divider(color: Color(0xFFDDDDDD))),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Text(
+                      '· · ·',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppTheme.coolGray,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                  ),
+                  const Expanded(child: Divider(color: Color(0xFFDDDDDD))),
+                ],
+              ),
+              const SizedBox(height: 4),
+              _buildRow(outOfRankEntry, (outOfRankEntry['rank'] as int) - 1),
             ],
           ],
         );
@@ -422,6 +455,11 @@ class _CommunityLeaderboardScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (isFirst)
+                const Icon(Icons.workspace_premium_rounded, size: 22, color: Color(0xFFFFD700))
+              else
+                const SizedBox(height: 22),
+              const SizedBox(height: 2),
               _buildAvatar(
                 name,
                 e['avatarUrl'] as String?,
@@ -529,23 +567,62 @@ class _CommunityLeaderboardScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  name + (isCurrentUser ? ' (You)' : ''),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.figmaCharcoal,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.figmaCharcoal,
+                        ),
+                      ),
+                    ),
+                    if (isCurrentUser) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppTheme.figmaGreen,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'YOU',
+                          style: GoogleFonts.inter(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  '$daysCompleted days · 🔥 $streak streak',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    color: AppTheme.coolGray,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      '$daysCompleted days · ',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: AppTheme.coolGray,
+                      ),
+                    ),
+                    const Icon(Icons.local_fire_department_rounded,
+                        size: 12, color: Colors.orange),
+                    const SizedBox(width: 2),
+                    Text(
+                      '$streak streak',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: AppTheme.coolGray,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -563,35 +640,40 @@ class _CommunityLeaderboardScreenState
     );
   }
 
-  Widget _buildMyRankBanner(int rank) {
+  Widget _buildRankCallout({required int rank, int? ptsToNext}) {
+    final String label;
+    if (rank == 1) {
+      label = "You're #1 - incredible!";
+    } else if (rank <= 3) {
+      label = "You're #$rank - on the podium! Keep it up!";
+    } else if (rank <= 10) {
+      label = "You're #$rank - inside the top 10!";
+    } else if (ptsToNext != null && ptsToNext > 0) {
+      label = "You're #$rank · $ptsToNext pts to enter the top 10";
+    } else {
+      label = "You're #$rank - every session moves you up!";
+    }
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: AppTheme.figmaGreen.withAlpha(15),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.figmaGreen.withAlpha(80)),
+        color: AppTheme.figmaGreen.withAlpha(18),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppTheme.figmaGreen.withAlpha(70)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.person_rounded,
+          const Icon(Icons.emoji_events_rounded,
               color: AppTheme.figmaGreen, size: 22),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Your rank: #$rank',
+              label,
               style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
                 color: AppTheme.figmaCharcoal,
               ),
-            ),
-          ),
-          Text(
-            'Keep going!',
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              color: AppTheme.figmaGreen,
-              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -613,13 +695,11 @@ class _CommunityLeaderboardScreenState
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(size / 2),
-        child: (url != null && url.isNotEmpty)
-            ? CachedNetworkImage(
-                imageUrl: url,
-                fit: BoxFit.cover,
-                errorWidget: (ctx, u, err) => _initials(initial, size, bgColor),
-              )
-            : _initials(initial, size, bgColor),
+        child: CachedNetworkImage(
+          imageUrl: resolveAvatarUrl(url, name),
+          fit: BoxFit.cover,
+          errorWidget: (ctx, u, err) => _initials(initial, size, bgColor),
+        ),
       ),
     );
   }
@@ -644,3 +724,4 @@ class _CommunityLeaderboardScreenState
     return s.isNotEmpty ? s : 'Anonymous';
   }
 }
+

@@ -52,8 +52,15 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
     final progressState = ref.watch(progressProvider);
     final courseAsync = ref.watch(courseDetailProvider(courseId));
     final courseDetail = courseAsync.valueOrNull;
+    final bool isDetailLoading = courseAsync.isLoading && courseDetail == null;
 
     final String title = widget.courseTitle ?? courseDetail?.title ?? 'Your Program';
+    final String? networkImageUrl = widget.courseImagePath == null
+        ? coursesState.allCourses
+            .where((c) => c.id == courseId)
+            .map((c) => c.thumbnailUrl)
+            .firstOrNull
+        : null;
     final String imagePath =
         widget.courseImagePath ?? 'assets/course_30_days.png';
     final List<CourseDayModel> courseDays = courseDetail?.days ?? [];
@@ -63,7 +70,7 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
     final List<CourseDayModel> displayedDays = _isExpanded
         ? visibleDays
         : visibleDays.take(5).toList();
-    final completedVideoIds = progressState.completedVideoIds;
+    final completedVideoIds = widget.fromExplore ? <String>[] : progressState.completedVideoIds;
     final bool isEnrolled = coursesState.enrolledCourseIds.contains(courseId);
     final bool isEnrollLoading = coursesState.isLoading;
     final enrollment = coursesState.enrollmentForCourse(courseId);
@@ -76,15 +83,15 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
     final now = DateTime.now();
     final todayDate = DateTime(now.year, now.month, now.day);
     final calendarDayNumber = todayDate.difference(enrolledDate).inDays + 1;
-    // Active day: which day to watch next — use calendar day, not completedDays count
+    // Active day: which day to watch next -- use calendar day, not completedDays count
     final todayDayNumber = calendarDayNumber.clamp(1, totalDays);
     final courseExpired = isEnrolled && calendarDayNumber > totalDays;
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundCream,
 
-      // FAB: hidden for active enrollments; visible for guests, non-enrolled, and expired enrollees
-      floatingActionButton: (!isGuest && isEnrolled && !courseExpired)
+      // FAB: hidden for active/completed enrollments (non-explore); visible for guests, non-enrolled, and explore view
+      floatingActionButton: (!isGuest && isEnrolled && !widget.fromExplore)
           ? null
           : Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -159,12 +166,25 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
         children: [
           // 1. Scrollable Page Content
           SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: EdgeInsets.only(bottom: (isGuest || courseExpired) ? 90 : 20),
+            physics: const ClampingScrollPhysics(),
+            padding: EdgeInsets.only(bottom: (isGuest || !isEnrolled || widget.fromExplore) ? 90 : 20),
             child: Stack(
               children: [
                 // Top Image
-                Image.asset(
+                networkImageUrl != null && networkImageUrl.isNotEmpty
+                    ? Image.network(
+                        networkImageUrl,
+                        height: 360,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Image.asset(
+                          imagePath,
+                          height: 360,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : Image.asset(
                   imagePath,
                   height: 360,
                   width: double.infinity,
@@ -182,6 +202,7 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                 ),
 
                 // Overlapping details card
+
                 Column(
                   children: [
                     const SizedBox(height: 280),
@@ -198,7 +219,9 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                         horizontal: 20.0,
                         vertical: 28.0,
                       ),
-                      child: Column(
+                      child: isDetailLoading
+                          ? _buildDetailSkeleton()
+                          : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // Centered Title
@@ -359,7 +382,9 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
-                                        courseDetail?.instructorName ?? 'Deepa',
+                                        (courseDetail?.instructorName?.isNotEmpty == true)
+                                            ? courseDetail!.instructorName!
+                                            : 'Deepa',
                                         style: GoogleFonts.inter(
                                           fontSize: 15,
                                           fontWeight: FontWeight.w600,
@@ -367,7 +392,9 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                                         ),
                                       ),
                                       Text(
-                                        courseDetail?.instructorTitle ?? 'Certified Yoga Instructor',
+                                        (courseDetail?.instructorTitle?.isNotEmpty == true)
+                                            ? courseDetail!.instructorTitle!
+                                            : 'Certified Yoga Instructor',
                                         style: GoogleFonts.inter(
                                           fontSize: 10,
                                           fontWeight: FontWeight.w600,
@@ -401,7 +428,7 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                                 ),
                                 child: Row(
                                   children: [
-                                    const Text('💬', style: TextStyle(fontSize: 22)),
+                                    const Text('ðŸ’¬', style: TextStyle(fontSize: 22)),
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Column(
@@ -432,7 +459,7 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                             ),
                           ],
 
-                          // Certificate download — shown when course is expired/completed (not in explore context)
+                          // Certificate download -- shown when course is expired/completed (not in explore context)
                           if (courseExpired && isEnrolled && !widget.fromExplore) ...[
                             const SizedBox(height: 16),
                             GestureDetector(
@@ -548,7 +575,7 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
                               : Column(
                                   children: displayedDays.map((dayModel) {
                                     final int dayNumber = dayModel.dayNumber;
-                                    final isDayCompleted = !courseExpired && !widget.fromExplore && progressState.completedDays.contains(dayNumber);
+                                    final isDayCompleted = !widget.fromExplore && progressState.completedDays.contains(dayNumber);
                                     final isPlayable =
                                         isEnrolled && !courseExpired && dayNumber == todayDayNumber;
                                     final isMissed = isEnrolled && !courseExpired &&
@@ -635,6 +662,66 @@ class _ProgramDetailsScreenState extends ConsumerState<ProgramDetailsScreen> {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildDetailSkeleton() {
+    final grey = const Color(0xFFEEEEEE);
+    Widget box(double? w, double h, {double r = 10}) => Container(
+          width: w,
+          height: h,
+          decoration: BoxDecoration(
+            color: grey,
+            borderRadius: BorderRadius.circular(r),
+          ),
+        );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Title
+        Center(child: box(200, 24, r: 8)),
+        const SizedBox(height: 16),
+        // Tags pill
+        box(double.infinity, 42, r: 16),
+        const SizedBox(height: 24),
+        // About heading
+        box(120, 16, r: 6),
+        const SizedBox(height: 8),
+        box(double.infinity, 12, r: 6),
+        const SizedBox(height: 6),
+        box(double.infinity, 12, r: 6),
+        const SizedBox(height: 6),
+        box(180, 12, r: 6),
+        const SizedBox(height: 24),
+        // Instructor card
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Row(
+            children: [
+              box(40, 40, r: 20),
+              const SizedBox(width: 12),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                box(100, 14, r: 6),
+                const SizedBox(height: 6),
+                box(140, 10, r: 5),
+              ]),
+            ],
+          ),
+        ),
+        const SizedBox(height: 28),
+        // Sessions heading
+        box(80, 16, r: 6),
+        const SizedBox(height: 12),
+        for (int i = 0; i < 3; i++) ...[
+          box(double.infinity, 60, r: 16),
+          const SizedBox(height: 12),
+        ],
+      ],
     );
   }
 }
@@ -845,7 +932,7 @@ class _SessionDayTileState extends State<SessionDayTile> {
                   ),
                   child: Row(
                     children: [
-                      // Index Badge — shows tick when day is completed
+                      // Index Badge -- shows tick when day is completed
                       Container(
                         width: 32,
                         height: 32,
@@ -1041,7 +1128,7 @@ class _SessionDayTileState extends State<SessionDayTile> {
                                               : (widget.isPlayable ? 'Up Next' : '');
                                           if (dur.isEmpty) return status;
                                           if (status.isEmpty) return dur;
-                                          return '$dur • $status';
+                                          return '$dur * $status';
                                         }(),
                                         style: GoogleFonts.inter(
                                           fontSize: 10,
@@ -1385,6 +1472,7 @@ class _InstructorAvatar extends StatelessWidget {
             ? DecorationImage(
                 image: NetworkImage(url),
                 fit: BoxFit.cover,
+                onError: (_, _) {},
               )
             : const DecorationImage(
                 image: AssetImage('assets/avatar_priya.png'),
@@ -1394,4 +1482,5 @@ class _InstructorAvatar extends StatelessWidget {
     );
   }
 }
+
 
